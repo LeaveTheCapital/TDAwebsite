@@ -1,6 +1,9 @@
 let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 
+console.log(ctx.globalCompositeOperation);
+// ctx.globalCompositeOperation = "difference";
+
 ctx.lineWidth = 8;
 
 const width = canvas.width;
@@ -73,6 +76,12 @@ const aStartCoordsFinal = [tStartPoint[0], height * 0.225 + letterHeight / 2];
 
 aXEndPointFinal = width * 0.65;
 
+// vars for lightShow
+
+const lightShowStartCoords = [0, height * 0.5];
+let xEndLightShow = 0;
+let yEndLightShow = 0;
+
 fillBackground();
 
 animateT();
@@ -97,27 +106,36 @@ function drawLineYDiagonal(initialCoords, endCoords, variable, colour) {
   ctx.stroke();
 }
 
+function lightShow() {
+  if (100 < 101) {
+    requestAnimationFrame(lightShow);
+  } else {
+    console.log("finished");
+  }
+  ctx.globalCompositeOperation = "destination-atop";
+  // ctx.putImageData(finalImage, 0, 0);
+  ctx.moveTo(
+    lightShowStartCoords[0] + xEndLightShow,
+    lightShowStartCoords[1] + yEndLightShow
+  );
+  ctx.lineTo(lightShowStartCoords[0] + 10, lightShowStartCoords[1]);
+  ctx.strokeStyle = "yellow";
+  ctx.stroke();
+  if (xEndLightShow < width) {
+    xEndLightShow++;
+  } else {
+    xEndLightShow--;
+  }
+}
+
 function animateAFinal() {
   if (aXEndFinal < aXEndPointFinal) {
     requestAnimationFrame(animateAFinal);
   } else {
     console.log("done AFinal");
-    setTimeout(() => {
-      console.log("hello");
-      ctx.rotate((1.15 * Math.PI) / 180);
-      ctx.lineWidth = 9;
-      ctx.putImageData(finalImage, 0, 0);
-      finalImage = ctx.getImageData(0, 0, width, height);
-      ctx.beginPath();
-      ctx.moveTo(
-        aStartCoordsFinal[0] + aXEndFinal / 1.35,
-        aStartCoordsFinal[1]
-      );
-      ctx.lineTo(aStartCoordsFinal[0] + aXEndFinal, aStartCoordsFinal[1]);
-      ctx.strokeStyle = "yellow";
-      ctx.stroke();
-    }, 300);
+    lightShow();
   }
+
   ctx.putImageData(finalImage, 0, 0);
   finalImage = ctx.getImageData(0, 0, width, height);
   ctx.beginPath();
@@ -132,8 +150,10 @@ function animateA() {
   if (aXEnd < aXEndPoint) {
     requestAnimationFrame(animateA);
   } else {
-    drawLineYDiagonal(aStartCoords, aEndCoords, aXEnd, aColour);
+    // what's going on here
+    // drawLineYDiagonal(aStartCoords, aEndCoords, aXEnd, aColour);
     // animateAFinal();
+    lightShow();
   }
   var aColour = `rgb(${150}, ${10 + ((aXEnd * 1) % 255)}, ${10 +
     ((aXEnd * 2) % 255)})`;
