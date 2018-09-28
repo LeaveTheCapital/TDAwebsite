@@ -1,0 +1,36 @@
+body {
+  margin: 0.2em;
+  background-color: hsl(60, 100%, 80%);
+  background-color: black;
+}
+
+h1 {
+  color: turquoise;
+  background-color: hsl(225, 100%, 50%);
+  padding: 0.3em;
+}
+
+#wassup {
+  background-color: hsl(325, 25%, 50%);
+  margin: auto;
+  padding: 2em;
+  border-radius: 3em;
+  font-size: 3em;
+  height: 90px;
+  width: 80%;
+  -moz-transition: all 0.3s ease-in;
+  -o-transition: all 0.3s ease-in;
+  -webkit-transition: all 0.3s ease-in;
+  transition: all 0.3s ease-in;
+}
+
+#name-input {
+  margin-bottom: 2em;
+}
+
+.vids {
+  margin-top: 2em;
+  margin-right: 2em;
+  width: 280px;
+  height: 158px;
+}
