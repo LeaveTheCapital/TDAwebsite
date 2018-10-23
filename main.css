@@ -1,27 +1,77 @@
 body {
-  margin: 0.2em;
+  margin: 0em;
+  margin: 0;
+  padding: 0;
   background-color: hsl(60, 100%, 80%);
   background-color: black;
+  font-family: "Courier New", Courier, monospace;
+  width: 95vw;
+  overflow-x: hidden;
 }
 
 h1 {
+  position: sticky;
+  top: 3px;
+  font-size: 6vw;
   color: turquoise;
-  background-color: hsl(225, 100%, 50%);
+  background-color: hsl(225, 58%, 51%);
   padding: 0.3em;
+  width: 90vw;
 }
 
+#header-container {
+  position: absolute;
+  width: 100vw;
+  height: 500px;
+  overflow: visible;
+  margin: 0;
+}
+
+p {
+  color: turquoise;
+  width: 80vw;
+}
+
+canvas {
+  transform: scale(0.8, 1.3);
+  z-index: -1;
+
+  width: 80vw;
+}
+
+#one {
+  background-color: hsl(325, 45%, 47%);
+  transform: rotate(1deg);
+}
+#two {
+  background-color: rgb(72, 94, 222);
+  transform: rotate(-1deg);
+}
+#three {
+  background-color: hsl(325, 45%, 47%);
+  transform: rotate(0.3deg);
+}
+#four {
+  background-color: hsl(325, 45%, 47%);
+  transform: rotate(-1deg);
+  transform: scale3d(2.5, 1.2, 0.3);
+  transform: scale(0.8, 2);
+  transform: rotate(-0.5deg);
+}
 #wassup {
+  z-index: 2;
+  opacity: 0.99;
   background-color: hsl(325, 25%, 50%);
   margin: auto;
-  padding: 2em;
+  padding: 0.1em;
   border-radius: 3em;
-  font-size: 3em;
-  height: 90px;
-  width: 80%;
-  -moz-transition: all 0.3s ease-in;
+  font-size: 6vw;
+  /* height: 90px; */
+  width: 70%;
+  -moz-transition: all 3s ease-in;
   -o-transition: all 0.3s ease-in;
   -webkit-transition: all 0.3s ease-in;
-  transition: all 0.3s ease-in;
+  transition: all 3s ease-in;
 }
 
 #name-input {
@@ -30,7 +80,7 @@ h1 {
 
 .vids {
   margin-top: 2em;
-  margin-right: 2em;
-  width: 280px;
-  height: 158px;
+  margin-right: 0em;
+  width: 90vw;
+  /* height: 158px; */
 }
