@@ -1,42 +1,47 @@
 body {
   margin: 0em;
   margin: 0;
-  padding: 0;
+  padding: 1px;
   background-color: hsl(60, 100%, 80%);
   background-color: black;
   font-family: "Courier New", Courier, monospace;
-  width: 95vw;
+  width: 100vw;
   overflow-x: hidden;
 }
 
 h1 {
   position: sticky;
   top: 3px;
-  font-size: 6vw;
+  font-size: calc(1px + 4.5vw);
   color: turquoise;
   background-color: hsl(225, 58%, 51%);
   padding: 0.3em;
-  width: 90vw;
+  /* width: 90vw; */
 }
 
 #header-container {
   position: absolute;
   width: 100vw;
-  height: 500px;
+  height: 88vw;
   overflow: visible;
   margin: 0;
 }
 
-p {
-  color: turquoise;
-  width: 80vw;
+#top-space {
+  height: 15vw;
 }
 
 canvas {
   transform: scale(0.8, 1.3);
   z-index: -1;
-
   width: 80vw;
+  display: block;
+  margin: 0 auto;
+}
+
+p {
+  color: turquoise;
+  width: 95vw;
 }
 
 #one {
@@ -62,6 +67,7 @@ canvas {
   z-index: 2;
   opacity: 0.99;
   background-color: hsl(325, 25%, 50%);
+  background-color: rgb(130, 72, 222);
   margin: auto;
   padding: 0.1em;
   border-radius: 3em;
@@ -78,9 +84,14 @@ canvas {
   margin-bottom: 2em;
 }
 
+#vid-container {
+  display: flex;
+  flex-flow: row wrap;
+  flex-direction: row;
+  justify-content: space-around;
+}
+
 .vids {
   margin-top: 2em;
   margin-right: 0em;
-  width: 90vw;
-  /* height: 158px; */
 }

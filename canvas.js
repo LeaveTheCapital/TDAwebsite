@@ -11,7 +11,7 @@ const velocity = 0.6 || width / 250;
 const letterHeight = height * 0.53;
 
 ctx.lineWidth = 2;
-ctx.shadowBlur = 2;
+ctx.shadowBlur = 0;
 ctx.shadowColor = "white";
 
 let xEnd = 0;
