@@ -3,7 +3,7 @@ let ctx = canvas.getContext("2d");
 
 console.log("linewidth", ctx.lineWidth);
 
-width = canvas.width = window.innerWidth;
+width = canvas.width = window.innerWidth / 3.1;
 height = canvas.height = width * 0.4;
 
 const velocity = 0.6 || width / 250;
@@ -87,6 +87,34 @@ let yEndLightShow = 0;
 
 const lightShowVelocity = 3 || width / 300;
 
+function cloneCanvas(oldCanvas) {
+  //create a new canvas
+  var newCanvas = document.createElement("canvas");
+  var context = newCanvas.getContext("2d");
+
+  //set dimensions
+  newCanvas.width = oldCanvas.width;
+  newCanvas.height = oldCanvas.height;
+
+  //apply the old canvas to the new one
+  context.drawImage(oldCanvas, 0, 0);
+
+  //return the new canvas
+  return newCanvas;
+}
+
+let newCanvas = document.getElementById("new-canvas");
+newCanvas.width = canvas.width;
+newCanvas.height = canvas.height;
+newCanvas.style = canvas.style;
+let ctx2 = newCanvas.getContext("2d");
+
+let canvas3 = document.getElementById("third-canvas");
+canvas3.width = canvas.width;
+canvas3.height = canvas.height;
+canvas3.style = canvas.style;
+let ctx3 = canvas3.getContext("2d");
+
 fillBackground();
 
 animateT();
@@ -115,42 +143,47 @@ function drawLineYDiagonal(initialCoords, endCoords, variable, colour) {
 let xToggle = 0;
 let yToggle = 0;
 
+var count = 0;
 function lightShow() {
-  if (100 < 101) {
-    // requestAnimationFrame(lightShow);
+  if (count < 300) {
+    requestAnimationFrame(lightShow);
     console.log("would be animating");
   } else {
+    ctx.putImageData(finalImage, 0, 0);
+
+    ctx2.drawImage(canvas, 0, 0);
+
     console.log("finished");
   }
-
+  count++;
   ctx.putImageData(finalImage, 0, 0);
-  // ctx.beginPath();
-  // ctx.arc(
-  //   lightShowStartCoords[0] + xEndLightShow,
-  //   lightShowStartCoords[1] + yEndLightShow,
-  //   Math.abs(xEndLightShow) / 3,
-  //   0,
-  //   2 * Math.PI
-  // );
-  // ctx.fillStyle = "pink";
-  // ctx.fill();
+  ctx.beginPath();
+  ctx.arc(
+    lightShowStartCoords[0] + xEndLightShow,
+    lightShowStartCoords[1] + yEndLightShow,
+    Math.abs(xEndLightShow) / 3,
+    0,
+    2 * Math.PI
+  );
+  ctx.fillStyle = "pink";
+  ctx.fill();
 
-  // ctx.strokeStyle = "pink";
+  ctx.strokeStyle = "pink";
 
-  // if (xEndLightShow >= width * 0.8 || xEndLightShow < 0) {
-  //   xToggle = !xToggle ? 1 : 0;
-  // }
+  if (xEndLightShow >= width * 0.8 || xEndLightShow < 0) {
+    xToggle = !xToggle ? 1 : 0;
+  }
 
-  // if (yEndLightShow >= height * 0.7 || yEndLightShow < 0) {
-  //   yToggle = !yToggle ? 1 : 0;
-  // }
+  if (yEndLightShow >= height * 0.7 || yEndLightShow < 0) {
+    yToggle = !yToggle ? 1 : 0;
+  }
 
-  // xEndLightShow = !xToggle
-  //   ? xEndLightShow + lightShowVelocity
-  //   : xEndLightShow - lightShowVelocity;
-  // yEndLightShow = !yToggle
-  //   ? yEndLightShow + 0.2 * lightShowVelocity
-  //   : yEndLightShow - 0.2 * lightShowVelocity;
+  xEndLightShow = !xToggle
+    ? xEndLightShow + lightShowVelocity
+    : xEndLightShow - lightShowVelocity;
+  yEndLightShow = !yToggle
+    ? yEndLightShow + 0.2 * lightShowVelocity
+    : yEndLightShow - 0.2 * lightShowVelocity;
 }
 
 function animateAFinal() {
@@ -219,6 +252,9 @@ function animateAFinal() {
     aXEndFinal = aXEndFinal + 7;
   } else {
     console.log("done AFinal");
+    ctx2.drawImage(canvas, 0, 0);
+    ctx3.drawImage(canvas, 0, 0);
+
     finalImage = ctx.getImageData(0, 0, width, height);
     ctx.globalCompositeOperation = "destination-in";
     lightShow();
@@ -232,6 +268,8 @@ function animateA() {
     requestAnimationFrame(animateA);
   } else {
     // what's going on here
+    ctx2.drawImage(canvas, 0, 0);
+
     drawLineYDiagonal(aStartCoords, aEndCoords, aXEnd, aColour);
   }
   var aColour = `rgb(${150}, ${10 + ((aXEnd * 1) % 255)}, ${10 +
@@ -249,6 +287,8 @@ function animateD() {
   if (dYEnd < dYEndPoint) {
     window.requestAnimationFrame(animateD);
   } else {
+    ctx2.drawImage(canvas, 0, 0);
+
     animateDStep2();
   }
   drawLineYForwards(
@@ -306,6 +346,7 @@ function animateDStep2() {
     console.log("done D");
 
     finalImage = ctx.getImageData(0, 0, width, height);
+    ctx2.drawImage(canvas, 0, 0);
 
     animateAFinal();
   }
@@ -315,6 +356,7 @@ function animateT() {
   if (xEnd < tXEndPoint) {
     window.requestAnimationFrame(animateT);
   } else {
+    ctx2.drawImage(canvas, 0, 0);
     animateTStep2();
   }
 

@@ -11,7 +11,7 @@ body {
 
 h1 {
   position: sticky;
-  top: 3px;
+  top: 14px;
   font-size: calc(1px + 4.5vw);
   color: turquoise;
   background-color: hsl(225, 58%, 51%);
@@ -34,9 +34,9 @@ h1 {
 canvas {
   transform: scale(0.8, 1.3);
   z-index: -1;
-  width: 80vw;
-  display: block;
-  margin: 0 auto;
+  /* width: 80vw; */
+  display: inline-block;
+  /* margin: 0 auto; */
 }
 
 p {
