@@ -16,15 +16,18 @@ h1 {
   color: turquoise;
   background-color: hsl(225, 58%, 51%);
   padding: 0.3em;
+  display: inline-block;
+  width: 100%;
   /* width: 90vw; */
 }
 
 #header-container {
   position: absolute;
   width: 100vw;
-  height: 88vw;
+  /* height: 88vw; */
   overflow: visible;
   margin: 0;
+  margin-top: -20px;
 }
 
 #top-space {
@@ -34,6 +37,7 @@ h1 {
 canvas {
   transform: scale(0.8, 1.3);
   z-index: -1;
+  /* margin-top: -50px; */
   /* width: 80vw; */
   display: inline-block;
   /* margin: 0 auto; */
@@ -94,4 +98,8 @@ p {
 .vids {
   margin-top: 2em;
   margin-right: 0em;
+}
+
+.vids:hover {
+  cursor: pointer;
 }

@@ -10,7 +10,7 @@ const velocity = 0.6 || width / 250;
 
 const letterHeight = height * 0.53;
 
-ctx.lineWidth = 2;
+ctx.lineWidth = 1;
 ctx.shadowBlur = 0;
 ctx.shadowColor = "white";
 
@@ -114,6 +114,14 @@ canvas3.width = canvas.width;
 canvas3.height = canvas.height;
 canvas3.style = canvas.style;
 let ctx3 = canvas3.getContext("2d");
+
+const header = document.getElementById("tda-heading");
+const headerStyle = window.getComputedStyle(header);
+console.log(headerStyle, "hello");
+canvas.style.marginTop = newCanvas.style.marginTop = canvas3.style.marginTop =
+  "calc(" + "-" + headerStyle.height + " + 11px)";
+// canvas.style.marginTop = "-" + headerStyle.height;
+console.log(canvas.style.marginTop, "hiya");
 
 fillBackground();
 
