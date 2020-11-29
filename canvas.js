@@ -1,15 +1,14 @@
 let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 
-console.log(ctx.globalCompositeOperation);
 // ctx.globalCompositeOperation = "difference";
-
-ctx.lineWidth = 8;
+ctx.lineCap = "square";
+ctx.lineWidth = 5;
 
 const width = canvas.width;
 const height = canvas.height;
 
-const letterHeight = height * 0.53;
+const letterHeight = height * 0.54;
 
 let xEnd = 0;
 let yEnd = 0;
@@ -24,10 +23,12 @@ let xEnd4 = 0;
 let yEnd4 = 0;
 
 const cdolour = "cornflowerblue";
-let tColour = `rgb(${0}, ${100 + ((xEnd * 1) % 255)}, ${100 +
-  ((xEnd * 3) % 255)})`;
+let tColour = `rgb(${0}, ${100 + ((xEnd * 1) % 255)}, ${
+  100 + ((xEnd * 3) % 255)
+})`;
 
-const tStartPoint = [width * 0.1, height * 0.225];
+// vars for letter T
+const tStartPoint = [width * 0.12, height * 0.225];
 
 const tXEndPoint = width * 0.2;
 const tYEndPoint = height * 0.13;
@@ -42,13 +43,13 @@ const tXEndPoint4 = tXEndPoint - 2 * tXEndPoint2;
 const tYEndPoint4 = tYEndPoint3;
 
 // vars for letter D
-
 let dXEnd = -Math.PI / 2;
 let dYEnd = 0;
 
-const dStartPoint = [width * 0.4, height * 0.225];
-let dColour = `rgb(${150}, ${10 + ((dYEnd * 3) % 255)}, ${10 +
-  ((dYEnd * 3) % 255)})`;
+const dStartPoint = [width * 0.44, height * 0.225];
+let dColour = `rgb(${150}, ${10 + ((dYEnd * 3) % 255)}, ${
+  10 + ((dYEnd * 3) % 255)
+})`;
 
 const dYEndPoint = height * 0.53;
 
@@ -59,14 +60,13 @@ const dXEndPoint = width * 0.0275;
 const dYEndPoint2 = tYEndPoint + tYEndPoint3 - width * 0.08;
 
 // vars for letter A
-
 let aXEnd = 0;
 let aXEnd2 = 0;
 let aXEndFinal = 0;
 
 const aXEndPoint = width * 0.07;
 
-const aStartCoords = [width * 0.6, height * 0.225];
+const aStartCoords = [width * 0.69, height * 0.225];
 const aEndCoords = [aStartCoords[0], aStartCoords[1] + letterHeight];
 
 const aStartCoords2 = [aStartCoords[0] + 2 * aXEndPoint, aStartCoords[1]];
@@ -74,15 +74,20 @@ const aEndCoords2 = [aStartCoords2[0], aStartCoords2[1] + letterHeight];
 
 const aStartCoordsFinal = [tStartPoint[0], height * 0.225 + letterHeight / 2];
 
-aXEndPointFinal = width * 0.65;
+aXEndPointFinal = width * 0.74;
 
 // vars for lightShow
-
 const lightShowStartCoords = [0, height * 0.5];
 let xEndLightShow = 0;
 let yEndLightShow = 0;
 
 fillBackground();
+
+let iFlash = 0;
+let jFlash = 0;
+let iColour = 0;
+
+flashBackground();
 
 animateT();
 
@@ -106,34 +111,14 @@ function drawLineYDiagonal(initialCoords, endCoords, variable, colour) {
   ctx.stroke();
 }
 
-function lightShow() {
-  if (100 < 101) {
-    requestAnimationFrame(lightShow);
-  } else {
-    console.log("finished");
-  }
-  ctx.globalCompositeOperation = "destination-atop";
-  // ctx.putImageData(finalImage, 0, 0);
-  ctx.moveTo(
-    lightShowStartCoords[0] + xEndLightShow,
-    lightShowStartCoords[1] + yEndLightShow
-  );
-  ctx.lineTo(lightShowStartCoords[0] + 10, lightShowStartCoords[1]);
-  ctx.strokeStyle = "yellow";
-  ctx.stroke();
-  if (xEndLightShow < width) {
-    xEndLightShow++;
-  } else {
-    xEndLightShow--;
-  }
-}
-
 function animateAFinal() {
   if (aXEndFinal < aXEndPointFinal) {
     requestAnimationFrame(animateAFinal);
   } else {
     console.log("done AFinal");
-    lightShow();
+    // initiate final flourish
+    // flashBackground();
+    // lightShow();
   }
 
   ctx.putImageData(finalImage, 0, 0);
@@ -150,13 +135,11 @@ function animateA() {
   if (aXEnd < aXEndPoint) {
     requestAnimationFrame(animateA);
   } else {
-    // what's going on here
-    // drawLineYDiagonal(aStartCoords, aEndCoords, aXEnd, aColour);
-    // animateAFinal();
-    lightShow();
+    drawLineYDiagonal(aStartCoords, aEndCoords, aXEnd, aColour);
   }
-  var aColour = `rgb(${150}, ${10 + ((aXEnd * 1) % 255)}, ${10 +
-    ((aXEnd * 2) % 255)})`;
+  var aColour = `rgb(${150}, ${10 + ((aXEnd * 1) % 255)}, ${
+    10 + ((aXEnd * 2) % 255)
+  })`;
   ctx.putImageData(imageData, aStartCoords[0] - 5, aStartCoords[1] - 5);
 
   drawLineYDiagonal(aStartCoords, aEndCoords, aXEnd, aColour);
@@ -187,8 +170,9 @@ function animateD() {
     -Math.PI / 2,
     dXEnd
   );
-  ctx.strokeStyle = `rgb(${150}, ${10 + ((dYEnd * 1) % 255)}, ${10 +
-    ((dYEnd * 2) % 255)})`;
+  ctx.strokeStyle = `rgb(${150}, ${10 + ((dYEnd * 1) % 255)}, ${
+    10 + ((dYEnd * 2) % 255)
+  })`;
   ctx.stroke();
   dYEnd++;
   if (dXEnd < Math.PI / 2) {
@@ -222,8 +206,9 @@ function animateDStep2() {
     -Math.PI / 2,
     dXEnd2
   );
-  ctx.strokeStyle = `rgb(${150}, ${10 + ((dYEnd2 * 1) % 255)}, ${10 +
-    ((dYEnd2 * 3) % 255)})`;
+  ctx.strokeStyle = `rgb(${150}, ${10 + ((dYEnd2 * 1) % 255)}, ${
+    10 + ((dYEnd2 * 3) % 255)
+  })`;
   ctx.stroke();
   dYEnd2++;
   if (dXEnd2 < Math.PI / 2) {
@@ -334,4 +319,45 @@ function fillBackground() {
   ctx.fillStyle = "rgb(200, 100, 100)";
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, width, height);
+}
+
+function flashBackground() {
+  iFlash += 3;
+  jFlash += 1;
+  if (iFlash <= 3000) {
+    window.requestAnimationFrame(flashBackground);
+  } else {
+    console.log("done");
+  }
+  const red = iFlash < 255 ? iFlash % 255 : jFlash;
+  const green = iFlash > 255 && iFlash < 510 ? iFlash % 255 : jFlash;
+  const blue = iFlash > 510 && iFlash < 765 ? iFlash % 255 : jFlash;
+
+  const hue = iFlash % 360;
+
+  const borderColour = `hsl(${hue}, ${`100%`}, ${`50%`})`;
+  canvas.style.border = `5px solid ${borderColour}`;
+}
+
+// supposed to be like fox searchlight pictures torch thing
+function lightShow() {
+  if (100 < 101) {
+    requestAnimationFrame(lightShow);
+  } else {
+    console.log("finished");
+  }
+  ctx.globalCompositeOperation = "destination-atop";
+  // ctx.putImageData(finalImage, 0, 0);
+  ctx.moveTo(
+    lightShowStartCoords[0] + xEndLightShow,
+    lightShowStartCoords[1] + yEndLightShow
+  );
+  ctx.lineTo(lightShowStartCoords[0] + 10, lightShowStartCoords[1]);
+  ctx.strokeStyle = "yellow";
+  ctx.stroke();
+  if (xEndLightShow < width) {
+    xEndLightShow++;
+  } else {
+    xEndLightShow--;
+  }
 }
