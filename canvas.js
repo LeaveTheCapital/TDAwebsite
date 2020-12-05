@@ -154,12 +154,14 @@ function animateD() {
   } else {
     animateDStep2();
   }
-  drawLineYForwards(
-    dStartPoint,
-    0,
-    dYEnd,
-    `rgb(${150}, ${10 + ((dYEnd * 1) % 255)}, ${10 + ((dYEnd * 2) % 255)})`
-  );
+  drawLineYForwards({
+    initialCoords: dStartPoint,
+    endPoint: 0,
+    length: dYEnd,
+    colour: `rgb(${150}, ${10 + ((dYEnd * 1) % 255)}, ${
+      10 + ((dYEnd * 2) % 255)
+    })`,
+  });
   ctx.beginPath();
   ctx.ellipse(
     dStartPoint[0],
@@ -190,12 +192,14 @@ function animateDStep2() {
 
     animateAFinal();
   }
-  drawLineYForwards(
-    [dStartPoint[0], dStartPoint[1] + width * 0.04],
-    dXEndPoint,
-    dYEnd2,
-    `rgb(${150}, ${10 + ((dYEnd2 * 2) % 255)}, ${50 + ((dYEnd2 * 3) % 255)})`
-  );
+  drawLineYForwards({
+    initialCoords: [dStartPoint[0], dStartPoint[1] + width * 0.04],
+    endPoint: dXEndPoint,
+    length: dYEnd2,
+    colour: `rgb(${150}, ${10 + ((dYEnd2 * 2) % 255)}, ${
+      50 + ((dYEnd2 * 3) % 255)
+    })`,
+  });
   ctx.beginPath();
   ctx.ellipse(
     dStartPoint[0] + dXEndPoint,
@@ -223,8 +227,18 @@ function animateT() {
     animateTStep2();
   }
   tColour = `rgb(${0}, ${100 + ((xEnd * 1) % 255)}, 100)`;
-  drawLineXForwards(tStartPoint, 0, xEnd, tColour);
-  drawLineYForwards(tStartPoint, 0, yEnd, tColour);
+  drawLineXForwards({
+    initialCoords: tStartPoint,
+    yPositionOffset: 0,
+    length: xEnd,
+    colour: tColour,
+  });
+  drawLineYForwards({
+    initialCoords: tStartPoint,
+    endPoint: 0,
+    length: yEnd,
+    colour: tColour,
+  });
   xEnd++;
   xEnd++;
   if (yEnd < tYEndPoint) {
@@ -238,8 +252,18 @@ function animateTStep2() {
   } else {
     animateTStep3();
   }
-  drawLineXForwards(tStartPoint, tYEndPoint, xEnd2, tColour);
-  drawLineYForwards(tStartPoint, tXEndPoint, yEnd2, tColour);
+  drawLineXForwards({
+    initialCoords: tStartPoint,
+    yPositionOffset: tYEndPoint,
+    length: xEnd2,
+    colour: tColour,
+  });
+  drawLineYForwards({
+    initialCoords: tStartPoint,
+    endPoint: tXEndPoint,
+    length: yEnd2,
+    colour: tColour,
+  });
   xEnd2++;
   xEnd2++;
   if (yEnd2 < tYEndPoint2) {
@@ -255,18 +279,18 @@ function animateTStep3() {
     animateTStep4();
   }
 
-  drawLineYForwards(
-    [tStartPoint[0], tStartPoint[1] + tYEndPoint2],
-    tXEndPoint2,
-    yEnd3,
-    tColour
-  );
-  drawLineXForwards(
-    [tStartPoint[0] + tXEndPoint, tStartPoint[1]],
-    tYEndPoint2,
-    -xEnd3,
-    tColour
-  );
+  drawLineYForwards({
+    initialCoords: [tStartPoint[0], tStartPoint[1] + tYEndPoint2],
+    endPoint: tXEndPoint2,
+    length: yEnd3,
+    colour: tColour,
+  });
+  drawLineXForwards({
+    initialCoords: [tStartPoint[0] + tXEndPoint, tStartPoint[1]],
+    yPositionOffset: tYEndPoint2,
+    length: -xEnd3,
+    colour: tColour,
+  });
   yEnd3++;
   yEnd3++;
   if (xEnd3 < tXEndPoint3) {
@@ -280,18 +304,18 @@ function animateTStep4() {
   } else {
     console.log("done T");
   }
-  drawLineXForwards(
-    [tStartPoint[0] + tXEndPoint2, tStartPoint[1]],
-    tYEndPoint2 + tYEndPoint4,
-    xEnd4,
-    tColour
-  );
-  drawLineYForwards(
-    [tStartPoint[0], tStartPoint[1] + tYEndPoint],
-    tXEndPoint - tXEndPoint2,
-    yEnd4,
-    tColour
-  );
+  drawLineXForwards({
+    initialCoords: [tStartPoint[0] + tXEndPoint2, tStartPoint[1]],
+    yPositionOffset: tYEndPoint2 + tYEndPoint4,
+    length: xEnd4,
+    colour: tColour,
+  });
+  drawLineYForwards({
+    initialCoords: [tStartPoint[0], tStartPoint[1] + tYEndPoint],
+    endPoint: tXEndPoint - tXEndPoint2,
+    length: yEnd4,
+    colour: tColour,
+  });
   yEnd4++;
   yEnd4++;
   if (xEnd4 < tXEndPoint4) {
@@ -299,18 +323,18 @@ function animateTStep4() {
   }
 }
 
-function drawLineXForwards(initialCoords, endPoint, variable, colour) {
+function drawLineXForwards({ initialCoords, yPositionOffset, length, colour }) {
   ctx.beginPath();
-  ctx.moveTo(initialCoords[0], initialCoords[1] + endPoint);
-  ctx.lineTo(initialCoords[0] + variable, initialCoords[1] + endPoint);
+  ctx.moveTo(initialCoords[0], initialCoords[1] + yPositionOffset);
+  ctx.lineTo(initialCoords[0] + length, initialCoords[1] + yPositionOffset);
   ctx.strokeStyle = colour;
   ctx.stroke();
 }
 
-function drawLineYForwards(initialCoords, endPoint, variable, colour) {
+function drawLineYForwards({ initialCoords, endPoint, length, colour }) {
   ctx.beginPath();
   ctx.moveTo(initialCoords[0] + endPoint, initialCoords[1]);
-  ctx.lineTo(initialCoords[0] + endPoint, initialCoords[1] + variable);
+  ctx.lineTo(initialCoords[0] + endPoint, initialCoords[1] + length);
   ctx.strokeStyle = colour;
   ctx.stroke();
 }
