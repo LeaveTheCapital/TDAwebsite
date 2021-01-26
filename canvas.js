@@ -1,10 +1,10 @@
 let canvas = document.getElementById("canvas");
-canvas.style.border = "1px solid yellow";
+// canvas.style.border = "1px solid yellow";
 let ctx = canvas.getContext("2d");
 
 // ctx.globalCompositeOperation = "difference";
 ctx.lineCap = "square";
-ctx.lineWidth = 2;
+// ctx.lineWidth = 70;
 
 //consts for size
 
@@ -396,6 +396,7 @@ class A2 extends Letter {
       () => {
         console.log("finished A2.. can do light show");
         finalImage = ctx.getImageData(0, 0, width, height);
+        flashBorder();
         lightShow();
       }
     );
@@ -425,12 +426,6 @@ class A2 extends Letter {
     this.aXEndFinal = this.aXEndFinal + 7;
   }
 }
-
-let iFlash = 0;
-let jFlash = 0;
-let iColour = 0;
-
-// flashBorder();
 
 const t = new T1(width, height);
 t.animationFunc();
@@ -463,24 +458,30 @@ function drawLineYForwards({ initialCoords, endPoint, length, colour }) {
   ctx.stroke();
 }
 
+let stopFlashing = false;
+let borderColour;
+let iFlash = 37;
+
 function flashBorder() {
-  iFlash += 3;
+  iFlash += 0.05;
   if (iFlash <= 1000) {
-    window.requestAnimationFrame(flashBorder);
+    if (!stopFlashing) {
+      window.requestAnimationFrame(flashBorder);
+    }
   } else {
     console.log("finished flashing");
   }
 
   const hue = iFlash % 360;
 
-  const borderColour = `hsl(${hue}, ${`100%`}, ${`50%`})`;
-  canvas.style.border = `2px solid ${borderColour}`;
+  borderColour = `hsl(${hue}, ${`100%`}, ${`50%`})`;
+  // canvas.style.border = `2px solid ${borderColour}`;
 }
 
 // vars for lightShow
 const lightShowStartCoords = [0, height * 0.5];
 const lightShowStartCoords2 = [width, height * 0.5];
-let xEndLightShow = 0;
+let xEndLightShow = letterWidth / 2;
 let yEndLightShow = height * 1.5;
 let time = 0;
 
@@ -489,17 +490,31 @@ function lightShow() {
   if (time < width * 2) {
     requestAnimationFrame(lightShow);
   } else {
-    console.log("finished");
+    stopFlashing = true;
+    ctx.font = "36px serif";
+    // ctx.strokeStyle = borderColour;
+    ctx.fillStyle = "yellow";
+    ctx.fillText("Presents", width / 3, (height * 7) / 8);
+    console.log("finished light show");
+    return;
   }
   ctx.putImageData(finalImage, 0, 0);
   ctx.globalCompositeOperation = "xor"; // lighter
 
   ctx.beginPath();
+
+  const cx = lightShowStartCoords[0] + xEndLightShow;
+  const cy = lightShowStartCoords[1] - yEndLightShow;
+  const r = letterWidth / 4;
+  const a = Math.PI * 1.25;
+  const b = Math.PI * 0.25;
+  const x = cx + r * Math.cos(a);
+  const y = cy + r * Math.sin(a);
+  const x2 = cx + r * Math.cos(b);
+  const y2 = cy + r * Math.sin(b);
+
   ctx.moveTo(0, height);
-  ctx.lineTo(
-    lightShowStartCoords[0] + xEndLightShow - letterWidth / 4,
-    height / 2 - yEndLightShow
-  );
+  ctx.lineTo(x, y);
   ctx.ellipse(
     lightShowStartCoords[0] + xEndLightShow,
     lightShowStartCoords[1] - yEndLightShow,
@@ -510,11 +525,17 @@ function lightShow() {
     0
   );
   ctx.moveTo(0, height);
-  ctx.lineTo(
-    lightShowStartCoords[0] + xEndLightShow + letterWidth / 4,
-    height / 2 - yEndLightShow
+  ctx.lineTo(x2, y2);
+  ctx.ellipse(
+    lightShowStartCoords[0] + xEndLightShow,
+    lightShowStartCoords[1] - yEndLightShow,
+    letterWidth / 4,
+    letterWidth / 4,
+    0,
+    2 * Math.PI,
+    0
   );
-  ctx.closePath();
+
   ctx.globalAlpha = 0.5;
   ctx.strokeStyle = "yellow";
   ctx.fillStyle = "yellow";
@@ -540,9 +561,10 @@ function lightShow() {
     lightShowStartCoords2[0] - 0.7 * xEndLightShow + letterWidth / 4,
     height / 2 - 0.7 * yEndLightShow
   );
-  ctx.closePath();
   ctx.strokeStyle = "yellow";
   ctx.fillStyle = "yellow";
+  ctx.strokeStyle = borderColour;
+  ctx.fillStyle = borderColour;
   ctx.globalAlpha = 0.3;
 
   ctx.fill();

@@ -34,3 +34,43 @@ h1 {
   width: 280px;
   height: 158px;
 }
+
+canvas {
+  display: block;
+}
+
+.era-heading {
+  color: white;
+  padding-left: 1rem;
+  line-height: 1rem;
+}
+
+.yellow {
+  color: white;
+  font-style: italic;
+  padding-left: 1rem;
+  padding-bottom: 1rem;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.curve-holder {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
+
+.curve-master {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.curve {
+  position: relative;
+}
+
+#canvas-one {
+  background-color: transparent;
+}

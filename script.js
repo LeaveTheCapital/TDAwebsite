@@ -1,36 +1,36 @@
-// let nameButton = document.getElementById("name-button");
-// let nameInput = document.getElementById("name-input");
-// let wassup = document.getElementById("wassup");
-// let wassupStyle = wassup.style;
-// wassupStyle.color = "white";
-// let rndColour = "yellow";
-// let rndRed = Math.random() * 255;
-// let rndGreen = Math.random() * 255;
-// let rndBlue = Math.random() * 255;
-// rndColour = `rgb(${rndRed},${rndGreen},${rndBlue})`;
-// wassupStyle.backgroundColor = rndColour;
+let nameButton = document.getElementById("name-button");
+let nameInput = document.getElementById("name-input");
+let wassup = document.getElementById("wassup");
+let wassupStyle = wassup.style;
+wassupStyle.color = "white";
+let rndColour = "yellow";
+let rndRed = Math.random() * 255;
+let rndGreen = Math.random() * 255;
+let rndBlue = Math.random() * 255;
+rndColour = `rgb(${rndRed},${rndGreen},${rndBlue})`;
+wassupStyle.backgroundColor = rndColour;
 
-// nameButton.onclick = getName;
+nameButton.onclick = getName;
 
-// let iFrequency = 200;
-// let i = 0;
-// let myInterval = setInterval(doSomething, iFrequency);
+let iFrequency = 200;
+let i = 0;
+let myInterval = setInterval(doSomething, iFrequency);
 
-// function doSomething() {
-//   if (i > 6) {
-//     window.clearInterval(myInterval);
-//     return;
-//   }
-//   rndRed = Math.floor(Math.random() * 255);
-//   rndGreen = Math.floor(Math.random() * 255);
-//   rndBlue = Math.floor(Math.random() * 255);
-//   rndColour = `rgb(${rndRed},${rndGreen},${rndBlue})`;
-//   wassupStyle.backgroundColor = rndColour;
-//   iFrequency = Math.random() * 150;
-//   window.clearInterval(myInterval);
-//   myInterval = setInterval(doSomething, iFrequency);
-//   i++;
-// }
+function doSomething() {
+  if (i > 6) {
+    window.clearInterval(myInterval);
+    return;
+  }
+  rndRed = Math.floor(Math.random() * 255);
+  rndGreen = Math.floor(Math.random() * 255);
+  rndBlue = Math.floor(Math.random() * 255);
+  rndColour = `rgb(${rndRed},${rndGreen},${rndBlue})`;
+  wassupStyle.backgroundColor = rndColour;
+  iFrequency = Math.random() * 150;
+  window.clearInterval(myInterval);
+  myInterval = setInterval(doSomething, iFrequency);
+  i++;
+}
 
 // function getName() {
 //   let name = nameInput.value;
