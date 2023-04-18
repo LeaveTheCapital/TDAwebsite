@@ -4,6 +4,46 @@ body {
   background-color: black;
 }
 
+nav {
+  display: flex;
+  justify-content: end;
+}
+
+.github-card {
+  display: flex;
+  align-items: start;
+  border: 1px solid grey;
+  box-shadow: 3px grey;
+  border-radius: 2px;
+  background-color: whitesmoke;
+  height: 56px;
+  margin-right: 0.5rem;
+}
+
+.github-avatar {
+  margin-top: 5px;
+  margin-left: 5px;
+}
+
+.github-name {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.github-logo {
+  background: white;
+  margin: 0.2rem 0.2rem 0 0;
+}
+
+.github-username {
+  color: black;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
 h1 {
   color: turquoise;
   background-color: hsl(225, 100%, 50%);
@@ -43,6 +83,7 @@ canvas {
   color: white;
   padding-left: 1rem;
   line-height: 1rem;
+  text-decoration: underline;
 }
 
 .yellow {
@@ -60,6 +101,7 @@ canvas {
   display: flex;
   flex-direction: row;
   justify-content: center;
+  align-items: center;
 }
 
 .curve-master {
@@ -73,4 +115,36 @@ canvas {
 
 #canvas-one {
   background-color: transparent;
+}
+
+.personal-holder {
+  padding-left: 4rem;
+  display: flex;
+}
+
+.personal-circle {
+  color: white;
+  border: 1px solid white;
+  border-radius: 50%;
+  width: 8rem;
+  height: 8rem;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 8rem;
+  cursor: pointer;
+}
+
+.personal-circle:hover {
+  background: orange;
+}
+
+#personal-canvas {
+  height: 8rem;
+  width: 12rem;
+}
+
+.personal-image {
+  display: none;
+  width: 12rem;
+  /* height: 8rem; */
 }

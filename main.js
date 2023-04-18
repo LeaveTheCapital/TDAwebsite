@@ -1,4 +1,4 @@
-const canvases = document.getElementsByTagName("canvas");
+const canvases = document.getElementsByClassName("border-canvas");
 
 const boxes = document.getElementsByClassName("curve");
 const absolutes = document.getElementsByClassName("absolute");
@@ -29,7 +29,7 @@ let alreadyAnimated = canvases.length;
 let id = 0;
 
 for (let i = 0; i < boxes.length; i++) {
-  boxes[i].addEventListener("mouseenter", function (event) {
+  boxes[i].addEventListener("mouseenter", function () {
     id++;
     let prevAlreadyAnimated = alreadyAnimated;
     alreadyAnimated = i;
@@ -75,7 +75,7 @@ function animateBorders(end, start = 0, identity = 0) {
     let iteratorBottom = 0;
     done[i] = false;
     const canvas = canvases[i];
-    const steps = 11;
+    const steps = 12;
     const heightSteps = steps * (canvas.height / canvas.width);
 
     const ctx = canvas.getContext("2d");
@@ -180,7 +180,67 @@ function drawBorderLines(
     }
   }
 
-  ctx.strokeStyle = colour;
+  // ctx.strokeStyle = colour;
+  const getColour = (step) =>
+    `hsl(${i * (360 / canvases.length) + step}, ${`100%`}, ${`50%`})`;
+  // const grad = ctx.createLinearGradient(
+  //   canvas.width / 2,
+  //   0,
+  //   canvas.width / 2,
+  //   canvas.height
+  // );
+  const grad = ctx.createLinearGradient(
+    canvas.width / 2,
+    0,
+    (canvas.width * 3) / 6,
+    canvas.height
+  );
+  grad.addColorStop(0, getColour(20));
+  // grad.addColorStop(0.5, getColour(45));
+  grad.addColorStop(1, getColour(90));
+
+  ctx.strokeStyle = grad;
   ctx.stroke();
   ctx.stroke();
+}
+
+const personal = document.getElementById("personal-circle");
+personal.addEventListener("click", () => {
+  animatePersonalProjects();
+});
+
+function animatePersonalProjects() {
+  const canvas = document.getElementById("personal-canvas");
+  const ctx = canvas.getContext("2d");
+
+  const width = canvas.width;
+  const height = canvas.height;
+
+  let x = 0;
+  let y = 0;
+
+  window.requestAnimationFrame(drawPersonalLines);
+
+  function drawPersonalLines() {
+    if (x < width) {
+      window.requestAnimationFrame(drawPersonalLines);
+    } else {
+      console.log("done lines");
+      const personalImages = document.getElementsByClassName("personal-image");
+      for (let i = 0; i < 2; i++) {
+        personalImages[i].style.display = "inline-block";
+      }
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(x, height / 2 + y);
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(x, height / 2 - y);
+
+    ctx.strokeStyle = "white";
+    ctx.stroke();
+    x += 4;
+    y += 2;
+  }
 }

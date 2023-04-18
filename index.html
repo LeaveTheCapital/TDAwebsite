@@ -1,64 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>TDA</title>
-    <link rel="stylesheet" href="main.css">
-</head>
-<body>
-    <div class="curve-holder">
-        <div class="curve-master">
-            <div class="curve">
-                <div class="absolute">
-                    <h2 class="era-heading">
-                        childhood
-                    </h2>
-                    <div class="yellow">Grew up in west lancashire, lorem ipsum ipsum ipsum lorem ipsum lorem lorem lorem ipsum. Grew up in west lancashire, lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.</div>
-                </div>
-                <canvas id="canvas-1"></canvas>
-            </div>
-            <div class="curve">
-                <div class="absolute">
-                    <h2 class="era-heading">
-                        university
-                    </h2>
-                    <div class="yellow">Nottingham University 2002-2005 Mathematics (Pure Mathematics)</div>
-                </div>
-                <canvas id="canvas-2"></canvas>
-            </div>
-            <div class="curve">
-                <div class="absolute">
-                    <h2 class="era-heading">
-                        musician
-                    </h2>
-                    <div class="yellow">Grew up in west lancashire, lorem ipsum ipsum ipsum lorem ipsum lorem lorem lorem ipsum. Grew up in west lancashire, lorem ipsum.</div>
-                </div>
-                <canvas id="canvas-3"></canvas>
-            </div>
-            <div class="curve">
-                <div class="absolute">
-                    <h2 class="era-heading">
-                        coding bootcamp
-                    </h2>
-                    <div class="yellow">Northcoders Bootcamp 2018, lorem ipsum.</div>
-                </div>
-                <canvas id="canvas-4"></canvas>
-            </div>
-            <div class="curve">
-                <div class="absolute">
-                    <h2 class="era-heading">
-                        software developer
-                    </h2>
-                    <div class="yellow">Grew up in west lancashire, lorem ipsum ipsum ipsum lorem ipsum lorem lorem lorem ipsum. Grew up in west lancashire, lorem ipsum.</div>
-                </div>
-                <canvas id="canvas-5"></canvas>
-            </div>
+    <link rel="stylesheet" href="main.css" />
+  </head>
+
+  <body>
+    <nav>
+      <!-- <div class="github-card" data-github="LeaveTheCapital" data-width="400" data-height="" data-theme="default"></div>
+        <script src="//cdn.jsdelivr.net/github-cards/latest/widget.js"></script> -->
+      <!-- <div class="github-card" data-user="LeaveTheCapital"></div>
+        <script src="http://lab.lepture.com/github-cards/widget.js"></script> -->
+      <div class="github-card">
+        <div class="github-avatar">
+          <a href="https://github.com/LeaveTheCapital">
+            <img
+              src="https://avatars.githubusercontent.com/u/36675235?v=4&s=48"
+              alt="profile for LeaveTheCapital at GitHub"
+            />
+          </a>
         </div>
+        <div class="github-name">
+          <div class="github-username">Henry Withers</div>
+          <div class="github-username">@LeaveTheCapital</div>
+        </div>
+        <img
+          class="github-logo"
+          src="GitHub-Mark-32px.png"
+          width="32"
+          height="32"
+          alt="GitHub logo"
+        />
+      </div>
+      <a href="https://stackoverflow.com/users/10110621/leavethecapital"
+        ><img
+          src="https://stackoverflow.com/users/flair/10110621.png?theme=dark"
+          width="208"
+          height="58"
+          alt="profile for LeaveTheCapital at Stack Overflow, Q&amp;A for professional and enthusiast programmers"
+          title="profile for LeaveTheCapital at Stack Overflow, Q&amp;A for professional and enthusiast programmers"
+      /></a>
+    </nav>
+    <div class="curve-holder">
+      <div class="curve-master">
+        <div class="curve">
+          <div class="absolute">
+            <h2 class="era-heading">childhood</h2>
+            <div class="yellow">
+              Grew up in west lancashire, lorem ipsum ipsum ipsum lorem ipsum
+              lorem lorem lorem ipsum. Grew up in west lancashire, lorem
+              ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem
+              ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem
+              ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.lorem ipsum.
+            </div>
+          </div>
+          <canvas id="canvas-1" class="border-canvas"></canvas>
+        </div>
+        <div class="curve">
+          <div class="absolute">
+            <h2 class="era-heading">university</h2>
+            <div class="yellow">
+              Nottingham University 2002-2005 Mathematics (Pure Mathematics)
+            </div>
+          </div>
+          <canvas id="canvas-2" class="border-canvas"></canvas>
+        </div>
+        <div class="curve">
+          <div class="absolute">
+            <h2 class="era-heading">musician</h2>
+            <div class="yellow">
+              Grew up in west lancashire, lorem ipsum ipsum ipsum lorem ipsum
+              lorem lorem lorem ipsum. Grew up in west lancashire, lorem ipsum.
+            </div>
+          </div>
+          <canvas id="canvas-3" class="border-canvas"></canvas>
+        </div>
+        <div class="curve">
+          <div class="absolute">
+            <h2 class="era-heading">coding bootcamp</h2>
+            <div class="yellow">Northcoders Bootcamp 2018, lorem ipsum.</div>
+          </div>
+          <canvas id="canvas-4" class="border-canvas"></canvas>
+        </div>
+        <div class="curve">
+          <div class="absolute">
+            <h2 class="era-heading">software developer</h2>
+            <div class="yellow">
+              Grew up in west lancashire, lorem ipsum ipsum ipsum lorem ipsum
+              lorem lorem lorem ipsum. Grew up in west lancashire, lorem ipsum.
+            </div>
+          </div>
+          <canvas id="canvas-5" class="border-canvas"></canvas>
+        </div>
+      </div>
+      <div class="personal-holder">
+        <div id="personal-circle" class="personal-circle">
+          Personal Projects
+        </div>
+      </div>
+      <div>
+        <img class="personal-image" src="Capture.PNG" />
+        <canvas id="personal-canvas"></canvas>
+        <img class="personal-image" src="personal-website.PNG" />
+      </div>
     </div>
-</body>
-</script>
-<script src="main.js">
-</script>
+  </body>
+  <script src="main.js"></script>
 </html>
