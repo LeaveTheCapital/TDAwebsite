@@ -53,6 +53,8 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
 
   await page.goto("/tda.html?animationDurationMs=2000");
   await page.waitForFunction(() => globalThis.testMidi?.ready());
+  await expect(page.getByRole("button", { name: "start fake midi timer" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "stop fake midi timer" })).toBeHidden();
 
   const canvas = page.locator("#canvas");
   const midiOverlay = page.locator("#midi-overlay");
@@ -157,5 +159,60 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
     contentType: "image/png",
   });
 
+  expect(browserErrors).toEqual([]);
+});
+
+test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) => {
+  const browserErrors: string[] = [];
+
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+
+  await page.addInitScript(() => {
+    const midiAccess = {
+      inputs: new Map(),
+      outputs: new Map(),
+      sysexEnabled: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: () => Promise.resolve(midiAccess),
+    });
+  });
+
+  await page.goto("/tda.html?animationDurationMs=2000");
+
+  const startButton = page.getByRole("button", { name: "start fake midi timer" });
+  const stopButton = page.getByRole("button", { name: "stop fake midi timer" });
+  const midiOverlay = page.locator("#midi-overlay");
+
+  await expect(startButton).toBeVisible();
+  await expect(stopButton).toBeVisible();
+  await expect(startButton).toBeEnabled();
+  await expect(stopButton).toBeDisabled();
+  await startButton.click();
+  await expect(startButton).toBeDisabled();
+  await expect(stopButton).toBeEnabled();
+  await expect(page.locator("body")).toHaveCSS(
+    "background-color",
+    "rgb(0, 128, 0)",
+  );
+  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true", {
+    timeout: 900,
+  });
+  await expect(midiOverlay).toHaveAttribute("data-circle-side", "left");
+  await stopButton.click();
+  await expect(startButton).toBeEnabled();
+  await expect(stopButton).toBeDisabled();
+  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
+  await page.waitForTimeout(600);
+  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
   expect(browserErrors).toEqual([]);
 });

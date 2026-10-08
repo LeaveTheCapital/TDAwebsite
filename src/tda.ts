@@ -5,17 +5,26 @@ import { animationTiming } from "./animation-timing.ts";
 
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
+const startFakeMidiButton = getButton("#start-fake-midi");
+const stopFakeMidiButton = getButton("#stop-fake-midi");
 
 let backgroundHue: number | undefined;
 let lightShowHue: number | undefined;
 let lightShowColour = "yellow";
 let activeMidiInput: Input | undefined;
+let fakeMidiTimer: number | undefined;
 const browserMidiInputName = "Midi Through Port-0";
 const midiClocksPerQuarterNote = 24;
 const beatsPerBar = 4;
+const fakeMidiBeatsPerMinute = 120;
+const fakeMidiClockIntervalMs =
+  60_000 / (fakeMidiBeatsPerMinute * midiClocksPerQuarterNote);
 let isFollowingMidiClock = false;
 let midiClockPulseCount = 0;
 let nextMidiCircleSide = "left";
+
+startFakeMidiButton.addEventListener("click", startFakeMidiTimer);
+stopFakeMidiButton.addEventListener("click", stopFakeMidiTimer);
 
 function isBrowserMidiInput(input: Input) {
   return input.name === browserMidiInputName;
@@ -92,6 +101,39 @@ function handleMidiClock() {
   }
 }
 
+function startFakeMidiTimer() {
+  if (fakeMidiTimer !== undefined) {
+    return;
+  }
+
+  handleMidiStart();
+  fakeMidiTimer = window.setInterval(handleMidiClock, fakeMidiClockIntervalMs);
+  updateFakeMidiButtonStates();
+}
+
+function stopFakeMidiTimer() {
+  if (fakeMidiTimer !== undefined) {
+    window.clearInterval(fakeMidiTimer);
+    fakeMidiTimer = undefined;
+  }
+
+  isFollowingMidiClock = false;
+  hideMidiBeatCircle();
+  updateFakeMidiButtonStates();
+}
+
+function updateFakeMidiButtonStates() {
+  const isRunning = fakeMidiTimer !== undefined;
+  startFakeMidiButton.disabled = isRunning;
+  stopFakeMidiButton.disabled = !isRunning;
+}
+
+function setFakeMidiControlsVisible(visible: boolean) {
+  startFakeMidiButton.hidden = !visible;
+  stopFakeMidiButton.hidden = !visible;
+  updateFakeMidiButtonStates();
+}
+
 function connectToMidiInput() {
   if (activeMidiInput) {
     return;
@@ -111,9 +153,12 @@ function connectToMidiInput() {
     console.warn(`MIDI input "${browserMidiInputName}" was not found.`, {
       availableInputs,
     });
+    setFakeMidiControlsVisible(true);
     return;
   }
 
+  stopFakeMidiTimer();
+  setFakeMidiControlsVisible(false);
   activeMidiInput = midiInput;
   activeMidiInput.addListener("start", handleMidiStart);
   activeMidiInput.addListener("clock", handleMidiClock);
@@ -154,6 +199,7 @@ async function initialiseMidi() {
     connectToMidiInput();
   } catch (error) {
     console.error("WebMidi could not be enabled.", error);
+    setFakeMidiControlsVisible(true);
   }
 }
 
@@ -1038,6 +1084,16 @@ function getCanvas(selector: string): HTMLCanvasElement {
 
   if (!element) {
     throw new Error(`The canvas element "${selector}" is missing.`);
+  }
+
+  return element;
+}
+
+function getButton(selector: string): HTMLButtonElement {
+  const element = document.querySelector<HTMLButtonElement>(selector);
+
+  if (!element) {
+    throw new Error(`The button element "${selector}" is missing.`);
   }
 
   return element;
