@@ -83,6 +83,17 @@ canvas {
   height: auto;
 }
 
+.canvas-container {
+  position: relative;
+}
+
+.midi-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
 .era-heading {
   color: white;
   padding-left: 1rem;
