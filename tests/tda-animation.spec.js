@@ -13,10 +13,30 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   await page.route("https://cdn.jsdelivr.net/**", (route) =>
     route.fulfill({
       contentType: "application/javascript",
-      body: `globalThis.WebMidi = {
-        inputs: [],
+      body: `const listeners = {};
+      const input = {
+        id: "test-midi-input",
+        manufacturer: "Playwright",
+        name: "Midi Through Port-0",
+        state: "connected",
+        type: "input",
+        channels: [undefined, { addListener: () => {} }],
+        addListener: (type, listener) => {
+          listeners[type] ??= [];
+          listeners[type].push(listener);
+        }
+      };
+      globalThis.WebMidi = {
+        inputs: [input],
         enable: async () => {},
         addListener: () => {}
+      };
+      globalThis.testMidi = {
+        emit: (type) => {
+          for (const listener of listeners[type] ?? []) {
+            listener({ type, message: { type } });
+          }
+        }
       };`,
     })
   );
@@ -24,6 +44,53 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   await page.goto("/tda.html?animationDurationMs=1000");
 
   const canvas = page.locator("#canvas");
+  const midiOverlay = page.locator("#midi-overlay");
+  const circleCentreAlpha = (side) =>
+    midiOverlay.evaluate((element, circleSide) => {
+      const x = element.width * (circleSide === "left" ? 0.35 : 0.65);
+      const y = element.height - (element.width / 24) * 1.5;
+      return element.getContext("2d").getImageData(x, y, 1, 1).data[3];
+    }, side);
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 24; pulse += 1) {
+      globalThis.testMidi.emit("clock");
+    }
+  });
+  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
+
+  await page.evaluate(() => globalThis.testMidi.emit("start"));
+  await expect(page.locator("body")).toHaveCSS(
+    "background-color",
+    "rgb(0, 128, 0)"
+  );
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 24; pulse += 1) {
+      globalThis.testMidi.emit("clock");
+    }
+  });
+  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true");
+  await expect(midiOverlay).toHaveAttribute("data-circle-side", "left");
+  expect(await circleCentreAlpha("left")).toBeGreaterThan(0);
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 24; pulse += 1) {
+      globalThis.testMidi.emit("clock");
+    }
+  });
+  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
+  expect(await circleCentreAlpha("left")).toBe(0);
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 24; pulse += 1) {
+      globalThis.testMidi.emit("clock");
+    }
+  });
+  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true");
+  await expect(midiOverlay).toHaveAttribute("data-circle-side", "right");
+  expect(await circleCentreAlpha("right")).toBeGreaterThan(0);
+
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
   expect(await page.evaluate(() => window.animationTiming.durationMs)).toBe(1000);
 

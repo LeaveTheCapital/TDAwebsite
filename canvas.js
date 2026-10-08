@@ -7,6 +7,11 @@ let lightShowHue;
 let lightShowColour = "yellow";
 let activeMidiInput;
 const browserMidiInputName = "Midi Through Port-0";
+const midiClocksPerQuarterNote = 24;
+const beatsPerBar = 4;
+let isFollowingMidiClock = false;
+let midiClockPulseCount = 0;
+let nextMidiCircleSide = "left";
 
 function isBrowserMidiInput(input) {
   return input.name === browserMidiInputName;
@@ -30,8 +35,59 @@ function handleMidiNoteOn() {
   lightShowColour = `hsl(${lightShowHue}, 100%, 50%)`;
 }
 
+// eslint-disable-next-line no-unused-vars
 function logMidiMessage(event) {
-  console.log("MIDI message received:", event.message, event);
+  // console.log("MIDI message received:", event.message, event);
+}
+
+function hideMidiBeatCircle() {
+  midiOverlayContext.clearRect(0, 0, midiOverlay.width, midiOverlay.height);
+  midiOverlay.dataset.circleVisible = "false";
+}
+
+function showMidiBeatCircle() {
+  const radius = width / 24;
+  const x = width * (nextMidiCircleSide === "left" ? 0.35 : 0.65);
+  const y = midiOverlay.height - radius * 1.5;
+
+  hideMidiBeatCircle();
+  midiOverlayContext.beginPath();
+  midiOverlayContext.arc(x, y, radius, 0, Math.PI * 2);
+  midiOverlayContext.fillStyle = "white";
+  midiOverlayContext.fill();
+  midiOverlay.dataset.circleVisible = "true";
+  midiOverlay.dataset.circleSide = nextMidiCircleSide;
+  nextMidiCircleSide = nextMidiCircleSide === "left" ? "right" : "left";
+}
+
+function handleMidiStart() {
+  document.body.style.backgroundColor = "green";
+  isFollowingMidiClock = true;
+  midiClockPulseCount = 0;
+  nextMidiCircleSide = "left";
+  hideMidiBeatCircle();
+}
+
+function handleMidiClock() {
+  if (!isFollowingMidiClock) {
+    return;
+  }
+
+  midiClockPulseCount += 1;
+  const pulseInBar =
+    midiClockPulseCount % (midiClocksPerQuarterNote * beatsPerBar);
+
+  if (
+    pulseInBar === midiClocksPerQuarterNote ||
+    pulseInBar === midiClocksPerQuarterNote * 3
+  ) {
+    showMidiBeatCircle();
+  } else if (
+    pulseInBar === midiClocksPerQuarterNote * 2 ||
+    pulseInBar === 0
+  ) {
+    hideMidiBeatCircle();
+  }
 }
 
 function connectToMidiInput() {
@@ -58,6 +114,8 @@ function connectToMidiInput() {
 
   activeMidiInput = midiInput;
   activeMidiInput.addListener("midimessage", logMidiMessage);
+  activeMidiInput.addListener("start", handleMidiStart);
+  activeMidiInput.addListener("clock", handleMidiClock);
   activeMidiInput.channels[1].addListener("noteon", handleMidiNoteOn);
   console.log("Using MIDI input:", activeMidiInput.name, activeMidiInput);
 }
@@ -118,6 +176,11 @@ const paddingAroundLetters =
 
 canvas.height = letterWidth + 2 * paddingAroundLetters;
 canvas.dataset.animationState = "running";
+const midiOverlay = document.getElementById("midi-overlay");
+midiOverlay.width = canvas.width;
+midiOverlay.height = canvas.height;
+const midiOverlayContext = midiOverlay.getContext("2d");
+midiOverlay.dataset.circleVisible = "false";
 ctx.lineCap = "square";
 ctx.lineWidth = 2;
 
