@@ -46,7 +46,9 @@ nav {
 
 h1 {
   color: turquoise;
-  background-color: hsl(225, 100%, 50%);
+  background-color: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
   padding: 0.3em;
 }
 
@@ -77,6 +79,8 @@ h1 {
 
 canvas {
   display: block;
+  width: 100%;
+  height: auto;
 }
 
 .era-heading {
