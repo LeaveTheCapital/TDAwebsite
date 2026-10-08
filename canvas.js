@@ -1,6 +1,85 @@
 let canvas = document.getElementById("canvas");
 // canvas.style.border = "1px solid yellow";
-let ctx = canvas.getContext("2d");
+let ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+let backgroundHue;
+let lightShowHue;
+let lightShowColour = "yellow";
+let activeMidiInput;
+
+function randomHueExcept(...excludedHues) {
+  let nextHue;
+
+  do {
+    nextHue = Math.floor(Math.random() * 360);
+  } while (excludedHues.includes(nextHue));
+
+  return nextHue;
+}
+
+function handleMidiNoteOn() {
+  backgroundHue = randomHueExcept(backgroundHue);
+  lightShowHue = randomHueExcept(lightShowHue, backgroundHue);
+
+  document.body.style.backgroundColor = `hsl(${backgroundHue}, 70%, 25%)`;
+  lightShowColour = `hsl(${lightShowHue}, 100%, 50%)`;
+}
+
+function connectToFirstMidiInput() {
+  if (activeMidiInput) {
+    return;
+  }
+
+  const midiInput = globalThis.WebMidi.inputs.find(
+    (input) => input.state === "connected"
+  );
+
+  if (!midiInput) {
+    console.warn("No MIDI input was found.");
+    return;
+  }
+
+  activeMidiInput = midiInput;
+  activeMidiInput.channels[1].addListener("noteon", handleMidiNoteOn);
+  console.log("Using MIDI input:", activeMidiInput.name, activeMidiInput);
+}
+
+function handleMidiPortConnected(event) {
+  if (event.port.type === "input") {
+    connectToFirstMidiInput();
+  }
+}
+
+function handleMidiPortDisconnected(event) {
+  if (
+    event.port.type !== "input" ||
+    event.port.id !== activeMidiInput?.id
+  ) {
+    return;
+  }
+
+  console.warn("MIDI input disconnected:", event.port.name);
+  activeMidiInput = undefined;
+  connectToFirstMidiInput();
+}
+
+async function initialiseMidi() {
+  if (!globalThis.WebMidi) {
+    console.error("WebMidi.js did not load.");
+    return;
+  }
+
+  try {
+    await globalThis.WebMidi.enable();
+    globalThis.WebMidi.addListener("connected", handleMidiPortConnected);
+    globalThis.WebMidi.addListener("disconnected", handleMidiPortDisconnected);
+    connectToFirstMidiInput();
+  } catch (error) {
+    console.error("WebMidi could not be enabled.", error);
+  }
+}
+
+initialiseMidi();
 
 // ctx.globalCompositeOperation = "difference";
 
@@ -672,7 +751,7 @@ function lightShow() {
 
   ctx.globalAlpha = 0.5;
   ctx.strokeStyle = "yellow";
-  ctx.fillStyle = "yellow";
+  ctx.fillStyle = lightShowColour;
   ctx.fill();
 
   ctx.beginPath();
