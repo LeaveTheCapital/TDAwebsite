@@ -3,8 +3,6 @@ let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 
 // ctx.globalCompositeOperation = "difference";
-ctx.lineCap = "square";
-// ctx.lineWidth = 70;
 
 //consts for size
 
@@ -13,15 +11,20 @@ const width = canvas.width;
 const height = canvas.height;
 const letterWidth = width / (numberOfLetters + 2);
 const paddingAroundLetters =
-  (width - numberOfLetters * letterWidth) / (numberOfLetters + 1);
+(width - numberOfLetters * letterWidth) / (numberOfLetters + 1);
 
 canvas.height = letterWidth + 2 * paddingAroundLetters;
+ctx.lineCap = "square";
+ctx.lineWidth = 2;
 
 const letterHeight = letterWidth;
 
 const tYEndPoint = height * 0.13;
 const tXEndPoint2 = width * 0.07;
 const tYEndPoint3 = letterHeight - tYEndPoint;
+const aBottomLineWidth = width * 0.05;
+const aTopLineWidth = width * 0.03;
+const aInnerLineHeight = letterHeight / 2;
 
 class Letter {
   constructor(width, height, updateFunc, shouldContinue, next) {
@@ -342,7 +345,7 @@ class A1 extends Letter {
       width,
       height,
       (ts) => this.drawA1.call(this, ts),
-      () => this.aXEnd < this.letterWidth / 2,
+      () => this.aXEnd < this.aOuterLineRun,
       () => console.log("finished A1")
     );
 
@@ -353,7 +356,8 @@ class A1 extends Letter {
     this.aStartCoords2 = [aStartCoords[0] + letterWidth, paddingAroundLetters];
     this.aXEnd = 0;
     this.aXEnd2 = 0;
-    // this.narrowAXEndPoint = width * 0.07;
+    this.aBottomLineWidth = aBottomLineWidth;
+    this.aOuterLineRun = (this.letterWidth - aTopLineWidth) / 2;
     this.aEndCoords = [aStartCoords[0], paddingAroundLetters + letterHeight];
     this.aEndCoords2 = [aStartCoords2[0], paddingAroundLetters + letterHeight];
   }
@@ -367,18 +371,39 @@ class A1 extends Letter {
       this.aStartCoords[0] - 5,
       this.aStartCoords[1] - 5
     );
+    const outerLineDistance = Math.min(this.aXEnd, this.aOuterLineRun);
+
     drawLineYDiagonal(
       this.aStartCoords,
       this.aEndCoords,
-      this.aXEnd,
+      outerLineDistance,
       this.aColour
     );
     drawLineYDiagonal(
       this.aStartCoords2,
       this.aEndCoords2,
-      -this.aXEnd2,
+      -outerLineDistance,
       this.aColour
     );
+
+    const bottomLineLength = Math.min(
+      this.aBottomLineWidth,
+      (outerLineDistance / this.aOuterLineRun) * this.aBottomLineWidth
+    );
+
+    drawLineXForwards({
+      initialCoords: this.aEndCoords,
+      yPositionOffset: 0,
+      length: bottomLineLength,
+      colour: this.aColour,
+    });
+    drawLineXForwards({
+      initialCoords: this.aEndCoords2,
+      yPositionOffset: 0,
+      length: -bottomLineLength,
+      colour: this.aColour,
+    });
+
     this.aXEnd = this.aXEnd + 0.35;
     this.aXEnd2 = this.aXEnd2 + 0.35;
   }
@@ -392,7 +417,7 @@ class A2 extends Letter {
       width,
       height,
       (ts) => this.drawA2.call(this, ts),
-      () => this.aXEndFinal < this.aXEndPointFinal,
+      () => this.aXEndFinal < this.aXEndPointFinal + this.aXStep,
       () => {
         console.log("finished A2.. can do light show");
         finalImage = ctx.getImageData(0, 0, width, height);
@@ -400,30 +425,118 @@ class A2 extends Letter {
         lightShow();
       }
     );
-    this.aStartCoordsFinal = [
-      paddingAroundLetters,
-      paddingAroundLetters + letterHeight / 2,
-    ];
     this.aXEndFinal = 0;
+    this.aXStep = 7;
     // aXEndPointFinal = width * 0.74, // old value from narrower A
     this.aXEndPointFinal = width - letterWidth;
+
+    const halfLetterWidth = this.letterWidth / 2;
+    const outerLineRun = halfLetterWidth - aTopLineWidth / 2;
+    this.aColour = `rgb(${150}, ${10 + (outerLineRun % 255)}, ${
+      10 + ((outerLineRun * 2) % 255)
+    })`;
+    const bottomY = paddingAroundLetters + this.letterHeight;
+    const crossbarY = bottomY - aInnerLineHeight;
+    const innerGapLeft = aStartCoords[0] + halfLetterWidth - aTopLineWidth / 2;
+    const innerGapRight = aStartCoords[0] + halfLetterWidth + aTopLineWidth / 2;
+    const outerLineRunAtCrossbar =
+      outerLineRun * (aInnerLineHeight / this.letterHeight);
+
+    this.aInnerLeftStart = [aStartCoords[0] + aBottomLineWidth, bottomY];
+    this.aInnerRightStart = [aStartCoords2[0] - aBottomLineWidth, bottomY];
+    this.aInnerLeftEnd = [innerGapLeft, crossbarY];
+    this.aInnerRightEnd = [innerGapRight, crossbarY];
+    this.aCrossbarStartPoint = [
+      aStartCoords[0] + outerLineRunAtCrossbar,
+      crossbarY,
+    ];
+    this.aCrossbarEndPoint = [
+      aStartCoords2[0] - outerLineRunAtCrossbar,
+      crossbarY,
+    ];
+    this.aTopShapeCentreX = aStartCoords[0] + halfLetterWidth;
+    this.aTopShapePoints = [
+      [
+        this.aTopShapeCentreX - aTopLineWidth / 2,
+        paddingAroundLetters + aTopLineWidth,
+      ],
+      [
+        this.aCrossbarStartPoint[0] + aTopLineWidth / 2,
+        crossbarY - aTopLineWidth / 2,
+      ],
+      [
+        this.aCrossbarEndPoint[0] - aTopLineWidth / 2,
+        crossbarY - aTopLineWidth / 2,
+      ],
+      [
+        this.aTopShapeCentreX + aTopLineWidth / 2,
+        paddingAroundLetters + aTopLineWidth,
+      ],
+    ];
+    this.aTopLineStart = [
+      aStartCoords[0] + outerLineRun,
+      paddingAroundLetters,
+    ];
+    this.aTopLineEnd = [
+      aStartCoords2[0] - outerLineRun,
+      paddingAroundLetters,
+    ];
   }
 
   drawA2(ms) {
     ctx.putImageData(finalImage, 0, 0);
     // finalImage = ctx.getImageData(0, 0, this.width, this.height);
+    const animationDistance = Math.min(
+      this.aXEndFinal,
+      this.aXEndPointFinal
+    );
+    const animationProgress = animationDistance / this.aXEndPointFinal;
+    const topShapeOffsetX =
+      (paddingAroundLetters - this.aTopShapeCentreX) *
+      (1 - animationProgress);
+
+    drawPolygon({
+      points: this.aTopShapePoints,
+      xOffset: topShapeOffsetX,
+      colour: this.aColour,
+    });
+
     ctx.beginPath();
     ctx.moveTo(
-      this.aStartCoordsFinal[0] + this.aXEndFinal / 1.35,
-      this.aStartCoordsFinal[1]
+      paddingAroundLetters +
+        (this.aCrossbarStartPoint[0] - paddingAroundLetters) *
+          animationProgress,
+      this.aCrossbarStartPoint[1]
     );
     ctx.lineTo(
-      this.aStartCoordsFinal[0] + this.aXEndFinal,
-      this.aStartCoordsFinal[1]
+      paddingAroundLetters +
+        (this.aCrossbarEndPoint[0] - paddingAroundLetters) *
+          animationProgress,
+      this.aCrossbarEndPoint[1]
     );
     ctx.strokeStyle = "yellow";
     ctx.stroke();
-    this.aXEndFinal = this.aXEndFinal + 7;
+
+    drawLineTowards({
+      initialCoords: this.aInnerLeftStart,
+      endCoords: this.aInnerLeftEnd,
+      progress: animationProgress,
+      colour: this.aColour,
+    });
+    drawLineTowards({
+      initialCoords: this.aInnerRightStart,
+      endCoords: this.aInnerRightEnd,
+      progress: animationProgress,
+      colour: this.aColour,
+    });
+    drawLineTowards({
+      initialCoords: this.aTopLineStart,
+      endCoords: this.aTopLineEnd,
+      progress: animationProgress,
+      colour: "yellow",
+    });
+
+    this.aXEndFinal = this.aXEndFinal + this.aXStep;
   }
 }
 
@@ -438,6 +551,28 @@ function drawLineYDiagonal(initialCoords, endCoords, variable, colour) {
   ctx.beginPath();
   ctx.moveTo(initialCoords[0] + variable, initialCoords[1]);
   ctx.lineTo(endCoords[0], endCoords[1]);
+  ctx.strokeStyle = colour;
+  ctx.stroke();
+}
+
+function drawLineTowards({ initialCoords, endCoords, progress, colour }) {
+  ctx.beginPath();
+  ctx.moveTo(initialCoords[0], initialCoords[1]);
+  ctx.lineTo(
+    initialCoords[0] + (endCoords[0] - initialCoords[0]) * progress,
+    initialCoords[1] + (endCoords[1] - initialCoords[1]) * progress
+  );
+  ctx.strokeStyle = colour;
+  ctx.stroke();
+}
+
+function drawPolygon({ points, xOffset, colour }) {
+  ctx.beginPath();
+  ctx.moveTo(points[0][0] + xOffset, points[0][1]);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i][0] + xOffset, points[i][1]);
+  }
+  ctx.closePath();
   ctx.strokeStyle = colour;
   ctx.stroke();
 }
