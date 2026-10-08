@@ -537,38 +537,36 @@ class A2 extends Letter {
     const crossbarY = bottomY - aInnerLineHeight;
     const innerGapLeft = aStartCoords[0] + halfLetterWidth - aTopLineWidth / 2;
     const innerGapRight = aStartCoords[0] + halfLetterWidth + aTopLineWidth / 2;
-    const outerLineRunAtCrossbar =
-      outerLineRun * (aInnerLineHeight / this.letterHeight);
 
     this.aInnerLeftStart = [aStartCoords[0] + aBottomLineWidth, bottomY];
     this.aInnerRightStart = [aStartCoords2[0] - aBottomLineWidth, bottomY];
     this.aInnerLeftEnd = [innerGapLeft, crossbarY];
     this.aInnerRightEnd = [innerGapRight, crossbarY];
-    this.aCrossbarStartPoint = [
-      aStartCoords[0] + outerLineRunAtCrossbar,
-      crossbarY,
-    ];
-    this.aCrossbarEndPoint = [
-      aStartCoords2[0] - outerLineRunAtCrossbar,
-      crossbarY,
-    ];
+    this.aCrossbarStartPoint = [innerGapLeft, crossbarY];
+    this.aCrossbarEndPoint = [innerGapRight, crossbarY];
     this.aTopShapeCentreX = aStartCoords[0] + halfLetterWidth;
+    const topShapeBottomY = crossbarY - aTopLineWidth / 2;
+    const topShapeTopWidth = ctx.lineWidth;
+    const outerLineSlope = outerLineRun / this.letterHeight;
+    const topShapeHeight =
+      (aTopLineWidth - topShapeTopWidth) / (2 * outerLineSlope);
+    const topShapeTopY = topShapeBottomY - topShapeHeight;
     this.aTopShapePoints = [
       [
-        this.aTopShapeCentreX - aTopLineWidth / 2,
-        paddingAroundLetters + aTopLineWidth,
+        this.aTopShapeCentreX - topShapeTopWidth / 2,
+        topShapeTopY,
       ],
       [
-        this.aCrossbarStartPoint[0] + aTopLineWidth / 2,
-        crossbarY - aTopLineWidth / 2,
+        this.aCrossbarStartPoint[0],
+        topShapeBottomY,
       ],
       [
-        this.aCrossbarEndPoint[0] - aTopLineWidth / 2,
-        crossbarY - aTopLineWidth / 2,
+        this.aCrossbarEndPoint[0],
+        topShapeBottomY,
       ],
       [
-        this.aTopShapeCentreX + aTopLineWidth / 2,
-        paddingAroundLetters + aTopLineWidth,
+        this.aTopShapeCentreX + topShapeTopWidth / 2,
+        topShapeTopY,
       ],
     ];
     this.aTopLineStart = [
@@ -631,7 +629,7 @@ class A2 extends Letter {
       initialCoords: this.aTopLineStart,
       endCoords: this.aTopLineEnd,
       progress: animationProgress,
-      colour: "yellow",
+      colour: this.aColour,
     });
 
     this.aXEndFinal = this.aXEndFinal + this.aXStep;
@@ -734,7 +732,8 @@ function lightShow() {
     return;
   }
   ctx.putImageData(finalImage, 0, 0);
-  ctx.globalCompositeOperation = "xor"; // lighter
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
 
   ctx.beginPath();
 
@@ -803,6 +802,7 @@ function lightShow() {
   ctx.globalAlpha = 0.3;
 
   ctx.fill();
+  ctx.restore();
 
   time += 2 * animationStepScale;
   if (time < width) {
