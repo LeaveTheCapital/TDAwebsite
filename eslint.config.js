@@ -29,5 +29,32 @@ module.exports = defineConfig([
       globals: globals.node,
     },
   },
+  {
+    files: ["drawGrid.js"],
+    languageOptions: {
+      globals: {
+        drawLineXForwards: "readonly",
+        height: "readonly",
+        letterWidth: "readonly",
+        numberOfLetters: "readonly",
+        paddingAroundLetters: "readonly",
+      },
+    },
+    rules: {
+      "no-constant-condition": "off",
+      "no-unused-vars": ["error", { varsIgnorePattern: "^drawGrid$" }],
+    },
+  },
+  {
+    files: ["script.js"],
+    languageOptions: {
+      globals: {
+        getName: "readonly",
+      },
+    },
+    rules: {
+      "no-unused-vars": ["error", { varsIgnorePattern: "^nameInput$" }],
+    },
+  },
   eslintConfigPrettier,
 ]);

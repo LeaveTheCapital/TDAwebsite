@@ -20,7 +20,6 @@ ctx.lineWidth = 2;
 const letterHeight = letterWidth;
 
 const tYEndPoint = height * 0.13;
-const tXEndPoint2 = width * 0.07;
 const tYEndPoint3 = letterHeight - tYEndPoint;
 const aBottomLineWidth = width * 0.05;
 const aTopLineWidth = width * 0.03;
@@ -68,7 +67,7 @@ class T1 extends Letter {
     })`;
   }
 
-  drawT1(ms) {
+  drawT1() {
     this.tColour = `rgb(${0}, ${100 + ((this.xEnd * 1) % 255)}, 100)`;
     drawLineXForwards({
       initialCoords: this.tStartPoint,
@@ -109,7 +108,7 @@ class T2 extends Letter {
     this.colour = `rgb(${0}, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
   }
 
-  drawT2(ms) {
+  drawT2() {
     drawLineXForwards({
       initialCoords: this.tStartPoint,
       yPositionOffset: this.tYEndPoint,
@@ -149,7 +148,7 @@ class T3 extends Letter {
     this.colour = `rgb(${0}, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
   }
 
-  drawT3(ms) {
+  drawT3() {
     drawLineYForwards({
       initialCoords: [
         this.tStartPoint[0],
@@ -193,7 +192,7 @@ class T4 extends Letter {
     this.colour = `rgb(${0}, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
   }
 
-  drawT4(ms) {
+  drawT4() {
     drawLineXForwards({
       initialCoords: [
         this.tStartPoint[0] + this.tXEndPoint2,
@@ -239,7 +238,7 @@ class D1 extends Letter {
     this.dYEndPoint = letterHeight;
   }
 
-  drawD1(ms) {
+  drawD1() {
     drawLineYForwards({
       initialCoords: this.dStartPoint,
       endPoint: 0,
@@ -292,7 +291,7 @@ class D2 extends Letter {
     this.dYEndPoint2 = tYEndPoint + tYEndPoint3 - this.width * 0.08;
   }
 
-  drawD2(ms) {
+  drawD2() {
     drawLineYForwards({
       initialCoords: [
         this.dStartPoint[0],
@@ -362,7 +361,7 @@ class A1 extends Letter {
     this.aEndCoords2 = [aStartCoords2[0], paddingAroundLetters + letterHeight];
   }
 
-  drawA1(ms) {
+  drawA1() {
     this.aColour = `rgb(${150}, ${10 + ((this.aXEnd * 1) % 255)}, ${
       10 + ((this.aXEnd * 2) % 255)
     })`;
@@ -483,7 +482,7 @@ class A2 extends Letter {
     ];
   }
 
-  drawA2(ms) {
+  drawA2() {
     ctx.putImageData(finalImage, 0, 0);
     // finalImage = ctx.getImageData(0, 0, this.width, this.height);
     const animationDistance = Math.min(
