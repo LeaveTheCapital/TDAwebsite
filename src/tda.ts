@@ -1,11 +1,15 @@
-let canvas = document.getElementById("canvas");
-// canvas.style.border = "1px solid yellow";
-let ctx = canvas.getContext("2d", { willReadFrequently: true });
+import { Input, WebMidi, type PortEvent } from "webmidi";
 
-let backgroundHue;
-let lightShowHue;
+import "../main.css";
+import { animationTiming } from "./animation-timing.ts";
+
+const canvas = getCanvas("#canvas");
+const ctx = getCanvasContext(canvas, { willReadFrequently: true });
+
+let backgroundHue: number | undefined;
+let lightShowHue: number | undefined;
 let lightShowColour = "yellow";
-let activeMidiInput;
+let activeMidiInput: Input | undefined;
 const browserMidiInputName = "Midi Through Port-0";
 const midiClocksPerQuarterNote = 24;
 const beatsPerBar = 4;
@@ -13,11 +17,11 @@ let isFollowingMidiClock = false;
 let midiClockPulseCount = 0;
 let nextMidiCircleSide = "left";
 
-function isBrowserMidiInput(input) {
+function isBrowserMidiInput(input: Input) {
   return input.name === browserMidiInputName;
 }
 
-function randomHueExcept(...excludedHues) {
+function randomHueExcept(...excludedHues: Array<number | undefined>): number {
   let nextHue;
 
   do {
@@ -33,11 +37,6 @@ function handleMidiNoteOn() {
 
   document.body.style.backgroundColor = `hsl(${backgroundHue}, 70%, 25%)`;
   lightShowColour = `hsl(${lightShowHue}, 100%, 50%)`;
-}
-
-// eslint-disable-next-line no-unused-vars
-function logMidiMessage(event) {
-  // console.log("MIDI message received:", event.message, event);
 }
 
 function hideMidiBeatCircle() {
@@ -98,12 +97,12 @@ function connectToMidiInput() {
     return;
   }
 
-  const midiInput = globalThis.WebMidi.inputs.find(
+  const midiInput = WebMidi.inputs.find(
     (input) => input.state === "connected" && isBrowserMidiInput(input)
   );
 
   if (!midiInput) {
-    const availableInputs = globalThis.WebMidi.inputs.map((input) => ({
+    const availableInputs = WebMidi.inputs.map((input) => ({
       manufacturer: input.manufacturer,
       name: input.name,
       state: input.state,
@@ -116,59 +115,55 @@ function connectToMidiInput() {
   }
 
   activeMidiInput = midiInput;
-  activeMidiInput.addListener("midimessage", logMidiMessage);
   activeMidiInput.addListener("start", handleMidiStart);
   activeMidiInput.addListener("clock", handleMidiClock);
   activeMidiInput.channels[1].addListener("noteon", handleMidiNoteOn);
   console.log("Using MIDI input:", activeMidiInput.name, activeMidiInput);
 }
 
-function handleMidiPortConnected(event) {
-  if (event.port.type === "input" && isBrowserMidiInput(event.port)) {
+function handleMidiPortConnected(event: PortEvent) {
+  const input = getInputFromPortEvent(event);
+
+  if (input && isBrowserMidiInput(input)) {
     connectToMidiInput();
   }
 }
 
-function handleMidiPortDisconnected(event) {
-  if (
-    event.port.type !== "input" ||
-    event.port.id !== activeMidiInput?.id
-  ) {
+function handleMidiPortDisconnected(event: PortEvent) {
+  const input = getInputFromPortEvent(event);
+
+  if (!input || input.id !== activeMidiInput?.id) {
     return;
   }
 
-  console.warn("MIDI input disconnected:", event.port.name);
+  console.warn("MIDI input disconnected:", input.name);
   activeMidiInput = undefined;
   connectToMidiInput();
 }
 
-async function initialiseMidi() {
-  if (!globalThis.WebMidi) {
-    console.error("WebMidi.js did not load.");
-    return;
-  }
+function getInputFromPortEvent(event: PortEvent): Input | undefined {
+  const port: unknown = event.port;
+  return port instanceof Input ? port : undefined;
+}
 
+async function initialiseMidi() {
   try {
-    await globalThis.WebMidi.enable();
-    globalThis.WebMidi.addListener("connected", handleMidiPortConnected);
-    globalThis.WebMidi.addListener("disconnected", handleMidiPortDisconnected);
+    await WebMidi.enable();
+    WebMidi.addListener("connected", handleMidiPortConnected);
+    WebMidi.addListener("disconnected", handleMidiPortDisconnected);
     connectToMidiInput();
   } catch (error) {
     console.error("WebMidi could not be enabled.", error);
   }
 }
 
-initialiseMidi();
+void initialiseMidi();
 
-const animationStepScale = globalThis.animationTiming?.stepScale ?? 1;
+const animationStepScale = animationTiming.stepScale;
 
-function advanceTowards(current, step, endPoint) {
+function advanceTowards(current: number, step: number, endPoint: number) {
   return Math.min(current + step * animationStepScale, endPoint);
 }
-
-// ctx.globalCompositeOperation = "difference";
-
-//consts for size
 
 const numberOfLetters = 3;
 const width = canvas.width;
@@ -179,10 +174,10 @@ const paddingAroundLetters =
 
 canvas.height = letterWidth + 2 * paddingAroundLetters;
 canvas.dataset.animationState = "running";
-const midiOverlay = document.getElementById("midi-overlay");
+const midiOverlay = getCanvas("#midi-overlay");
 midiOverlay.width = canvas.width;
 midiOverlay.height = canvas.height;
-const midiOverlayContext = midiOverlay.getContext("2d");
+const midiOverlayContext = getCanvasContext(midiOverlay);
 midiOverlay.dataset.circleVisible = "false";
 ctx.lineCap = "square";
 ctx.lineWidth = 2;
@@ -195,8 +190,53 @@ const aBottomLineWidth = width * 0.05;
 const aTopLineWidth = width * 0.03;
 const aInnerLineHeight = letterHeight / 2;
 
+type Point = [number, number];
+
+interface LineTowardsOptions {
+  initialCoords: Point;
+  endCoords: Point;
+  progress: number;
+  colour: string;
+}
+
+interface PolygonOptions {
+  points: Point[];
+  xOffset: number;
+  colour: string;
+}
+
+interface HorizontalLineOptions {
+  initialCoords: Point;
+  yPositionOffset: number;
+  length: number;
+  colour: string;
+}
+
+interface VerticalLineOptions {
+  initialCoords: Point;
+  endPoint: number;
+  length: number;
+  colour: string;
+}
+
 class Letter {
-  constructor(width, height, updateFunc, shouldContinue, next) {
+  readonly numberOfLetters: number;
+  readonly width: number;
+  readonly height: number;
+  readonly letterWidth: number;
+  readonly paddingAroundLetters: number;
+  readonly letterHeight: number;
+  readonly updateFunc: (ms: number) => void;
+  readonly shouldContinue: () => boolean;
+  readonly next: (ms?: number) => void;
+
+  constructor(
+    width: number,
+    height: number,
+    updateFunc: (ms: number) => void,
+    shouldContinue: () => boolean,
+    next: (ms?: number) => void,
+  ) {
     this.numberOfLetters = 3;
     this.width = width;
     this.height = height;
@@ -209,7 +249,7 @@ class Letter {
     this.next = next;
   }
 
-  animationFunc(ms) {
+  animationFunc(ms = 0) {
     if (this.shouldContinue()) {
       window.requestAnimationFrame(this.animationFunc.bind(this));
     } else {
@@ -220,25 +260,35 @@ class Letter {
 }
 
 class T1 extends Letter {
-  constructor(width, height) {
+  declare xEnd: number;
+  declare yEnd: number;
+  declare tStartPoint: Point;
+  declare tYEndPoint: number;
+  declare tColour: string;
+
+  constructor(width: number, height: number) {
     super(
       width,
       height,
-      (ts) => this.drawT1.call(this, ts),
+      () => {
+        this.drawT1();
+      },
       () => this.xEnd < this.letterWidth,
-      () => new T2(width, height).animationFunc()
+      () => {
+        new T2(width, height).animationFunc();
+      }
     );
     this.xEnd = 0;
     this.yEnd = 0;
     this.tStartPoint = [paddingAroundLetters, paddingAroundLetters];
     this.tYEndPoint = height * 0.13;
-    this.tColour = `rgb(${0}, ${100 + ((0 * 1) % 255)}, ${
+    this.tColour = `rgb(0, ${100 + ((0 * 1) % 255)}, ${
       100 + ((0 * 3) % 255)
     })`;
   }
 
   drawT1() {
-    this.tColour = `rgb(${0}, ${100 + ((this.xEnd * 1) % 255)}, 100)`;
+    this.tColour = `rgb(0, ${100 + ((this.xEnd * 1) % 255)}, 100)`;
     drawLineXForwards({
       initialCoords: this.tStartPoint,
       yPositionOffset: 0,
@@ -260,13 +310,25 @@ class T1 extends Letter {
 }
 
 class T2 extends Letter {
-  constructor(width, height) {
+  declare xEnd: number;
+  declare yEnd: number;
+  declare tStartPoint: Point;
+  declare tYEndPoint: number;
+  declare tXEndPoint2: number;
+  declare tYEndPoint2: number;
+  declare colour: string;
+
+  constructor(width: number, height: number) {
     super(
       width,
       height,
-      (ts) => this.drawT2.call(this, ts),
+      () => {
+        this.drawT2();
+      },
       () => this.xEnd < this.tXEndPoint2,
-      () => new T3(width, height).animationFunc()
+      () => {
+        new T3(width, height).animationFunc();
+      }
     );
     this.xEnd = 0;
     this.yEnd = 0;
@@ -274,7 +336,7 @@ class T2 extends Letter {
     this.tYEndPoint = height * 0.13;
     this.tXEndPoint2 = width * 0.07;
     this.tYEndPoint2 = height * 0.13;
-    this.colour = `rgb(${0}, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
+    this.colour = `rgb(0, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
   }
 
   drawT2() {
@@ -298,13 +360,25 @@ class T2 extends Letter {
 }
 
 class T3 extends Letter {
-  constructor(width, height) {
+  declare xEnd: number;
+  declare yEnd: number;
+  declare tStartPoint: Point;
+  declare tYEndPoint2: number;
+  declare tXEndPoint2: number;
+  declare tXEndPoint3: number;
+  declare colour: string;
+
+  constructor(width: number, height: number) {
     super(
       width,
       height,
-      (ts) => this.drawT3.call(this, ts),
+      () => {
+        this.drawT3();
+      },
       () => this.xEnd < this.tXEndPoint3,
-      () => new T4(width, height).animationFunc()
+      () => {
+        new T4(width, height).animationFunc();
+      }
     );
     this.xEnd = 0;
     this.yEnd = 0;
@@ -312,7 +386,7 @@ class T3 extends Letter {
     this.tYEndPoint2 = height * 0.13;
     this.tXEndPoint2 = width * 0.07;
     this.tXEndPoint3 = width * 0.07;
-    this.colour = `rgb(${0}, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
+    this.colour = `rgb(0, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
   }
 
   drawT3() {
@@ -339,13 +413,27 @@ class T3 extends Letter {
 }
 
 class T4 extends Letter {
-  constructor(width, height) {
+  declare xEnd: number;
+  declare yEnd: number;
+  declare tStartPoint: Point;
+  declare tYEndPoint: number;
+  declare tYEndPoint2: number;
+  declare tXEndPoint2: number;
+  declare tXEndPoint4: number;
+  declare tYEndPoint4: number;
+  declare colour: string;
+
+  constructor(width: number, height: number) {
     super(
       width,
       height,
-      (ts) => this.drawT4.call(this, ts),
+      () => {
+        this.drawT4();
+      },
       () => this.yEnd < this.tYEndPoint4,
-      () => console.log("finished T")
+      () => {
+        console.log("finished T");
+      }
     );
     this.xEnd = 0;
     this.yEnd = 0;
@@ -355,7 +443,7 @@ class T4 extends Letter {
     this.tXEndPoint2 = width * 0.07;
     this.tXEndPoint4 = this.letterWidth - 2 * this.tXEndPoint2;
     this.tYEndPoint4 = this.letterHeight - this.tYEndPoint;
-    this.colour = `rgb(${0}, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
+    this.colour = `rgb(0, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
   }
 
   drawT4() {
@@ -385,13 +473,22 @@ class T4 extends Letter {
 }
 
 class D1 extends Letter {
-  constructor(width, height) {
+  declare dXEnd: number;
+  declare dYEnd: number;
+  declare dStartPoint: Point;
+  declare dYEndPoint: number;
+
+  constructor(width: number, height: number) {
     super(
       width,
       height,
-      (ts) => this.drawD1.call(this, ts),
+      () => {
+        this.drawD1();
+      },
       () => this.dYEnd < this.dYEndPoint,
-      () => new D2(width, height).animationFunc()
+      () => {
+        new D2(width, height).animationFunc();
+      }
     );
 
     this.dXEnd = -Math.PI / 2;
@@ -408,7 +505,7 @@ class D1 extends Letter {
       initialCoords: this.dStartPoint,
       endPoint: 0,
       length: this.dYEnd,
-      colour: `rgb(${150}, ${10 + ((this.dYEnd * 1) % 255)}, ${
+      colour: `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
         10 + ((this.dYEnd * 2) % 255)
       })`,
     });
@@ -422,7 +519,7 @@ class D1 extends Letter {
       -Math.PI / 2,
       this.dXEnd
     );
-    ctx.strokeStyle = `rgb(${150}, ${10 + ((this.dYEnd * 1) % 255)}, ${
+    ctx.strokeStyle = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
       10 + ((this.dYEnd * 2) % 255)
     })`;
     ctx.stroke();
@@ -434,11 +531,19 @@ class D1 extends Letter {
 }
 
 class D2 extends Letter {
-  constructor(width, height) {
+  declare dXEnd: number;
+  declare dYEnd: number;
+  declare dStartPoint: Point;
+  declare dXEndPoint: number;
+  declare dYEndPoint2: number;
+
+  constructor(width: number, height: number) {
     super(
       width,
       height,
-      (ts) => this.drawD2.call(this, ts),
+      () => {
+        this.drawD2();
+      },
       () => this.dYEnd < this.dYEndPoint2,
       () => {
         finalImage = ctx.getImageData(0, 0, width, height);
@@ -464,7 +569,7 @@ class D2 extends Letter {
       ],
       endPoint: this.dXEndPoint,
       length: this.dYEnd,
-      colour: `rgb(${150}, ${10 + ((this.dYEnd * 2) % 255)}, ${
+      colour: `rgb(150, ${10 + ((this.dYEnd * 2) % 255)}, ${
         50 + ((this.dYEnd * 3) % 255)
       })`,
     });
@@ -478,8 +583,8 @@ class D2 extends Letter {
       -Math.PI / 2,
       this.dXEnd
     );
-    ctx.strokeStyle = `rgb(${150}, ${10 + ((this.dYEnd2 * 1) % 255)}, ${
-      10 + ((this.dYEnd2 * 3) % 255)
+    ctx.strokeStyle = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
+      10 + ((this.dYEnd * 3) % 255)
     })`;
     ctx.stroke();
     this.dYEnd = advanceTowards(this.dYEnd, 1, this.dYEndPoint2);
@@ -489,14 +594,17 @@ class D2 extends Letter {
   }
 }
 
-const aStartCoords = [
+const aStartCoords: Point = [
   3 * paddingAroundLetters + 2 * letterWidth,
   paddingAroundLetters,
 ];
 
-const aStartCoords2 = [aStartCoords[0] + letterWidth, paddingAroundLetters];
+const aStartCoords2: Point = [
+  aStartCoords[0] + letterWidth,
+  paddingAroundLetters,
+];
 
-let imageData = ctx.getImageData(
+const imageData = ctx.getImageData(
   aStartCoords[0] - 5,
   aStartCoords[1] - 5,
   width - aStartCoords[0],
@@ -504,13 +612,27 @@ let imageData = ctx.getImageData(
 );
 
 class A1 extends Letter {
-  constructor(width, height) {
+  declare aStartCoords: Point;
+  declare aStartCoords2: Point;
+  declare aXEnd: number;
+  declare aXEnd2: number;
+  declare aBottomLineWidth: number;
+  declare aOuterLineRun: number;
+  declare aEndCoords: Point;
+  declare aEndCoords2: Point;
+  declare aColour: string;
+
+  constructor(width: number, height: number) {
     super(
       width,
       height,
-      (ts) => this.drawA1.call(this, ts),
+      () => {
+        this.drawA1();
+      },
       () => this.aXEnd < this.aOuterLineRun,
-      () => console.log("finished A1")
+      () => {
+        console.log("finished A1");
+      }
     );
 
     this.aStartCoords = [
@@ -527,7 +649,7 @@ class A1 extends Letter {
   }
 
   drawA1() {
-    this.aColour = `rgb(${150}, ${10 + ((this.aXEnd * 1) % 255)}, ${
+    this.aColour = `rgb(150, ${10 + ((this.aXEnd * 1) % 255)}, ${
       10 + ((this.aXEnd * 2) % 255)
     })`;
     ctx.putImageData(
@@ -573,14 +695,31 @@ class A1 extends Letter {
   }
 }
 
-let finalImage;
+let finalImage = imageData;
 
 class A2 extends Letter {
-  constructor(width, height) {
+  declare aXEndFinal: number;
+  declare aXStep: number;
+  declare aXEndPointFinal: number;
+  declare aColour: string;
+  declare aInnerLeftStart: Point;
+  declare aInnerRightStart: Point;
+  declare aInnerLeftEnd: Point;
+  declare aInnerRightEnd: Point;
+  declare aCrossbarStartPoint: Point;
+  declare aCrossbarEndPoint: Point;
+  declare aTopShapeCentreX: number;
+  declare aTopShapePoints: Point[];
+  declare aTopLineStart: Point;
+  declare aTopLineEnd: Point;
+
+  constructor(width: number, height: number) {
     super(
       width,
       height,
-      (ts) => this.drawA2.call(this, ts),
+      () => {
+        this.drawA2();
+      },
       () => this.aXEndFinal < this.aXEndPointFinal + this.aXStep,
       () => {
         console.log("finished A2.. can do light show");
@@ -591,12 +730,11 @@ class A2 extends Letter {
     );
     this.aXEndFinal = 0;
     this.aXStep = 7 * animationStepScale;
-    // aXEndPointFinal = width * 0.74, // old value from narrower A
     this.aXEndPointFinal = width - letterWidth;
 
     const halfLetterWidth = this.letterWidth / 2;
     const outerLineRun = halfLetterWidth - aTopLineWidth / 2;
-    this.aColour = `rgb(${150}, ${10 + (outerLineRun % 255)}, ${
+    this.aColour = `rgb(150, ${10 + (outerLineRun % 255)}, ${
       10 + ((outerLineRun * 2) % 255)
     })`;
     const bottomY = paddingAroundLetters + this.letterHeight;
@@ -647,7 +785,6 @@ class A2 extends Letter {
 
   drawA2() {
     ctx.putImageData(finalImage, 0, 0);
-    // finalImage = ctx.getImageData(0, 0, this.width, this.height);
     const animationDistance = Math.min(
       this.aXEndFinal,
       this.aXEndPointFinal
@@ -709,7 +846,12 @@ d.animationFunc();
 const a = new A1(width, height);
 a.animationFunc();
 
-function drawLineYDiagonal(initialCoords, endCoords, variable, colour) {
+function drawLineYDiagonal(
+  initialCoords: Point,
+  endCoords: Point,
+  variable: number,
+  colour: string,
+) {
   ctx.beginPath();
   ctx.moveTo(initialCoords[0] + variable, initialCoords[1]);
   ctx.lineTo(endCoords[0], endCoords[1]);
@@ -717,7 +859,12 @@ function drawLineYDiagonal(initialCoords, endCoords, variable, colour) {
   ctx.stroke();
 }
 
-function drawLineTowards({ initialCoords, endCoords, progress, colour }) {
+function drawLineTowards({
+  initialCoords,
+  endCoords,
+  progress,
+  colour,
+}: LineTowardsOptions) {
   ctx.beginPath();
   ctx.moveTo(initialCoords[0], initialCoords[1]);
   ctx.lineTo(
@@ -728,7 +875,7 @@ function drawLineTowards({ initialCoords, endCoords, progress, colour }) {
   ctx.stroke();
 }
 
-function drawPolygon({ points, xOffset, colour }) {
+function drawPolygon({ points, xOffset, colour }: PolygonOptions) {
   ctx.beginPath();
   ctx.moveTo(points[0][0] + xOffset, points[0][1]);
   for (let i = 1; i < points.length; i++) {
@@ -739,7 +886,12 @@ function drawPolygon({ points, xOffset, colour }) {
   ctx.stroke();
 }
 
-function drawLineXForwards({ initialCoords, yPositionOffset, length, colour }) {
+function drawLineXForwards({
+  initialCoords,
+  yPositionOffset,
+  length,
+  colour,
+}: HorizontalLineOptions) {
   ctx.beginPath();
   ctx.moveTo(initialCoords[0], initialCoords[1] + yPositionOffset);
   ctx.lineTo(initialCoords[0] + length, initialCoords[1] + yPositionOffset);
@@ -747,7 +899,12 @@ function drawLineXForwards({ initialCoords, yPositionOffset, length, colour }) {
   ctx.stroke();
 }
 
-function drawLineYForwards({ initialCoords, endPoint, length, colour }) {
+function drawLineYForwards({
+  initialCoords,
+  endPoint,
+  length,
+  colour,
+}: VerticalLineOptions) {
   ctx.beginPath();
   ctx.moveTo(initialCoords[0] + endPoint, initialCoords[1]);
   ctx.lineTo(initialCoords[0] + endPoint, initialCoords[1] + length);
@@ -756,7 +913,7 @@ function drawLineYForwards({ initialCoords, endPoint, length, colour }) {
 }
 
 let stopFlashing = false;
-let borderColour;
+let borderColour = "yellow";
 let iFlash = 37;
 
 function flashBorder() {
@@ -771,25 +928,21 @@ function flashBorder() {
 
   const hue = iFlash % 360;
 
-  borderColour = `hsl(${hue}, ${`100%`}, ${`50%`})`;
-  // canvas.style.border = `2px solid ${borderColour}`;
+  borderColour = `hsl(${hue}, 100%, 50%)`;
 }
 
-// vars for lightShow
 const lightShowStartCoords = [0, height * 0.5];
 const lightShowStartCoords2 = [width, height * 0.5];
 let xEndLightShow = letterWidth / 2;
 let yEndLightShow = height * 1.5;
 let time = 0;
 
-// supposed to be like fox searchlight pictures torch thing
 function lightShow() {
   if (time < width * 2) {
     requestAnimationFrame(lightShow);
   } else {
     stopFlashing = true;
     ctx.font = "36px serif";
-    // ctx.strokeStyle = borderColour;
     ctx.fillStyle = "yellow";
     ctx.fillText("Presents", width / 3, (height * 7) / 8);
     canvas.dataset.animationState = "complete";
@@ -878,4 +1031,27 @@ function lightShow() {
     xEndLightShow -= 2 * animationStepScale;
     yEndLightShow -= 0.5 * animationStepScale;
   }
+}
+
+function getCanvas(selector: string): HTMLCanvasElement {
+  const element = document.querySelector<HTMLCanvasElement>(selector);
+
+  if (!element) {
+    throw new Error(`The canvas element "${selector}" is missing.`);
+  }
+
+  return element;
+}
+
+function getCanvasContext(
+  element: HTMLCanvasElement,
+  options?: CanvasRenderingContext2DSettings,
+): CanvasRenderingContext2D {
+  const context = element.getContext("2d", options);
+
+  if (!context) {
+    throw new Error("This browser does not support the 2D canvas API.");
+  }
+
+  return context;
 }

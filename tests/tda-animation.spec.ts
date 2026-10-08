@@ -1,7 +1,7 @@
-const { test, expect } = require("@playwright/test");
+import { test, expect } from "@playwright/test";
 
 test("records the complete TDA canvas animation", async ({ page }, testInfo) => {
-  const browserErrors = [];
+  const browserErrors: string[] = [];
 
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
@@ -10,56 +10,71 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
     }
   });
 
-  await page.route("https://cdn.jsdelivr.net/**", (route) =>
-    route.fulfill({
-      contentType: "application/javascript",
-      body: `const listeners = {};
-      const input = {
-        id: "test-midi-input",
-        manufacturer: "Playwright",
-        name: "Midi Through Port-0",
-        state: "connected",
-        type: "input",
-        channels: [undefined, { addListener: () => {} }],
-        addListener: (type, listener) => {
-          listeners[type] ??= [];
-          listeners[type].push(listener);
-        }
-      };
-      globalThis.WebMidi = {
-        inputs: [input],
-        enable: async () => {},
-        addListener: () => {}
-      };
-      globalThis.testMidi = {
-        emit: (type) => {
-          for (const listener of listeners[type] ?? []) {
-            listener({ type, message: { type } });
-          }
-        }
-      };`,
-    })
-  );
+  await page.addInitScript(() => {
+    const listeners: Record<string, Array<(event: unknown) => void>> = {};
+    const input = {
+      id: "test-midi-input",
+      manufacturer: "Playwright",
+      name: "Midi Through Port-0",
+      state: "connected",
+      connection: "open",
+      type: "input",
+      onmidimessage: null as null | ((event: unknown) => void),
+      onstatechange: null,
+      addEventListener: (type: string, listener: (event: unknown) => void) => {
+        listeners[type] ??= [];
+        listeners[type].push(listener);
+      },
+      removeEventListener: () => {},
+      open: () => Promise.resolve(input),
+      close: () => Promise.resolve(input),
+    };
+    const midiAccess = {
+      inputs: new Map([[input.id, input]]),
+      outputs: new Map(),
+      sysexEnabled: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: () => Promise.resolve(midiAccess),
+    });
+
+    globalThis.testMidi = {
+      ready: () => typeof input.onmidimessage === "function",
+      emit: (type: "clock" | "start") => {
+        const data = new Uint8Array([type === "clock" ? 0xf8 : 0xfa]);
+        input.onmidimessage?.({ data, receivedTime: performance.now() });
+      },
+    };
+  });
 
   await page.goto("/tda.html?animationDurationMs=2000");
+  await page.waitForFunction(() => globalThis.testMidi?.ready());
 
   const canvas = page.locator("#canvas");
   const midiOverlay = page.locator("#midi-overlay");
-  const circleCentreAlpha = (side) =>
-    midiOverlay.evaluate((element, circleSide) => {
+  const circleCentreAlpha = (side: "left" | "right") =>
+    midiOverlay.evaluate<number, "left" | "right", HTMLCanvasElement>((element, circleSide) => {
       const x = element.width * (circleSide === "left" ? 0.35 : 0.65);
       const y = element.height - (element.width / 32) * 1.5;
-      return element.getContext("2d").getImageData(x, y, 1, 1).data[3];
+      const context = element.getContext("2d");
+      if (!context) {
+        throw new Error("Canvas context unavailable.");
+      }
+      return context.getImageData(x, y, 1, 1).data[3];
     }, side);
 
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
-      globalThis.testMidi.emit("clock");
+      globalThis.testMidi?.emit("clock");
     }
   });
   await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
 
-  await page.evaluate(() => globalThis.testMidi.emit("start"));
+  await page.evaluate(() => globalThis.testMidi?.emit("start"));
   await expect(page.locator("body")).toHaveCSS(
     "background-color",
     "rgb(0, 128, 0)"
@@ -67,7 +82,7 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
 
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
-      globalThis.testMidi.emit("clock");
+      globalThis.testMidi?.emit("clock");
     }
   });
   await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true");
@@ -76,7 +91,7 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
 
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
-      globalThis.testMidi.emit("clock");
+      globalThis.testMidi?.emit("clock");
     }
   });
   await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
@@ -84,7 +99,7 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
 
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
-      globalThis.testMidi.emit("clock");
+      globalThis.testMidi?.emit("clock");
     }
   });
   await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true");
@@ -95,7 +110,9 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   expect(await page.evaluate(() => window.animationTiming.durationMs)).toBe(2000);
 
   const canvasWidth = () =>
-    canvas.evaluate((element) => element.getBoundingClientRect().width);
+    canvas.evaluate<number, undefined, HTMLCanvasElement>((element) =>
+      element.getBoundingClientRect().width,
+    );
   const availableWidth = () =>
     page.evaluate(() => document.body.getBoundingClientRect().width);
 
@@ -110,8 +127,15 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   await expect(heading).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(heading).toHaveCSS("font-family", /sans-serif/);
 
-  const drawnPixelCount = await canvas.evaluate((element) => {
+  const drawnPixelCount = await canvas.evaluate<
+    number,
+    undefined,
+    HTMLCanvasElement
+  >((element) => {
     const context = element.getContext("2d");
+    if (!context) {
+      throw new Error("Canvas context unavailable.");
+    }
     const pixels = context.getImageData(0, 0, element.width, element.height).data;
     let count = 0;
 

@@ -1,7 +1,15 @@
-const canvases = document.getElementsByClassName("border-canvas");
+import "../main.css";
 
-const boxes = document.getElementsByClassName("curve");
-const absolutes = document.getElementsByClassName("absolute");
+const canvases = document.getElementsByClassName(
+  "border-canvas",
+) as HTMLCollectionOf<HTMLCanvasElement>;
+
+const boxes = document.getElementsByClassName(
+  "curve",
+) as HTMLCollectionOf<HTMLElement>;
+const absolutes = document.getElementsByClassName(
+  "absolute",
+) as HTMLCollectionOf<HTMLElement>;
 
 const vw = Math.max(
   document.documentElement.clientWidth || 0,
@@ -31,7 +39,7 @@ let id = 0;
 for (let i = 0; i < boxes.length; i++) {
   boxes[i].addEventListener("mouseenter", function () {
     id++;
-    let prevAlreadyAnimated = alreadyAnimated;
+    const prevAlreadyAnimated = alreadyAnimated;
     alreadyAnimated = i;
     animateBorders(i + 1, prevAlreadyAnimated || 1, id);
   });
@@ -39,23 +47,23 @@ for (let i = 0; i < boxes.length; i++) {
 
 animateBorders(canvases.length, 0, id);
 
-function animateBorders(end, start = 0, identity = 0) {
-  const done = { "-1": true };
+function animateBorders(end: number, start = 0, identity = 0) {
+  const done: Record<number, boolean> = { "-1": true };
   done[start - 1] = true;
 
   clearAll();
   function clearAll() {
     for (let j = alreadyAnimated + 1 || start; j < canvases.length; j++) {
       const c = canvases[j];
-      const clearingContext = c.getContext("2d");
+      const clearingContext = getCanvasContext(c);
       clearingContext.clearRect(0, 0, c.width, c.height);
     }
   }
   if (start > 0 && end > start) {
     for (let k = 0; k < start; k++) {
       const cvs = canvases[k];
-      const drawingContext = cvs.getContext("2d");
-      const dun = {};
+      const drawingContext = getCanvasContext(cvs);
+      const dun: Record<number, boolean> = {};
       dun[k - 1] = true;
       drawBorderLines(
         drawingContext,
@@ -78,7 +86,7 @@ function animateBorders(end, start = 0, identity = 0) {
     const steps = 12;
     const heightSteps = steps * (canvas.height / canvas.width);
 
-    const ctx = canvas.getContext("2d");
+    const ctx = getCanvasContext(canvas);
 
     window.requestAnimationFrame(animateBorder);
 
@@ -135,17 +143,17 @@ function animateBorders(end, start = 0, identity = 0) {
 }
 
 function drawBorderLines(
-  ctx,
-  canvas,
-  iteratorTop,
-  iteratorSide,
-  iteratorBottom,
-  i,
-  done
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  iteratorTop: number,
+  iteratorSide: number,
+  iteratorBottom: number,
+  i: number,
+  done: Record<number, boolean>,
 ) {
   const colour = `hsl(${
     i * (360 / canvases.length) + 30
-  }, ${`100%`}, ${`50%`})`;
+  }, 100%, 50%)`;
   console.log({ colour });
   const leftOrRight = i % 2 === 0 ? canvas.width : 0;
   const rightOrLeft = i % 2 === 1 ? canvas.width : 0;
@@ -180,15 +188,8 @@ function drawBorderLines(
     }
   }
 
-  // ctx.strokeStyle = colour;
-  const getColour = (step) =>
-    `hsl(${i * (360 / canvases.length) + step}, ${`100%`}, ${`50%`})`;
-  // const grad = ctx.createLinearGradient(
-  //   canvas.width / 2,
-  //   0,
-  //   canvas.width / 2,
-  //   canvas.height
-  // );
+  const getColour = (step: number) =>
+    `hsl(${i * (360 / canvases.length) + step}, 100%, 50%)`;
   const grad = ctx.createLinearGradient(
     canvas.width / 2,
     0,
@@ -196,7 +197,6 @@ function drawBorderLines(
     canvas.height
   );
   grad.addColorStop(0, getColour(20));
-  // grad.addColorStop(0.5, getColour(45));
   grad.addColorStop(1, getColour(90));
 
   ctx.strokeStyle = grad;
@@ -204,14 +204,23 @@ function drawBorderLines(
   ctx.stroke();
 }
 
-const personal = document.getElementById("personal-circle");
+const personal = document.querySelector<HTMLElement>("#personal-circle");
+
+if (!personal) {
+  throw new Error("The personal projects control is missing.");
+}
 personal.addEventListener("click", () => {
   animatePersonalProjects();
 });
 
 function animatePersonalProjects() {
-  const canvas = document.getElementById("personal-canvas");
-  const ctx = canvas.getContext("2d");
+  const canvas = document.querySelector<HTMLCanvasElement>("#personal-canvas");
+
+  if (!canvas) {
+    throw new Error("The personal projects canvas is missing.");
+  }
+
+  const ctx = getCanvasContext(canvas);
 
   const width = canvas.width;
   const height = canvas.height;
@@ -226,7 +235,9 @@ function animatePersonalProjects() {
       window.requestAnimationFrame(drawPersonalLines);
     } else {
       console.log("done lines");
-      const personalImages = document.getElementsByClassName("personal-image");
+      const personalImages = document.getElementsByClassName(
+        "personal-image",
+      ) as HTMLCollectionOf<HTMLElement>;
       for (let i = 0; i < 2; i++) {
         personalImages[i].style.display = "inline-block";
       }
@@ -243,4 +254,14 @@ function animatePersonalProjects() {
     x += 4;
     y += 2;
   }
+}
+
+function getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("This browser does not support the 2D canvas API.");
+  }
+
+  return context;
 }

@@ -1,10 +1,14 @@
 {
-  "name": "TDAwebsite",
+  "name": "tda-website",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "type": "module",
   "scripts": {
-    "lint": "eslint .",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && node scripts/check-comments.mjs",
     "test": "playwright test",
     "test:evidence": "playwright test"
   },
@@ -22,9 +26,16 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.0",
+    "@types/node": "^26.6.4",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-html": "^8.2.1",
-    "globals": "^17.13.0"
+    "globals": "^17.13.0",
+    "typescript": "~6.0.0",
+    "typescript-eslint": "^8.71.1",
+    "vite": "^8.3.4"
+  },
+  "dependencies": {
+    "webmidi": "^3.3.1"
   }
 }

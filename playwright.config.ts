@@ -1,6 +1,6 @@
-const { defineConfig } = require("@playwright/test");
+import { defineConfig } from "@playwright/test";
 
-module.exports = defineConfig({
+export default defineConfig({
   testDir: "./tests",
   outputDir: "test-results",
   timeout: 10000,
@@ -22,7 +22,7 @@ module.exports = defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "python3 -m http.server 4173 --bind 127.0.0.1",
+    command: "npm run dev -- --host 127.0.0.1 --port 4173",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
   },
