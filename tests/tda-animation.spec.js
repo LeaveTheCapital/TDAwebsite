@@ -27,6 +27,22 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
   expect(await page.evaluate(() => window.animationTiming.durationMs)).toBe(1000);
 
+  const canvasWidth = () =>
+    canvas.evaluate((element) => element.getBoundingClientRect().width);
+  const availableWidth = () =>
+    page.evaluate(() => document.body.getBoundingClientRect().width);
+
+  const initialCanvasWidth = await canvasWidth();
+  expect(initialCanvasWidth).toBeCloseTo(await availableWidth());
+  await page.setViewportSize({ width: 640, height: 540 });
+  expect(await canvasWidth()).toBeCloseTo(await availableWidth());
+  expect(await canvasWidth()).toBeLessThan(initialCanvasWidth);
+  await page.setViewportSize({ width: 960, height: 540 });
+
+  const heading = page.locator("h1");
+  await expect(heading).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(heading).toHaveCSS("font-family", /sans-serif/);
+
   const drawnPixelCount = await canvas.evaluate((element) => {
     const context = element.getContext("2d");
     const pixels = context.getImageData(0, 0, element.width, element.height).data;
