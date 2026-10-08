@@ -46,7 +46,7 @@ function hideMidiBeatCircle() {
 }
 
 function showMidiBeatCircle() {
-  const radius = width / 24;
+  const radius = width / 32;
   const x = width * (nextMidiCircleSide === "left" ? 0.35 : 0.65);
   const y = midiOverlay.height - radius * 1.5;
 
@@ -55,6 +55,9 @@ function showMidiBeatCircle() {
   midiOverlayContext.arc(x, y, radius, 0, Math.PI * 2);
   midiOverlayContext.fillStyle = "white";
   midiOverlayContext.fill();
+  midiOverlayContext.strokeStyle = "black";
+  midiOverlayContext.lineWidth = 2;
+  midiOverlayContext.stroke();
   midiOverlay.dataset.circleVisible = "true";
   midiOverlay.dataset.circleSide = nextMidiCircleSide;
   nextMidiCircleSide = nextMidiCircleSide === "left" ? "right" : "left";

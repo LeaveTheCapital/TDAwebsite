@@ -41,14 +41,14 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
     })
   );
 
-  await page.goto("/tda.html?animationDurationMs=1000");
+  await page.goto("/tda.html?animationDurationMs=2000");
 
   const canvas = page.locator("#canvas");
   const midiOverlay = page.locator("#midi-overlay");
   const circleCentreAlpha = (side) =>
     midiOverlay.evaluate((element, circleSide) => {
       const x = element.width * (circleSide === "left" ? 0.35 : 0.65);
-      const y = element.height - (element.width / 24) * 1.5;
+      const y = element.height - (element.width / 32) * 1.5;
       return element.getContext("2d").getImageData(x, y, 1, 1).data[3];
     }, side);
 
@@ -92,7 +92,7 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   expect(await circleCentreAlpha("right")).toBeGreaterThan(0);
 
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
-  expect(await page.evaluate(() => window.animationTiming.durationMs)).toBe(1000);
+  expect(await page.evaluate(() => window.animationTiming.durationMs)).toBe(2000);
 
   const canvasWidth = () =>
     canvas.evaluate((element) => element.getBoundingClientRect().width);
