@@ -6,6 +6,11 @@ let backgroundHue;
 let lightShowHue;
 let lightShowColour = "yellow";
 let activeMidiInput;
+const browserMidiInputName = "Midi Through Port-0";
+
+function isBrowserMidiInput(input) {
+  return input.name === browserMidiInputName;
+}
 
 function randomHueExcept(...excludedHues) {
   let nextHue;
@@ -25,28 +30,41 @@ function handleMidiNoteOn() {
   lightShowColour = `hsl(${lightShowHue}, 100%, 50%)`;
 }
 
-function connectToFirstMidiInput() {
+function logMidiMessage(event) {
+  console.log("MIDI message received:", event.message, event);
+}
+
+function connectToMidiInput() {
   if (activeMidiInput) {
     return;
   }
 
   const midiInput = globalThis.WebMidi.inputs.find(
-    (input) => input.state === "connected"
+    (input) => input.state === "connected" && isBrowserMidiInput(input)
   );
 
   if (!midiInput) {
-    console.warn("No MIDI input was found.");
+    const availableInputs = globalThis.WebMidi.inputs.map((input) => ({
+      manufacturer: input.manufacturer,
+      name: input.name,
+      state: input.state,
+    }));
+
+    console.warn(`MIDI input "${browserMidiInputName}" was not found.`, {
+      availableInputs,
+    });
     return;
   }
 
   activeMidiInput = midiInput;
+  activeMidiInput.addListener("midimessage", logMidiMessage);
   activeMidiInput.channels[1].addListener("noteon", handleMidiNoteOn);
   console.log("Using MIDI input:", activeMidiInput.name, activeMidiInput);
 }
 
 function handleMidiPortConnected(event) {
-  if (event.port.type === "input") {
-    connectToFirstMidiInput();
+  if (event.port.type === "input" && isBrowserMidiInput(event.port)) {
+    connectToMidiInput();
   }
 }
 
@@ -60,7 +78,7 @@ function handleMidiPortDisconnected(event) {
 
   console.warn("MIDI input disconnected:", event.port.name);
   activeMidiInput = undefined;
-  connectToFirstMidiInput();
+  connectToMidiInput();
 }
 
 async function initialiseMidi() {
@@ -73,7 +91,7 @@ async function initialiseMidi() {
     await globalThis.WebMidi.enable();
     globalThis.WebMidi.addListener("connected", handleMidiPortConnected);
     globalThis.WebMidi.addListener("disconnected", handleMidiPortDisconnected);
-    connectToFirstMidiInput();
+    connectToMidiInput();
   } catch (error) {
     console.error("WebMidi could not be enabled.", error);
   }
