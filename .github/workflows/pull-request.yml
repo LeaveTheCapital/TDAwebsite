@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint
+  verify:
+    name: Lint and browser evidence
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -31,3 +31,20 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Record browser evidence
+        run: npm run test:evidence
+
+      - name: Upload browser evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-evidence-${{ github.event.pull_request.number }}-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14

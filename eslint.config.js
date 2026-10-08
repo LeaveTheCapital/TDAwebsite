@@ -23,7 +23,7 @@ module.exports = defineConfig([
     },
   },
   {
-    files: ["eslint.config.js"],
+    files: ["eslint.config.js", "playwright.config.js", "tests/**/*.js"],
     languageOptions: {
       sourceType: "commonjs",
       globals: globals.node,

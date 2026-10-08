@@ -81,6 +81,12 @@ async function initialiseMidi() {
 
 initialiseMidi();
 
+const animationStepScale = globalThis.animationTiming?.stepScale ?? 1;
+
+function advanceTowards(current, step, endPoint) {
+  return Math.min(current + step * animationStepScale, endPoint);
+}
+
 // ctx.globalCompositeOperation = "difference";
 
 //consts for size
@@ -93,6 +99,7 @@ const paddingAroundLetters =
 (width - numberOfLetters * letterWidth) / (numberOfLetters + 1);
 
 canvas.height = letterWidth + 2 * paddingAroundLetters;
+canvas.dataset.animationState = "running";
 ctx.lineCap = "square";
 ctx.lineWidth = 2;
 
@@ -160,11 +167,10 @@ class T1 extends Letter {
       length: this.yEnd,
       colour: this.tColour,
     });
-    this.xEnd++;
-    this.xEnd++;
+    this.xEnd = advanceTowards(this.xEnd, 2, this.letterWidth);
 
     if (this.yEnd < this.tYEndPoint) {
-      this.yEnd++;
+      this.yEnd = advanceTowards(this.yEnd, 1, this.tYEndPoint);
     }
   }
 }
@@ -200,11 +206,9 @@ class T2 extends Letter {
       length: this.yEnd,
       colour: this.colour,
     });
-    this.xEnd++;
-    this.xEnd++;
+    this.xEnd = advanceTowards(this.xEnd, 2, this.tXEndPoint2);
     if (this.yEnd < this.tYEndPoint2) {
-      this.yEnd++;
-      this.yEnd++;
+      this.yEnd = advanceTowards(this.yEnd, 2, this.tYEndPoint2);
     }
   }
 }
@@ -243,10 +247,9 @@ class T3 extends Letter {
       length: -this.xEnd,
       colour: this.colour,
     });
-    this.yEnd++;
-    this.yEnd++;
+    this.yEnd = advanceTowards(this.yEnd, 2, this.letterHeight);
     if (this.xEnd < this.tXEndPoint3) {
-      this.xEnd++;
+      this.xEnd = advanceTowards(this.xEnd, 1, this.tXEndPoint3);
     }
   }
 }
@@ -290,10 +293,9 @@ class T4 extends Letter {
       length: this.yEnd,
       colour: this.colour,
     });
-    this.yEnd++;
-    this.yEnd++;
+    this.yEnd = advanceTowards(this.yEnd, 2, this.tYEndPoint4);
     if (this.xEnd < this.tXEndPoint4) {
-      this.xEnd++;
+      this.xEnd = advanceTowards(this.xEnd, 1, this.tXEndPoint4);
     }
   }
 }
@@ -340,9 +342,9 @@ class D1 extends Letter {
       10 + ((this.dYEnd * 2) % 255)
     })`;
     ctx.stroke();
-    this.dYEnd++;
+    this.dYEnd = advanceTowards(this.dYEnd, 1, this.dYEndPoint);
     if (this.dXEnd < Math.PI / 2) {
-      this.dXEnd = this.dXEnd + 0.05;
+      this.dXEnd = advanceTowards(this.dXEnd, 0.05, Math.PI / 2);
     }
   }
 }
@@ -396,9 +398,9 @@ class D2 extends Letter {
       10 + ((this.dYEnd2 * 3) % 255)
     })`;
     ctx.stroke();
-    this.dYEnd++;
+    this.dYEnd = advanceTowards(this.dYEnd, 1, this.dYEndPoint2);
     if (this.dXEnd < Math.PI / 2) {
-      this.dXEnd = this.dXEnd + 0.06;
+      this.dXEnd = advanceTowards(this.dXEnd, 0.06, Math.PI / 2);
     }
   }
 }
@@ -482,8 +484,8 @@ class A1 extends Letter {
       colour: this.aColour,
     });
 
-    this.aXEnd = this.aXEnd + 0.35;
-    this.aXEnd2 = this.aXEnd2 + 0.35;
+    this.aXEnd = advanceTowards(this.aXEnd, 0.35, this.aOuterLineRun);
+    this.aXEnd2 = advanceTowards(this.aXEnd2, 0.35, this.aOuterLineRun);
   }
 }
 
@@ -504,7 +506,7 @@ class A2 extends Letter {
       }
     );
     this.aXEndFinal = 0;
-    this.aXStep = 7;
+    this.aXStep = 7 * animationStepScale;
     // aXEndPointFinal = width * 0.74, // old value from narrower A
     this.aXEndPointFinal = width - letterWidth;
 
@@ -676,7 +678,7 @@ let borderColour;
 let iFlash = 37;
 
 function flashBorder() {
-  iFlash += 0.05;
+  iFlash += 0.05 * animationStepScale;
   if (iFlash <= 1000) {
     if (!stopFlashing) {
       window.requestAnimationFrame(flashBorder);
@@ -708,6 +710,8 @@ function lightShow() {
     // ctx.strokeStyle = borderColour;
     ctx.fillStyle = "yellow";
     ctx.fillText("Presents", width / 3, (height * 7) / 8);
+    canvas.dataset.animationState = "complete";
+    canvas.dispatchEvent(new CustomEvent("animationcomplete"));
     console.log("finished light show");
     return;
   }
@@ -782,12 +786,12 @@ function lightShow() {
 
   ctx.fill();
 
-  time += 2;
+  time += 2 * animationStepScale;
   if (time < width) {
-    xEndLightShow += 2;
-    yEndLightShow--;
+    xEndLightShow += 2 * animationStepScale;
+    yEndLightShow -= animationStepScale;
   } else {
-    xEndLightShow -= 2;
-    yEndLightShow -= 0.5;
+    xEndLightShow -= 2 * animationStepScale;
+    yEndLightShow -= 0.5 * animationStepScale;
   }
 }
