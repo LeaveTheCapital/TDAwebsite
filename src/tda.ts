@@ -209,7 +209,12 @@ void initialiseMidi();
 const animationStepScale = animationTiming.stepScale;
 const query = new URLSearchParams(window.location.search);
 const requestedText = (query.get("text") || "TDA").toUpperCase();
-const letters = [...requestedText];
+const letters = Array.from(
+  new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
+    requestedText,
+  ),
+  ({ segment }) => segment,
+);
 
 if (!query.get("text")) {
   query.set("text", requestedText);
