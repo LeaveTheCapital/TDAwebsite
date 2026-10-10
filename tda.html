@@ -18,6 +18,12 @@
         <button id="start-fake-midi" type="button" hidden>start fake midi timer</button>
         <button id="stop-fake-midi" type="button" hidden disabled>stop fake midi timer</button>
     </div>
+    <div class="dice-container">
+        <button id="roll-die" class="dice-button" type="button" aria-label="Roll the die">
+            <canvas id="dice-canvas" class="dice-canvas" width="260" height="260" aria-hidden="true"></canvas>
+        </button>
+        <output id="dice-result" class="dice-result" aria-live="polite">Click the die to roll</output>
+    </div>
 
     <script type="module" src="/src/tda.ts"></script>
 </body>

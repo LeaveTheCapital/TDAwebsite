@@ -2,6 +2,7 @@ import { Input, WebMidi, type PortEvent } from "webmidi";
 
 import "../main.css";
 import { animationTiming } from "./animation-timing.ts";
+import "./dice.ts";
 
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
