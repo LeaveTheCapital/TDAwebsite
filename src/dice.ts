@@ -19,8 +19,8 @@ const context = getCanvasContext(canvas);
 const rollButton = getButton("#roll-die");
 const result = getOutput("#dice-result");
 const luminousGreen = "#39ff14";
-const rollDurationMs = 1800;
-const reducedMotionRollDurationMs = 450;
+const rollDurationMs = 3600;
+const reducedMotionRollDurationMs = 3600;
 
 const pipPositions: Record<number, Point2d[]> = {
   1: [[0, 0]],
