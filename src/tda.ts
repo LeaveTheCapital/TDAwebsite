@@ -250,10 +250,19 @@ ctx.lineWidth = 2;
 const letterHeight = letterWidth;
 
 const tYEndPoint = letterWidth * (13 / 45);
-const tYEndPoint3 = letterHeight - tYEndPoint;
 const aBottomLineWidth = letterWidth * 0.25;
 const aTopLineWidth = letterWidth * 0.15;
 const aInnerLineHeight = letterHeight / 2;
+const dAndGFirstStageDistance = letterHeight;
+const dAndGSecondStageDistance = letterHeight * 0.6;
+const gOpeningAngle = Math.PI / 6;
+const gInnerRadiusScale = 0.32;
+const gLowerOuterOpeningAngle = Math.asin(
+  gInnerRadiusScale * 2 * Math.sin(gOpeningAngle),
+);
+const gOuterArcAngle =
+  Math.PI * 2 - gOpeningAngle - gLowerOuterOpeningAngle;
+const gInnerArcAngle = Math.PI * 2 - gOpeningAngle * 2;
 
 type Point = [number, number];
 
@@ -597,7 +606,7 @@ class D1 extends Letter {
     this.dXEnd = -Math.PI / 2;
     this.dYEnd = 0;
     this.dStartPoint = [this.startX, paddingAroundLetters];
-    this.dYEndPoint = letterHeight;
+    this.dYEndPoint = dAndGFirstStageDistance;
   }
 
   drawD1() {
@@ -660,7 +669,7 @@ class D2 extends Letter {
     this.dYEnd = 0;
     this.dStartPoint = [this.startX, this.paddingAroundLetters];
     this.dXEndPoint = this.letterWidth * 0.1375;
-    this.dYEndPoint2 = tYEndPoint + tYEndPoint3 - this.letterWidth * 0.4;
+    this.dYEndPoint2 = dAndGSecondStageDistance;
   }
 
   drawD2() {
@@ -693,6 +702,182 @@ class D2 extends Letter {
     if (this.dXEnd < Math.PI / 2) {
       this.dXEnd = advanceTowards(this.dXEnd, 0.06, Math.PI / 2);
     }
+  }
+}
+
+class G1 extends Letter {
+  declare progress: number;
+  declare startPoint: Point;
+  declare endPoint: number;
+  declare colour: string;
+
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
+    super(
+      width,
+      height,
+      letterIndex,
+      () => {
+        this.drawG1();
+      },
+      () => this.progress < this.endPoint,
+      () => {
+        new G2(width, height, letterIndex, onComplete).animationFunc();
+      },
+    );
+
+    this.progress = 0;
+    this.startPoint = [this.startX, this.paddingAroundLetters];
+    this.endPoint = dAndGFirstStageDistance;
+    this.colour = "rgb(20, 160, 180)";
+  }
+
+  drawG1() {
+    const animationProgress = this.progress / this.endPoint;
+
+    ctx.beginPath();
+    ctx.ellipse(
+      this.startPoint[0] + this.letterWidth / 2,
+      this.startPoint[1] + this.letterHeight / 2,
+      this.letterWidth / 2,
+      this.letterHeight / 2,
+      0,
+      gLowerOuterOpeningAngle,
+      gLowerOuterOpeningAngle + gOuterArcAngle * animationProgress,
+    );
+    ctx.strokeStyle = this.colour;
+    ctx.stroke();
+    this.progress = advanceTowards(this.progress, 1, this.endPoint);
+  }
+}
+
+class G2 extends Letter {
+  declare progress: number;
+  declare endPoint: number;
+  declare centre: Point;
+  declare outerRadius: number;
+  declare innerRadius: number;
+  declare upperOuterEnd: Point;
+  declare upperInnerEnd: Point;
+  declare lowerInnerEnd: Point;
+  declare lowerOuterStart: Point;
+  declare crossbarTopStart: Point;
+  declare crossbarTopEnd: Point;
+  declare crossbarBottomStart: Point;
+  declare crossbarBottomEnd: Point;
+  declare colour: string;
+
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
+    super(
+      width,
+      height,
+      letterIndex,
+      () => {
+        this.drawG2();
+      },
+      () => this.progress < this.endPoint,
+      onComplete,
+    );
+
+    this.progress = 0;
+    this.endPoint = dAndGSecondStageDistance;
+    this.centre = [
+      this.startX + this.letterWidth / 2,
+      this.paddingAroundLetters + this.letterHeight / 2,
+    ];
+    this.outerRadius = this.letterWidth / 2;
+    this.innerRadius = this.letterWidth * gInnerRadiusScale;
+    this.upperOuterEnd = [
+      this.centre[0] + this.outerRadius * Math.cos(gOpeningAngle),
+      this.centre[1] - this.outerRadius * Math.sin(gOpeningAngle),
+    ];
+    this.upperInnerEnd = [
+      this.centre[0] + this.innerRadius * Math.cos(gOpeningAngle),
+      this.centre[1] - this.innerRadius * Math.sin(gOpeningAngle),
+    ];
+    this.lowerInnerEnd = [
+      this.centre[0] + this.innerRadius * Math.cos(gOpeningAngle),
+      this.centre[1] + this.innerRadius * Math.sin(gOpeningAngle),
+    ];
+    this.lowerOuterStart = [
+      this.centre[0] +
+        this.outerRadius * Math.cos(gLowerOuterOpeningAngle),
+      this.centre[1] +
+        this.outerRadius * Math.sin(gLowerOuterOpeningAngle),
+    ];
+    this.crossbarTopStart = [
+      this.startX + this.letterWidth * 0.5,
+      this.paddingAroundLetters + this.letterHeight * 0.48,
+    ];
+    this.crossbarTopEnd = [
+      this.lowerOuterStart[0],
+      this.crossbarTopStart[1],
+    ];
+    this.crossbarBottomStart = [
+      this.crossbarTopStart[0],
+      this.lowerInnerEnd[1],
+    ];
+    this.crossbarBottomEnd = this.lowerInnerEnd;
+    this.colour = "rgb(20, 160, 180)";
+  }
+
+  drawG2() {
+    this.progress = advanceTowards(this.progress, 1, this.endPoint);
+    const animationProgress = this.progress / this.endPoint;
+
+    ctx.beginPath();
+    ctx.ellipse(
+      this.centre[0],
+      this.centre[1],
+      this.innerRadius,
+      this.innerRadius,
+      0,
+      Math.PI * 2 - gOpeningAngle,
+      Math.PI * 2 - gOpeningAngle - gInnerArcAngle * animationProgress,
+      true,
+    );
+    ctx.strokeStyle = this.colour;
+    ctx.stroke();
+
+    drawLineTowards({
+      initialCoords: this.upperOuterEnd,
+      endCoords: this.upperInnerEnd,
+      progress: animationProgress,
+      colour: this.colour,
+    });
+    drawLineTowards({
+      initialCoords: this.crossbarTopStart,
+      endCoords: this.crossbarTopEnd,
+      progress: animationProgress,
+      colour: this.colour,
+    });
+    drawLineTowards({
+      initialCoords: this.crossbarBottomStart,
+      endCoords: this.crossbarBottomEnd,
+      progress: animationProgress,
+      colour: this.colour,
+    });
+    drawLineTowards({
+      initialCoords: this.crossbarTopStart,
+      endCoords: this.crossbarBottomStart,
+      progress: animationProgress,
+      colour: this.colour,
+    });
+    drawLineTowards({
+      initialCoords: this.crossbarTopEnd,
+      endCoords: this.lowerOuterStart,
+      progress: animationProgress,
+      colour: this.colour,
+    });
   }
 }
 
@@ -963,7 +1148,7 @@ const aIndexes = letters.flatMap((letter, index) =>
   letter === "A" ? [index] : [],
 );
 let unfinishedLetters = letters.filter((letter) =>
-  "TDA".includes(letter),
+  "TDAG".includes(letter),
 ).length;
 
 function finishLetter() {
@@ -998,6 +1183,8 @@ letters.forEach((letter, index) => {
     new D1(width, height, index, finishLetter).animationFunc();
   } else if (letter === "A") {
     new A1(width, height, index, finishLetter).animationFunc();
+  } else if (letter === "G") {
+    new G1(width, height, index, finishLetter).animationFunc();
   }
 });
 

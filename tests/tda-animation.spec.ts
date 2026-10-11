@@ -163,7 +163,7 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   expect(browserErrors).toEqual([]);
 });
 
-test("positions repeated query-string letters before the light show", async ({
+test("positions repeated query-string letters, including G, before the light show", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -190,10 +190,10 @@ test("positions repeated query-string letters before the light show", async ({
     });
   });
 
-  await page.goto("/tda.html?text=adta&animationDurationMs=1000");
+  await page.goto("/tda.html?text=gadg&animationDurationMs=1000");
 
   const canvas = page.locator("#canvas");
-  await expect(canvas).toHaveAttribute("data-text", "ADTA");
+  await expect(canvas).toHaveAttribute("data-text", "GADG");
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
 
   const occupiedSlots = await canvas.evaluate<
@@ -232,6 +232,98 @@ test("positions repeated query-string letters before the light show", async ({
 
   expect(occupiedSlots).toEqual([true, true, true, true]);
   expect(browserErrors).toEqual([]);
+});
+
+test("draws the outlined G with an open lower-right bar junction", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const midiAccess = {
+      inputs: new Map(),
+      outputs: new Map(),
+      sysexEnabled: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: () => Promise.resolve(midiAccess),
+    });
+  });
+
+  await page.goto("/tda.html?text=G&animationDurationMs=1000");
+
+  const canvas = page.locator("#canvas");
+  await expect(canvas).toHaveAttribute("data-animation-state", "complete");
+
+  const segments = await canvas.evaluate<
+    Record<string, boolean>,
+    undefined,
+    HTMLCanvasElement
+  >((element) => {
+    const context = element.getContext("2d");
+    if (!context) {
+      throw new Error("Canvas context unavailable.");
+    }
+
+    const letterWidth = element.width / 3;
+    const padding = (element.width - letterWidth) / 2;
+    const centreX = padding + letterWidth / 2;
+    const centreY = padding + letterWidth / 2;
+    const innerRadius = letterWidth * 0.32;
+    const junctionX = centreX + innerRadius * Math.cos(Math.PI / 6);
+    const junctionY = centreY + innerRadius * Math.sin(Math.PI / 6);
+    const outerJunctionX =
+      centreX +
+      (letterWidth / 2) * Math.cos(Math.asin(0.32));
+    const barTopY = padding + letterWidth * 0.48;
+
+    const hasGStroke = (x: number, y: number) => {
+      const radius = 3;
+      const pixels = context.getImageData(
+        Math.round(x) - radius,
+        Math.round(y) - radius,
+        radius * 2 + 1,
+        radius * 2 + 1,
+      ).data;
+
+      for (let index = 0; index < pixels.length; index += 4) {
+        if (
+          pixels[index] < 80 &&
+          pixels[index + 1] > 100 &&
+          pixels[index + 2] > 100 &&
+          pixels[index + 3] > 0
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    return {
+      leftVertical: hasGStroke(centreX, (barTopY + junctionY) / 2),
+      rightVertical: hasGStroke(
+        outerJunctionX,
+        (barTopY + junctionY) / 2,
+      ),
+      lowerLeft: hasGStroke((centreX + junctionX) / 2, junctionY),
+      lowerRight: hasGStroke(
+        (junctionX + outerJunctionX) / 2,
+        junctionY,
+      ),
+      curveJunction: hasGStroke(junctionX, junctionY),
+    };
+  });
+
+  expect(segments).toEqual({
+    leftVertical: true,
+    rightVertical: true,
+    lowerLeft: true,
+    lowerRight: false,
+    curveJunction: true,
+  });
 });
 
 test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) => {
