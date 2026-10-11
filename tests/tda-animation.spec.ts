@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { eDefinition, type GlyphPixelContract } from "../src/glyphs.ts";
 
 test("records the complete TDA canvas animation", async ({ page }, testInfo) => {
   const browserErrors: string[] = [];
@@ -163,7 +164,7 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   expect(browserErrors).toEqual([]);
 });
 
-test("positions repeated query-string letters, including G, before the light show", async ({
+test("positions query-string letters, including G and E, before the light show", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -190,10 +191,10 @@ test("positions repeated query-string letters, including G, before the light sho
     });
   });
 
-  await page.goto("/tda.html?text=gadg&animationDurationMs=1000");
+  await page.goto("/tda.html?text=gead&animationDurationMs=1000");
 
   const canvas = page.locator("#canvas");
-  await expect(canvas).toHaveAttribute("data-text", "GADG");
+  await expect(canvas).toHaveAttribute("data-text", "GEAD");
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
 
   const occupiedSlots = await canvas.evaluate<
@@ -324,6 +325,84 @@ test("draws the outlined G with an open lower-right bar junction", async ({
     lowerRight: false,
     curveJunction: true,
   });
+});
+
+test("draws E from its normalized stroke and pixel contract", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const midiAccess = {
+      inputs: new Map(),
+      outputs: new Map(),
+      sysexEnabled: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: () => Promise.resolve(midiAccess),
+    });
+  });
+
+  await page.goto(
+    "/tda.html?text=E&lightShow=false&animationDurationMs=1000",
+  );
+
+  const canvas = page.locator("#canvas");
+  await expect(canvas).toHaveAttribute("data-letter-animation-state", "complete");
+  await expect(canvas).toHaveAttribute("data-animation-state", "complete");
+
+  const contractResult = await canvas.evaluate<
+    { required: boolean[]; forbidden: boolean[] },
+    GlyphPixelContract,
+    HTMLCanvasElement
+  >((element, pixelContract) => {
+    const context = element.getContext("2d");
+    if (!context) {
+      throw new Error("Canvas context unavailable.");
+    }
+
+    const letterWidth = element.width / 3;
+    const padding = (element.width - letterWidth) / 2;
+    const hasEStroke = ([normalizedX, normalizedY]: [number, number]) => {
+      const x = padding + normalizedX * letterWidth;
+      const y = padding + normalizedY * letterWidth;
+      const radius = 3;
+      const pixels = context.getImageData(
+        Math.round(x) - radius,
+        Math.round(y) - radius,
+        radius * 2 + 1,
+        radius * 2 + 1,
+      ).data;
+
+      for (let index = 0; index < pixels.length; index += 4) {
+        if (
+          pixels[index] > 150 &&
+          pixels[index + 1] > 70 &&
+          pixels[index + 1] < 170 &&
+          pixels[index + 2] < 80 &&
+          pixels[index + 3] > 0
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    return {
+      required: pixelContract.required.map(hasEStroke),
+      forbidden: pixelContract.forbidden.map(hasEStroke),
+    };
+  }, eDefinition.pixelContract);
+
+  expect(contractResult.required).toEqual(
+    Array<boolean>(eDefinition.pixelContract.required.length).fill(true),
+  );
+  expect(contractResult.forbidden).toEqual(
+    Array<boolean>(eDefinition.pixelContract.forbidden.length).fill(false),
+  );
 });
 
 test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) => {

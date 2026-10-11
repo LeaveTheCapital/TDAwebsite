@@ -3,6 +3,14 @@ import { Input, WebMidi, type PortEvent } from "webmidi";
 import "../main.css";
 import { animationTiming } from "./animation-timing.ts";
 import "./dice.ts";
+import {
+  eDefinition,
+  getBezierPoint,
+  getPartialBezier,
+  type DeclarativeStroke,
+  type GlyphDefinition,
+  type NormalizedPoint,
+} from "./glyphs.ts";
 
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
@@ -209,6 +217,7 @@ void initialiseMidi();
 const animationStepScale = animationTiming.stepScale;
 const query = new URLSearchParams(window.location.search);
 const requestedText = (query.get("text") || "TDA").toUpperCase();
+const shouldRunLightShow = query.get("lightShow") !== "false";
 const letters = Array.from(
   new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
     requestedText,
@@ -238,6 +247,7 @@ const paddingAroundLetters =
 
 canvas.height = letterWidth + 2 * paddingAroundLetters;
 canvas.dataset.animationState = "running";
+canvas.dataset.letterAnimationState = "running";
 canvas.dataset.text = requestedText;
 const midiOverlay = getCanvas("#midi-overlay");
 midiOverlay.width = canvas.width;
@@ -335,6 +345,146 @@ class Letter {
       this.next(ms);
     }
     this.updateFunc.call(this, ms);
+  }
+}
+
+class DeclarativeGlyph extends Letter {
+  declare progress: number;
+  declare endPoint: number;
+  declare definition: GlyphDefinition;
+  declare strokeLengths: number[];
+  declare totalStrokeLength: number;
+
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    definition: GlyphDefinition,
+    onComplete: () => void,
+  ) {
+    super(
+      width,
+      height,
+      letterIndex,
+      () => {
+        this.drawGlyph();
+      },
+      () => this.progress < this.endPoint,
+      onComplete,
+    );
+
+    this.progress = 0;
+    this.endPoint = dAndGFirstStageDistance + dAndGSecondStageDistance;
+    this.definition = definition;
+    this.strokeLengths = definition.strokes.map((stroke) =>
+      this.getStrokeLength(stroke),
+    );
+    this.totalStrokeLength = this.strokeLengths.reduce(
+      (total, length) => total + length,
+      0,
+    );
+  }
+
+  drawGlyph() {
+    this.progress = advanceTowards(this.progress, 1, this.endPoint);
+    let remainingLength =
+      (this.progress / this.endPoint) * this.totalStrokeLength;
+
+    this.definition.strokes.forEach((stroke, index) => {
+      const strokeLength = this.strokeLengths[index];
+      const strokeProgress = Math.min(
+        Math.max(remainingLength / strokeLength, 0),
+        1,
+      );
+
+      if (strokeProgress > 0) {
+        this.drawStroke(stroke, strokeProgress);
+      }
+
+      remainingLength -= strokeLength;
+    });
+  }
+
+  getStrokeLength(stroke: DeclarativeStroke) {
+    if (stroke.kind === "line") {
+      return Math.hypot(
+        stroke.to[0] - stroke.from[0],
+        stroke.to[1] - stroke.from[1],
+      );
+    }
+
+    if (stroke.kind === "arc") {
+      const meanRadius = Math.sqrt(
+        (stroke.radius[0] ** 2 + stroke.radius[1] ** 2) / 2,
+      );
+      return Math.abs(stroke.endAngle - stroke.startAngle) * meanRadius;
+    }
+
+    let length = 0;
+    let previousPoint = stroke.from;
+
+    for (let step = 1; step <= 20; step += 1) {
+      const point = getBezierPoint(stroke, step / 20);
+      length += Math.hypot(
+        point[0] - previousPoint[0],
+        point[1] - previousPoint[1],
+      );
+      previousPoint = point;
+    }
+
+    return length;
+  }
+
+  drawStroke(stroke: DeclarativeStroke, progress: number) {
+    ctx.beginPath();
+
+    if (stroke.kind === "line") {
+      const from = this.toCanvasPoint(stroke.from);
+      const to = this.toCanvasPoint(stroke.to);
+      ctx.moveTo(from[0], from[1]);
+      ctx.lineTo(
+        from[0] + (to[0] - from[0]) * progress,
+        from[1] + (to[1] - from[1]) * progress,
+      );
+    } else if (stroke.kind === "arc") {
+      const centre = this.toCanvasPoint(stroke.centre);
+      ctx.ellipse(
+        centre[0],
+        centre[1],
+        stroke.radius[0] * this.letterWidth,
+        stroke.radius[1] * this.letterHeight,
+        0,
+        stroke.startAngle,
+        stroke.startAngle +
+          (stroke.endAngle - stroke.startAngle) * progress,
+        stroke.anticlockwise,
+      );
+    } else {
+      const partialBezier = getPartialBezier(stroke, progress);
+      const from = this.toCanvasPoint(partialBezier.from);
+      const control1 = this.toCanvasPoint(partialBezier.control1);
+      const control2 = this.toCanvasPoint(partialBezier.control2);
+      const to = this.toCanvasPoint(partialBezier.to);
+      ctx.moveTo(from[0], from[1]);
+      ctx.bezierCurveTo(
+        control1[0],
+        control1[1],
+        control2[0],
+        control2[1],
+        to[0],
+        to[1],
+      );
+    }
+
+    ctx.strokeStyle = this.definition.colour;
+    ctx.stroke();
+  }
+
+  toCanvasPoint(point: NormalizedPoint): Point {
+    return [
+      this.startX + point[0] * this.letterWidth,
+      this.paddingAroundLetters + point[1] * this.letterHeight,
+    ];
   }
 }
 
@@ -1148,7 +1298,7 @@ const aIndexes = letters.flatMap((letter, index) =>
   letter === "A" ? [index] : [],
 );
 let unfinishedLetters = letters.filter((letter) =>
-  "TDAG".includes(letter),
+  "TDAGE".includes(letter),
 ).length;
 
 function finishLetter() {
@@ -1165,8 +1315,15 @@ function animateNextA() {
 
   if (letterIndex === undefined) {
     finalImage = ctx.getImageData(0, 0, width, canvas.height);
-    flashBorder();
-    lightShow();
+    canvas.dataset.letterAnimationState = "complete";
+    canvas.dispatchEvent(new CustomEvent("letterscomplete"));
+
+    if (shouldRunLightShow) {
+      flashBorder();
+      lightShow();
+    } else {
+      markAnimationComplete();
+    }
     return;
   }
 
@@ -1185,6 +1342,14 @@ letters.forEach((letter, index) => {
     new A1(width, height, index, finishLetter).animationFunc();
   } else if (letter === "G") {
     new G1(width, height, index, finishLetter).animationFunc();
+  } else if (letter === "E") {
+    new DeclarativeGlyph(
+      width,
+      height,
+      index,
+      eDefinition,
+      finishLetter,
+    ).animationFunc();
   }
 });
 
@@ -1283,6 +1448,11 @@ let xEndLightShow = letterWidth / 2;
 let yEndLightShow = height * 1.5;
 let time = 0;
 
+function markAnimationComplete() {
+  canvas.dataset.animationState = "complete";
+  canvas.dispatchEvent(new CustomEvent("animationcomplete"));
+}
+
 function lightShow() {
   if (time < width * 2) {
     requestAnimationFrame(lightShow);
@@ -1291,8 +1461,7 @@ function lightShow() {
     ctx.font = "36px serif";
     ctx.fillStyle = "yellow";
     ctx.fillText("Presents", width / 3, (height * 7) / 8);
-    canvas.dataset.animationState = "complete";
-    canvas.dispatchEvent(new CustomEvent("animationcomplete"));
+    markAnimationComplete();
     console.log("finished light show");
     return;
   }
