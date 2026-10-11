@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
+  cDefinition,
   eDefinition,
   sDefinition,
   type GlyphDefinition,
@@ -169,7 +170,7 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   expect(browserErrors).toEqual([]);
 });
 
-test("positions query-string letters, including G, E and S, before the light show", async ({
+test("positions query-string letters, including G, E, S and C, before the light show", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -196,10 +197,10 @@ test("positions query-string letters, including G, E and S, before the light sho
     });
   });
 
-  await page.goto("/tda.html?text=gsea&animationDurationMs=1000");
+  await page.goto("/tda.html?text=gcse&animationDurationMs=1000");
 
   const canvas = page.locator("#canvas");
-  await expect(canvas).toHaveAttribute("data-text", "GSEA");
+  await expect(canvas).toHaveAttribute("data-text", "GCSE");
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
 
   const occupiedSlots = await canvas.evaluate<
@@ -443,6 +444,16 @@ test("draws S from its normalized stroke and pixel contract", async ({
     red: [140, 255],
     green: [0, 100],
     blue: [120, 255],
+  });
+});
+
+test("draws C from its normalized stroke and pixel contract", async ({
+  page,
+}) => {
+  await expectGlyphPixelContract(page, "C", cDefinition, {
+    red: [0, 90],
+    green: [50, 150],
+    blue: [170, 255],
   });
 });
 

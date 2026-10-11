@@ -152,6 +152,57 @@ export const eDefinition: GlyphDefinition = {
   },
 };
 
+export const cDefinition: GlyphDefinition = {
+  colour: "rgb(40, 100, 220)",
+  strokes: [
+    {
+      id: "c-outer-curve",
+      kind: "arc",
+      centre: [0.5, 0.5],
+      radius: [0.5, 0.5],
+      startAngle: -Math.PI / 4,
+      endAngle: (-7 * Math.PI) / 4,
+      anticlockwise: true,
+    },
+    {
+      id: "c-lower-terminal-cap",
+      kind: "line",
+      from: [0.85, 0.85],
+      to: [0.73, 0.73],
+    },
+    {
+      id: "c-inner-curve",
+      kind: "arc",
+      centre: [0.5, 0.5],
+      radius: [0.32, 0.32],
+      startAngle: Math.PI / 4,
+      endAngle: (7 * Math.PI) / 4,
+    },
+    {
+      id: "c-upper-terminal-cap",
+      kind: "line",
+      from: [0.73, 0.27],
+      to: [0.85, 0.15],
+    },
+  ],
+  pixelContract: {
+    required: [
+      [0.85, 0.15],
+      [0.5, 0],
+      [0, 0.5],
+      [0.5, 1],
+      [0.85, 0.85],
+      [0.73, 0.73],
+      [0.18, 0.5],
+      [0.73, 0.27],
+    ],
+    forbidden: [
+      [0.5, 0.5],
+      [0.9, 0.5],
+    ],
+  },
+};
+
 export const sDefinition: GlyphDefinition = {
   colour: "rgb(190, 50, 170)",
   strokes: [

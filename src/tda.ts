@@ -4,6 +4,7 @@ import "../main.css";
 import { animationTiming } from "./animation-timing.ts";
 import "./dice.ts";
 import {
+  cDefinition,
   eDefinition,
   getBezierPoint,
   getPartialBezier,
@@ -1299,7 +1300,7 @@ const aIndexes = letters.flatMap((letter, index) =>
   letter === "A" ? [index] : [],
 );
 let unfinishedLetters = letters.filter((letter) =>
-  "TDAGES".includes(letter),
+  "TDAGESC".includes(letter),
 ).length;
 
 function finishLetter() {
@@ -1357,6 +1358,14 @@ letters.forEach((letter, index) => {
       height,
       index,
       sDefinition,
+      finishLetter,
+    ).animationFunc();
+  } else if (letter === "C") {
+    new DeclarativeGlyph(
+      width,
+      height,
+      index,
+      cDefinition,
       finishLetter,
     ).animationFunc();
   }
