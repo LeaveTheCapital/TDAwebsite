@@ -1,5 +1,10 @@
-import { test, expect } from "@playwright/test";
-import { eDefinition, type GlyphPixelContract } from "../src/glyphs.ts";
+import { test, expect, type Page } from "@playwright/test";
+import {
+  eDefinition,
+  sDefinition,
+  type GlyphDefinition,
+  type GlyphPixelContract,
+} from "../src/glyphs.ts";
 
 test("records the complete TDA canvas animation", async ({ page }, testInfo) => {
   const browserErrors: string[] = [];
@@ -164,7 +169,7 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   expect(browserErrors).toEqual([]);
 });
 
-test("positions query-string letters, including G and E, before the light show", async ({
+test("positions query-string letters, including G, E and S, before the light show", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -191,10 +196,10 @@ test("positions query-string letters, including G and E, before the light show",
     });
   });
 
-  await page.goto("/tda.html?text=gead&animationDurationMs=1000");
+  await page.goto("/tda.html?text=gsea&animationDurationMs=1000");
 
   const canvas = page.locator("#canvas");
-  await expect(canvas).toHaveAttribute("data-text", "GEAD");
+  await expect(canvas).toHaveAttribute("data-text", "GSEA");
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
 
   const occupiedSlots = await canvas.evaluate<
@@ -327,9 +332,23 @@ test("draws the outlined G with an open lower-right bar junction", async ({
   });
 });
 
-test("draws E from its normalized stroke and pixel contract", async ({
-  page,
-}) => {
+interface PixelColourRange {
+  red: [number, number];
+  green: [number, number];
+  blue: [number, number];
+}
+
+interface GlyphContractArguments {
+  pixelContract: GlyphPixelContract;
+  colour: PixelColourRange;
+}
+
+async function expectGlyphPixelContract(
+  page: Page,
+  letter: string,
+  definition: GlyphDefinition,
+  colour: PixelColourRange,
+) {
   await page.addInitScript(() => {
     const midiAccess = {
       inputs: new Map(),
@@ -346,7 +365,7 @@ test("draws E from its normalized stroke and pixel contract", async ({
   });
 
   await page.goto(
-    "/tda.html?text=E&lightShow=false&animationDurationMs=1000",
+    `/tda.html?text=${letter}&lightShow=false&animationDurationMs=1000`,
   );
 
   const canvas = page.locator("#canvas");
@@ -355,9 +374,9 @@ test("draws E from its normalized stroke and pixel contract", async ({
 
   const contractResult = await canvas.evaluate<
     { required: boolean[]; forbidden: boolean[] },
-    GlyphPixelContract,
+    GlyphContractArguments,
     HTMLCanvasElement
-  >((element, pixelContract) => {
+  >((element, contract) => {
     const context = element.getContext("2d");
     if (!context) {
       throw new Error("Canvas context unavailable.");
@@ -365,7 +384,7 @@ test("draws E from its normalized stroke and pixel contract", async ({
 
     const letterWidth = element.width / 3;
     const padding = (element.width - letterWidth) / 2;
-    const hasEStroke = ([normalizedX, normalizedY]: [number, number]) => {
+    const hasGlyphStroke = ([normalizedX, normalizedY]: [number, number]) => {
       const x = padding + normalizedX * letterWidth;
       const y = padding + normalizedY * letterWidth;
       const radius = 3;
@@ -378,10 +397,12 @@ test("draws E from its normalized stroke and pixel contract", async ({
 
       for (let index = 0; index < pixels.length; index += 4) {
         if (
-          pixels[index] > 150 &&
-          pixels[index + 1] > 70 &&
-          pixels[index + 1] < 170 &&
-          pixels[index + 2] < 80 &&
+          pixels[index] >= contract.colour.red[0] &&
+          pixels[index] <= contract.colour.red[1] &&
+          pixels[index + 1] >= contract.colour.green[0] &&
+          pixels[index + 1] <= contract.colour.green[1] &&
+          pixels[index + 2] >= contract.colour.blue[0] &&
+          pixels[index + 2] <= contract.colour.blue[1] &&
           pixels[index + 3] > 0
         ) {
           return true;
@@ -392,17 +413,37 @@ test("draws E from its normalized stroke and pixel contract", async ({
     };
 
     return {
-      required: pixelContract.required.map(hasEStroke),
-      forbidden: pixelContract.forbidden.map(hasEStroke),
+      required: contract.pixelContract.required.map(hasGlyphStroke),
+      forbidden: contract.pixelContract.forbidden.map(hasGlyphStroke),
     };
-  }, eDefinition.pixelContract);
+  }, { pixelContract: definition.pixelContract, colour });
 
   expect(contractResult.required).toEqual(
-    Array<boolean>(eDefinition.pixelContract.required.length).fill(true),
+    Array<boolean>(definition.pixelContract.required.length).fill(true),
   );
   expect(contractResult.forbidden).toEqual(
-    Array<boolean>(eDefinition.pixelContract.forbidden.length).fill(false),
+    Array<boolean>(definition.pixelContract.forbidden.length).fill(false),
   );
+}
+
+test("draws E from its normalized stroke and pixel contract", async ({
+  page,
+}) => {
+  await expectGlyphPixelContract(page, "E", eDefinition, {
+    red: [150, 255],
+    green: [70, 170],
+    blue: [0, 80],
+  });
+});
+
+test("draws S from its normalized stroke and pixel contract", async ({
+  page,
+}) => {
+  await expectGlyphPixelContract(page, "S", sDefinition, {
+    red: [140, 255],
+    green: [0, 100],
+    blue: [120, 255],
+  });
 });
 
 test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) => {

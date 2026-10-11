@@ -7,6 +7,7 @@ import {
   eDefinition,
   getBezierPoint,
   getPartialBezier,
+  sDefinition,
   type DeclarativeStroke,
   type GlyphDefinition,
   type NormalizedPoint,
@@ -1298,7 +1299,7 @@ const aIndexes = letters.flatMap((letter, index) =>
   letter === "A" ? [index] : [],
 );
 let unfinishedLetters = letters.filter((letter) =>
-  "TDAGE".includes(letter),
+  "TDAGES".includes(letter),
 ).length;
 
 function finishLetter() {
@@ -1348,6 +1349,14 @@ letters.forEach((letter, index) => {
       height,
       index,
       eDefinition,
+      finishLetter,
+    ).animationFunc();
+  } else if (letter === "S") {
+    new DeclarativeGlyph(
+      width,
+      height,
+      index,
+      sDefinition,
       finishLetter,
     ).animationFunc();
   }
