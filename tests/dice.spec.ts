@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("rolls the die and announces a result", async ({ page }) => {
+test("uses a short visible roll when reduced motion is preferred", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/tda.html");
 
@@ -11,6 +11,11 @@ test("rolls the die and announces a result", async ({ page }) => {
   await expect(canvas).toBeVisible();
   await die.click();
 
+  await expect(die).toHaveAttribute("data-rolling", "true");
+  await expect(page.locator("#dice-result")).toHaveText("Rolling…");
+  await page.waitForTimeout(100);
+  await expect(die).toHaveAttribute("data-rolling", "true");
+
   await expect(die).toHaveAttribute("data-value", /^[1-6]$/);
   await expect(die).toHaveAttribute("data-rolling", "false");
   await expect(page.locator("#dice-result")).toHaveText(/^You rolled [1-6]$/);
@@ -18,4 +23,18 @@ test("rolls the die and announces a result", async ({ page }) => {
     "aria-label",
     /^Roll again\. Current result: [1-6]$/,
   );
+});
+
+test("keeps the full roll animation without reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tda.html");
+
+  const die = page.locator("#roll-die");
+  await die.click();
+
+  await expect(die).toHaveAttribute("data-rolling", "true");
+  await page.waitForTimeout(600);
+  await expect(die).toHaveAttribute("data-rolling", "true");
+  await expect(die).toHaveAttribute("data-value", /^[1-6]$/);
+  await expect(die).toHaveAttribute("data-rolling", "false");
 });

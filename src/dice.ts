@@ -19,6 +19,8 @@ const context = getCanvasContext(canvas);
 const rollButton = getButton("#roll-die");
 const result = getOutput("#dice-result");
 const luminousGreen = "#39ff14";
+const rollDurationMs = 1800;
+const reducedMotionRollDurationMs = 450;
 
 const pipPositions: Record<number, Point2d[]> = {
   1: [[0, 0]],
@@ -62,21 +64,27 @@ function rollDie() {
   const value = Math.floor(Math.random() * 6) + 1;
   const finalRotation = rotationForValue(value);
   const startRotation = { ...rotation };
-  const turns = 4;
+  const prefersReducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+  const turns = prefersReducedMotion ? 1 : 4;
   const targetRotation = {
     x: finalRotation.x + Math.PI * 2 * turns,
     y: finalRotation.y + Math.PI * 2 * (turns + 1),
     z: finalRotation.z + Math.PI * 2 * turns,
   };
-  const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1800;
-  const startTime = performance.now();
+  const duration = prefersReducedMotion
+    ? reducedMotionRollDurationMs
+    : rollDurationMs;
+  let startTime: number | undefined;
 
   rollButton.dataset.rolling = "true";
   rollButton.setAttribute("aria-label", "Rolling the die");
   result.value = "Rolling…";
 
   const animate = (now: number) => {
-    const progress = duration === 0 ? 1 : Math.min((now - startTime) / duration, 1);
+    startTime ??= now;
+    const progress = Math.min((now - startTime) / duration, 1);
     const easedProgress = 1 - Math.pow(1 - progress, 5);
 
     rotation = interpolateRotation(startRotation, targetRotation, easedProgress);

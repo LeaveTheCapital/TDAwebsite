@@ -9,6 +9,7 @@ const maximumDurationMs = 60_000;
 const requestedDuration = Number(
   new URLSearchParams(window.location.search).get("animationDurationMs"),
 );
+console.log({requestedDuration})
 const hasValidRequestedDuration =
   Number.isFinite(requestedDuration) && requestedDuration > 0;
 const durationMs = hasValidRequestedDuration
