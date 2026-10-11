@@ -136,7 +136,7 @@ canvas {
 }
 
 .dice-button[data-rolling="true"] {
-  cursor: wait;
+  cursor: auto;
 }
 
 .dice-canvas {
