@@ -51,12 +51,13 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
     };
   });
 
-  await page.goto("/tda.html?animationDurationMs=2000");
+  await page.goto("/tda.html?text=TDA&animationDurationMs=2000");
   await page.waitForFunction(() => globalThis.testMidi?.ready());
   await expect(page.getByRole("button", { name: "start fake midi timer" })).toBeHidden();
   await expect(page.getByRole("button", { name: "stop fake midi timer" })).toBeHidden();
 
   const canvas = page.locator("#canvas");
+  await expect(canvas).toHaveAttribute("data-text", "TDA");
   const midiOverlay = page.locator("#midi-overlay");
   const circleCentreAlpha = (side: "left" | "right") =>
     midiOverlay.evaluate<number, "left" | "right", HTMLCanvasElement>((element, circleSide) => {
@@ -162,6 +163,77 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   expect(browserErrors).toEqual([]);
 });
 
+test("positions repeated query-string letters before the light show", async ({
+  page,
+}) => {
+  const browserErrors: string[] = [];
+
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+
+  await page.addInitScript(() => {
+    const midiAccess = {
+      inputs: new Map(),
+      outputs: new Map(),
+      sysexEnabled: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+
+    Object.defineProperty(navigator, "requestMIDIAccess", {
+      configurable: true,
+      value: () => Promise.resolve(midiAccess),
+    });
+  });
+
+  await page.goto("/tda.html?text=adta&animationDurationMs=1000");
+
+  const canvas = page.locator("#canvas");
+  await expect(canvas).toHaveAttribute("data-text", "ADTA");
+  await expect(canvas).toHaveAttribute("data-animation-state", "complete");
+
+  const occupiedSlots = await canvas.evaluate<
+    boolean[],
+    undefined,
+    HTMLCanvasElement
+  >((element) => {
+    const context = element.getContext("2d");
+    if (!context) {
+      throw new Error("Canvas context unavailable.");
+    }
+
+    const slotCount = 4;
+    const letterWidth = element.width / (slotCount + 2);
+    const padding =
+      (element.width - slotCount * letterWidth) / (slotCount + 1);
+
+    return Array.from({ length: slotCount }, (_, index) => {
+      const x = padding + index * (letterWidth + padding);
+      const pixels = context.getImageData(
+        x,
+        padding,
+        letterWidth,
+        letterWidth,
+      ).data;
+
+      for (let pixel = 3; pixel < pixels.length; pixel += 4) {
+        if (pixels[pixel] !== 0) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+  });
+
+  expect(occupiedSlots).toEqual([true, true, true, true]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) => {
   const browserErrors: string[] = [];
 
@@ -187,7 +259,7 @@ test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) 
     });
   });
 
-  await page.goto("/tda.html?animationDurationMs=2000");
+  await page.goto("/tda.html?text=TDA&animationDurationMs=2000");
 
   const startButton = page.getByRole("button", { name: "start fake midi timer" });
   const stopButton = page.getByRole("button", { name: "stop fake midi timer" });

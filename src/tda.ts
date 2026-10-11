@@ -207,20 +207,38 @@ async function initialiseMidi() {
 void initialiseMidi();
 
 const animationStepScale = animationTiming.stepScale;
+const query = new URLSearchParams(window.location.search);
+const requestedText = (query.get("text") || "TDA").toUpperCase();
+const letters = Array.from(
+  new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
+    requestedText,
+  ),
+  ({ segment }) => segment,
+);
+
+if (!query.get("text")) {
+  query.set("text", requestedText);
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}?${query.toString()}${window.location.hash}`,
+  );
+}
 
 function advanceTowards(current: number, step: number, endPoint: number) {
   return Math.min(current + step * animationStepScale, endPoint);
 }
 
-const numberOfLetters = 3;
+const numberOfLetters = letters.length;
 const width = canvas.width;
 const height = canvas.height;
 const letterWidth = width / (numberOfLetters + 2);
 const paddingAroundLetters =
-(width - numberOfLetters * letterWidth) / (numberOfLetters + 1);
+  (width - numberOfLetters * letterWidth) / (numberOfLetters + 1);
 
 canvas.height = letterWidth + 2 * paddingAroundLetters;
 canvas.dataset.animationState = "running";
+canvas.dataset.text = requestedText;
 const midiOverlay = getCanvas("#midi-overlay");
 midiOverlay.width = canvas.width;
 midiOverlay.height = canvas.height;
@@ -231,10 +249,10 @@ ctx.lineWidth = 2;
 
 const letterHeight = letterWidth;
 
-const tYEndPoint = height * 0.13;
+const tYEndPoint = letterWidth * (13 / 45);
 const tYEndPoint3 = letterHeight - tYEndPoint;
-const aBottomLineWidth = width * 0.05;
-const aTopLineWidth = width * 0.03;
+const aBottomLineWidth = letterWidth * 0.25;
+const aTopLineWidth = letterWidth * 0.15;
 const aInnerLineHeight = letterHeight / 2;
 
 type Point = [number, number];
@@ -267,12 +285,13 @@ interface VerticalLineOptions {
 }
 
 class Letter {
-  readonly numberOfLetters: number;
   readonly width: number;
   readonly height: number;
   readonly letterWidth: number;
   readonly paddingAroundLetters: number;
   readonly letterHeight: number;
+  readonly letterIndex: number;
+  readonly startX: number;
   readonly updateFunc: (ms: number) => void;
   readonly shouldContinue: () => boolean;
   readonly next: (ms?: number) => void;
@@ -280,17 +299,21 @@ class Letter {
   constructor(
     width: number,
     height: number,
+    letterIndex: number,
     updateFunc: (ms: number) => void,
     shouldContinue: () => boolean,
     next: (ms?: number) => void,
   ) {
-    this.numberOfLetters = 3;
     this.width = width;
     this.height = height;
     this.letterWidth = width / (numberOfLetters + 2);
     this.paddingAroundLetters =
       (width - numberOfLetters * letterWidth) / (numberOfLetters + 1);
     this.letterHeight = this.letterWidth;
+    this.letterIndex = letterIndex;
+    this.startX =
+      this.paddingAroundLetters +
+      letterIndex * (this.letterWidth + this.paddingAroundLetters);
     this.updateFunc = updateFunc;
     this.shouldContinue = shouldContinue;
     this.next = next;
@@ -313,22 +336,28 @@ class T1 extends Letter {
   declare tYEndPoint: number;
   declare tColour: string;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
     super(
       width,
       height,
+      letterIndex,
       () => {
         this.drawT1();
       },
       () => this.xEnd < this.letterWidth,
       () => {
-        new T2(width, height).animationFunc();
+        new T2(width, height, letterIndex, onComplete).animationFunc();
       }
     );
     this.xEnd = 0;
     this.yEnd = 0;
-    this.tStartPoint = [paddingAroundLetters, paddingAroundLetters];
-    this.tYEndPoint = height * 0.13;
+    this.tStartPoint = [this.startX, paddingAroundLetters];
+    this.tYEndPoint = tYEndPoint;
     this.tColour = `rgb(0, ${100 + ((0 * 1) % 255)}, ${
       100 + ((0 * 3) % 255)
     })`;
@@ -365,24 +394,30 @@ class T2 extends Letter {
   declare tYEndPoint2: number;
   declare colour: string;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
     super(
       width,
       height,
+      letterIndex,
       () => {
         this.drawT2();
       },
       () => this.xEnd < this.tXEndPoint2,
       () => {
-        new T3(width, height).animationFunc();
+        new T3(width, height, letterIndex, onComplete).animationFunc();
       }
     );
     this.xEnd = 0;
     this.yEnd = 0;
-    this.tStartPoint = [this.paddingAroundLetters, this.paddingAroundLetters];
-    this.tYEndPoint = height * 0.13;
-    this.tXEndPoint2 = width * 0.07;
-    this.tYEndPoint2 = height * 0.13;
+    this.tStartPoint = [this.startX, this.paddingAroundLetters];
+    this.tYEndPoint = tYEndPoint;
+    this.tXEndPoint2 = this.letterWidth * 0.35;
+    this.tYEndPoint2 = tYEndPoint;
     this.colour = `rgb(0, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
   }
 
@@ -415,24 +450,30 @@ class T3 extends Letter {
   declare tXEndPoint3: number;
   declare colour: string;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
     super(
       width,
       height,
+      letterIndex,
       () => {
         this.drawT3();
       },
       () => this.xEnd < this.tXEndPoint3,
       () => {
-        new T4(width, height).animationFunc();
+        new T4(width, height, letterIndex, onComplete).animationFunc();
       }
     );
     this.xEnd = 0;
     this.yEnd = 0;
-    this.tStartPoint = [this.paddingAroundLetters, this.paddingAroundLetters];
-    this.tYEndPoint2 = height * 0.13;
-    this.tXEndPoint2 = width * 0.07;
-    this.tXEndPoint3 = width * 0.07;
+    this.tStartPoint = [this.startX, this.paddingAroundLetters];
+    this.tYEndPoint2 = tYEndPoint;
+    this.tXEndPoint2 = this.letterWidth * 0.35;
+    this.tXEndPoint3 = this.letterWidth * 0.35;
     this.colour = `rgb(0, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
   }
 
@@ -447,7 +488,10 @@ class T3 extends Letter {
       colour: this.colour,
     });
     drawLineXForwards({
-      initialCoords: [this.tStartPoint[0] + letterWidth, this.tStartPoint[1]],
+      initialCoords: [
+        this.tStartPoint[0] + this.letterWidth,
+        this.tStartPoint[1],
+      ],
       yPositionOffset: this.tYEndPoint2,
       length: -this.xEnd,
       colour: this.colour,
@@ -470,24 +514,30 @@ class T4 extends Letter {
   declare tYEndPoint4: number;
   declare colour: string;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
     super(
       width,
       height,
+      letterIndex,
       () => {
         this.drawT4();
       },
       () => this.yEnd < this.tYEndPoint4,
       () => {
-        console.log("finished T");
+        onComplete();
       }
     );
     this.xEnd = 0;
     this.yEnd = 0;
-    this.tStartPoint = [this.paddingAroundLetters, this.paddingAroundLetters];
-    this.tYEndPoint = height * 0.13;
-    this.tYEndPoint2 = height * 0.13;
-    this.tXEndPoint2 = width * 0.07;
+    this.tStartPoint = [this.startX, this.paddingAroundLetters];
+    this.tYEndPoint = tYEndPoint;
+    this.tYEndPoint2 = tYEndPoint;
+    this.tXEndPoint2 = this.letterWidth * 0.35;
     this.tXEndPoint4 = this.letterWidth - 2 * this.tXEndPoint2;
     this.tYEndPoint4 = this.letterHeight - this.tYEndPoint;
     this.colour = `rgb(0, ${100 + ((this.letterWidth * 1) % 255)}, 100)`;
@@ -525,25 +575,28 @@ class D1 extends Letter {
   declare dStartPoint: Point;
   declare dYEndPoint: number;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
     super(
       width,
       height,
+      letterIndex,
       () => {
         this.drawD1();
       },
       () => this.dYEnd < this.dYEndPoint,
       () => {
-        new D2(width, height).animationFunc();
+        new D2(width, height, letterIndex, onComplete).animationFunc();
       }
     );
 
     this.dXEnd = -Math.PI / 2;
     this.dYEnd = 0;
-    this.dStartPoint = [
-      letterWidth + 2 * paddingAroundLetters,
-      paddingAroundLetters,
-    ];
+    this.dStartPoint = [this.startX, paddingAroundLetters];
     this.dYEndPoint = letterHeight;
   }
 
@@ -584,35 +637,37 @@ class D2 extends Letter {
   declare dXEndPoint: number;
   declare dYEndPoint2: number;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
     super(
       width,
       height,
+      letterIndex,
       () => {
         this.drawD2();
       },
       () => this.dYEnd < this.dYEndPoint2,
       () => {
-        finalImage = ctx.getImageData(0, 0, width, height);
-        new A2(width, height).animationFunc();
+        onComplete();
       }
     );
 
     this.dXEnd = -Math.PI / 2;
     this.dYEnd = 0;
-    this.dStartPoint = [
-      this.letterWidth + 2 * this.paddingAroundLetters,
-      this.paddingAroundLetters,
-    ];
-    this.dXEndPoint = this.width * 0.0275;
-    this.dYEndPoint2 = tYEndPoint + tYEndPoint3 - this.width * 0.08;
+    this.dStartPoint = [this.startX, this.paddingAroundLetters];
+    this.dXEndPoint = this.letterWidth * 0.1375;
+    this.dYEndPoint2 = tYEndPoint + tYEndPoint3 - this.letterWidth * 0.4;
   }
 
   drawD2() {
     drawLineYForwards({
       initialCoords: [
         this.dStartPoint[0],
-        this.dStartPoint[1] + this.width * 0.04,
+        this.dStartPoint[1] + this.letterWidth * 0.2,
       ],
       endPoint: this.dXEndPoint,
       length: this.dYEnd,
@@ -623,8 +678,8 @@ class D2 extends Letter {
     ctx.beginPath();
     ctx.ellipse(
       this.dStartPoint[0] + this.dXEndPoint,
-      this.dStartPoint[1] + this.dYEndPoint2 / 2 + this.width * 0.04,
-      this.dYEndPoint2 / 2 + this.width * 0.065,
+      this.dStartPoint[1] + this.dYEndPoint2 / 2 + this.letterWidth * 0.2,
+      this.dYEndPoint2 / 2 + this.letterWidth * 0.325,
       this.dYEndPoint2 / 2,
       0,
       -Math.PI / 2,
@@ -641,23 +696,6 @@ class D2 extends Letter {
   }
 }
 
-const aStartCoords: Point = [
-  3 * paddingAroundLetters + 2 * letterWidth,
-  paddingAroundLetters,
-];
-
-const aStartCoords2: Point = [
-  aStartCoords[0] + letterWidth,
-  paddingAroundLetters,
-];
-
-const imageData = ctx.getImageData(
-  aStartCoords[0] - 5,
-  aStartCoords[1] - 5,
-  width - aStartCoords[0],
-  height - aStartCoords[1]
-);
-
 class A1 extends Letter {
   declare aStartCoords: Point;
   declare aStartCoords2: Point;
@@ -668,31 +706,62 @@ class A1 extends Letter {
   declare aEndCoords: Point;
   declare aEndCoords2: Point;
   declare aColour: string;
+  declare imageData: ImageData;
+  declare imageStart: Point;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
     super(
       width,
       height,
+      letterIndex,
       () => {
         this.drawA1();
       },
       () => this.aXEnd < this.aOuterLineRun,
       () => {
-        console.log("finished A1");
+        onComplete();
       }
     );
 
-    this.aStartCoords = [
-      3 * paddingAroundLetters + 2 * letterWidth,
+    this.aStartCoords = [this.startX, paddingAroundLetters];
+    this.aStartCoords2 = [
+      this.aStartCoords[0] + this.letterWidth,
       paddingAroundLetters,
     ];
-    this.aStartCoords2 = [aStartCoords[0] + letterWidth, paddingAroundLetters];
     this.aXEnd = 0;
     this.aXEnd2 = 0;
     this.aBottomLineWidth = aBottomLineWidth;
     this.aOuterLineRun = (this.letterWidth - aTopLineWidth) / 2;
-    this.aEndCoords = [aStartCoords[0], paddingAroundLetters + letterHeight];
-    this.aEndCoords2 = [aStartCoords2[0], paddingAroundLetters + letterHeight];
+    this.aEndCoords = [
+      this.aStartCoords[0],
+      paddingAroundLetters + letterHeight,
+    ];
+    this.aEndCoords2 = [
+      this.aStartCoords2[0],
+      paddingAroundLetters + letterHeight,
+    ];
+    const imageMargin = Math.min(5, this.paddingAroundLetters / 2);
+    this.imageStart = [
+      Math.max(0, this.aStartCoords[0] - imageMargin),
+      Math.max(0, this.aStartCoords[1] - imageMargin),
+    ];
+    this.imageData = ctx.getImageData(
+      this.imageStart[0],
+      this.imageStart[1],
+      Math.min(
+        this.letterWidth + 2 * imageMargin,
+        width - this.imageStart[0],
+      ),
+      Math.min(
+        this.letterHeight + 2 * imageMargin,
+        canvas.height - this.imageStart[1],
+      ),
+    );
   }
 
   drawA1() {
@@ -700,9 +769,9 @@ class A1 extends Letter {
       10 + ((this.aXEnd * 2) % 255)
     })`;
     ctx.putImageData(
-      imageData,
-      this.aStartCoords[0] - 5,
-      this.aStartCoords[1] - 5
+      this.imageData,
+      this.imageStart[0],
+      this.imageStart[1],
     );
     const outerLineDistance = Math.min(this.aXEnd, this.aOuterLineRun);
 
@@ -742,7 +811,7 @@ class A1 extends Letter {
   }
 }
 
-let finalImage = imageData;
+let finalImage = ctx.getImageData(0, 0, width, canvas.height);
 
 class A2 extends Letter {
   declare aXEndFinal: number;
@@ -760,19 +829,22 @@ class A2 extends Letter {
   declare aTopLineStart: Point;
   declare aTopLineEnd: Point;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    onComplete: () => void,
+  ) {
     super(
       width,
       height,
+      letterIndex,
       () => {
         this.drawA2();
       },
       () => this.aXEndFinal < this.aXEndPointFinal + this.aXStep,
       () => {
-        console.log("finished A2.. can do light show");
-        finalImage = ctx.getImageData(0, 0, width, height);
-        flashBorder();
-        lightShow();
+        onComplete();
       }
     );
     this.aXEndFinal = 0;
@@ -786,6 +858,11 @@ class A2 extends Letter {
     })`;
     const bottomY = paddingAroundLetters + this.letterHeight;
     const crossbarY = bottomY - aInnerLineHeight;
+    const aStartCoords: Point = [this.startX, paddingAroundLetters];
+    const aStartCoords2: Point = [
+      this.startX + this.letterWidth,
+      paddingAroundLetters,
+    ];
     const innerGapLeft = aStartCoords[0] + halfLetterWidth - aTopLineWidth / 2;
     const innerGapRight = aStartCoords[0] + halfLetterWidth + aTopLineWidth / 2;
 
@@ -849,16 +926,12 @@ class A2 extends Letter {
 
     ctx.beginPath();
     ctx.moveTo(
-      paddingAroundLetters +
-        (this.aCrossbarStartPoint[0] - paddingAroundLetters) *
-          animationProgress,
-      this.aCrossbarStartPoint[1]
+      this.aCrossbarStartPoint[0] + topShapeOffsetX,
+      this.aCrossbarStartPoint[1],
     );
     ctx.lineTo(
-      paddingAroundLetters +
-        (this.aCrossbarEndPoint[0] - paddingAroundLetters) *
-          animationProgress,
-      this.aCrossbarEndPoint[1]
+      this.aCrossbarEndPoint[0] + topShapeOffsetX,
+      this.aCrossbarEndPoint[1],
     );
     ctx.strokeStyle = "yellow";
     ctx.stroke();
@@ -886,12 +959,51 @@ class A2 extends Letter {
   }
 }
 
-const t = new T1(width, height);
-t.animationFunc();
-const d = new D1(width, height);
-d.animationFunc();
-const a = new A1(width, height);
-a.animationFunc();
+const aIndexes = letters.flatMap((letter, index) =>
+  letter === "A" ? [index] : [],
+);
+let unfinishedLetters = letters.filter((letter) =>
+  "TDA".includes(letter),
+).length;
+
+function finishLetter() {
+  unfinishedLetters -= 1;
+
+  if (unfinishedLetters === 0) {
+    finalImage = ctx.getImageData(0, 0, width, canvas.height);
+    animateNextA();
+  }
+}
+
+function animateNextA() {
+  const letterIndex = aIndexes.shift();
+
+  if (letterIndex === undefined) {
+    finalImage = ctx.getImageData(0, 0, width, canvas.height);
+    flashBorder();
+    lightShow();
+    return;
+  }
+
+  new A2(width, height, letterIndex, () => {
+    finalImage = ctx.getImageData(0, 0, width, canvas.height);
+    animateNextA();
+  }).animationFunc();
+}
+
+letters.forEach((letter, index) => {
+  if (letter === "T") {
+    new T1(width, height, index, finishLetter).animationFunc();
+  } else if (letter === "D") {
+    new D1(width, height, index, finishLetter).animationFunc();
+  } else if (letter === "A") {
+    new A1(width, height, index, finishLetter).animationFunc();
+  }
+});
+
+if (unfinishedLetters === 0) {
+  animateNextA();
+}
 
 function drawLineYDiagonal(
   initialCoords: Point,
