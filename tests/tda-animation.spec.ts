@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import {
+  bDefinition,
   cDefinition,
   eDefinition,
   sDefinition,
@@ -170,7 +171,7 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   expect(browserErrors).toEqual([]);
 });
 
-test("positions query-string letters, including G, E, S and C, before the light show", async ({
+test("positions query-string letters, including G, E, S, C and B, before the light show", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -197,10 +198,10 @@ test("positions query-string letters, including G, E, S and C, before the light 
     });
   });
 
-  await page.goto("/tda.html?text=gcse&animationDurationMs=1000");
+  await page.goto("/tda.html?text=gcseb&animationDurationMs=1000");
 
   const canvas = page.locator("#canvas");
-  await expect(canvas).toHaveAttribute("data-text", "GCSE");
+  await expect(canvas).toHaveAttribute("data-text", "GCSEB");
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
 
   const occupiedSlots = await canvas.evaluate<
@@ -213,7 +214,7 @@ test("positions query-string letters, including G, E, S and C, before the light 
       throw new Error("Canvas context unavailable.");
     }
 
-    const slotCount = 4;
+    const slotCount = 5;
     const letterWidth = element.width / (slotCount + 2);
     const padding =
       (element.width - slotCount * letterWidth) / (slotCount + 1);
@@ -237,7 +238,7 @@ test("positions query-string letters, including G, E, S and C, before the light 
     });
   });
 
-  expect(occupiedSlots).toEqual([true, true, true, true]);
+  expect(occupiedSlots).toEqual([true, true, true, true, true]);
   expect(browserErrors).toEqual([]);
 });
 
@@ -454,6 +455,16 @@ test("draws C from its normalized stroke and pixel contract", async ({
     red: [0, 90],
     green: [50, 150],
     blue: [170, 255],
+  });
+});
+
+test("draws B from its normalized stroke and pixel contract", async ({
+  page,
+}) => {
+  await expectGlyphPixelContract(page, "B", bDefinition, {
+    red: [0, 70],
+    green: [110, 210],
+    blue: [40, 140],
   });
 });
 

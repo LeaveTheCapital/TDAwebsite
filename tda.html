@@ -14,6 +14,26 @@
         <canvas id="canvas" width="900" height="400"></canvas>
         <canvas id="midi-overlay" class="midi-overlay" width="900" height="400" aria-hidden="true"></canvas>
     </div>
+    <div class="canvas-control stroke-width-control">
+        <label for="stroke-width">Line thickness</label>
+        <input id="stroke-width" type="range" min="0.1" max="5" step="0.1" value="2">
+        <output id="stroke-width-value" for="stroke-width">2 px</output>
+    </div>
+    <div class="canvas-control letter-duration-control">
+        <label for="letter-duration">Letter phase</label>
+        <input id="letter-duration" type="range" min="1" max="10" step="1" value="10">
+        <output id="letter-duration-value" for="letter-duration">10 seconds</output>
+    </div>
+    <div class="canvas-control light-show-duration-control">
+        <label for="light-show-duration">Light show</label>
+        <input id="light-show-duration" type="range" min="1" max="10" step="1" value="10">
+        <output id="light-show-duration-value" for="light-show-duration">10 seconds</output>
+    </div>
+    <div class="canvas-control dice-duration-control">
+        <label for="dice-duration">Dice roll</label>
+        <input id="dice-duration" type="range" min="1" max="10" step="1" value="4">
+        <output id="dice-duration-value" for="dice-duration">4 seconds</output>
+    </div>
     <div class="fake-midi-controls">
         <button id="start-fake-midi" type="button" hidden>start fake midi timer</button>
         <button id="stop-fake-midi" type="button" hidden disabled>stop fake midi timer</button>

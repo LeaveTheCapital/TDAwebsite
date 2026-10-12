@@ -18,9 +18,28 @@ const canvas = getCanvas("#dice-canvas");
 const context = getCanvasContext(canvas);
 const rollButton = getButton("#roll-die");
 const result = getOutput("#dice-result");
+const durationInput = getRangeInput("#dice-duration");
+const durationOutput = getOutput("#dice-duration-value");
 const luminousGreen = "#39ff14";
-const rollDurationMs = 3600;
-const reducedMotionRollDurationMs = 3600;
+const query = new URLSearchParams(window.location.search);
+const defaultRollDurationSeconds = 4;
+let rollDurationMs = getRequestedRollDurationMs();
+
+durationInput.value = String(rollDurationMs / 1000);
+durationOutput.value = formatSeconds(rollDurationMs / 1000);
+durationInput.addEventListener("input", () => {
+  const seconds = Number(durationInput.value);
+  const nextQuery = new URLSearchParams(window.location.search);
+
+  rollDurationMs = seconds * 1000;
+  durationOutput.value = formatSeconds(seconds);
+  nextQuery.set("diceAnimationDurationMs", String(rollDurationMs));
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
+  );
+});
 
 const pipPositions: Record<number, Point2d[]> = {
   1: [[0, 0]],
@@ -73,9 +92,7 @@ function rollDie() {
     y: finalRotation.y + Math.PI * 2 * (turns + 1),
     z: finalRotation.z + Math.PI * 2 * turns,
   };
-  const duration = prefersReducedMotion
-    ? reducedMotionRollDurationMs
-    : rollDurationMs;
+  const duration = rollDurationMs;
   let startTime: number | undefined;
 
   rollButton.dataset.rolling = "true";
@@ -213,6 +230,23 @@ function averageDepth(points: Point3d[]): number {
   return points.reduce((total, point) => total + point[2], 0) / points.length;
 }
 
+function getRequestedRollDurationMs() {
+  const requestedDurationMs = Number(query.get("diceAnimationDurationMs"));
+  const minimumSeconds = Number(durationInput.min);
+  const maximumSeconds = Number(durationInput.max);
+  const requestedSeconds = requestedDurationMs / 1000;
+  const seconds =
+    Number.isFinite(requestedSeconds) && requestedSeconds > 0
+      ? Math.round(requestedSeconds)
+      : defaultRollDurationSeconds;
+
+  return Math.min(maximumSeconds, Math.max(minimumSeconds, seconds)) * 1000;
+}
+
+function formatSeconds(seconds: number) {
+  return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+}
+
 function getCanvas(selector: string): HTMLCanvasElement {
   const element = document.querySelector<HTMLCanvasElement>(selector);
 
@@ -238,6 +272,16 @@ function getButton(selector: string): HTMLButtonElement {
 
   if (!element) {
     throw new Error(`The element "${selector}" is missing.`);
+  }
+
+  return element;
+}
+
+function getRangeInput(selector: string): HTMLInputElement {
+  const element = document.querySelector<HTMLInputElement>(selector);
+
+  if (!element || element.type !== "range") {
+    throw new Error(`The range input "${selector}" is missing.`);
   }
 
   return element;

@@ -1,14 +1,43 @@
 import { Input, WebMidi, type PortEvent } from "webmidi";
 
 import "../main.css";
-import { animationTiming } from "./animation-timing.ts";
+import {
+  animationTiming,
+  setLetterAnimationDurationMs,
+  setLightShowDurationMs,
+} from "./animation-timing.ts";
 import "./dice.ts";
 import {
+  aDefinition,
+  apostropheDefinition,
+  zeroDefinition,
+  oneDefinition,
+  twoDefinition,
+  threeDefinition,
+  bDefinition,
   cDefinition,
   eDefinition,
+  fDefinition,
   getBezierPoint,
   getPartialBezier,
+  hDefinition,
+  iDefinition,
+  jDefinition,
+  kDefinition,
+  lDefinition,
+  mDefinition,
+  nDefinition,
+  oDefinition,
+  pDefinition,
+  qDefinition,
+  rDefinition,
   sDefinition,
+  uDefinition,
+  vDefinition,
+  wDefinition,
+  xDefinition,
+  yDefinition,
+  zDefinition,
   type DeclarativeStroke,
   type GlyphDefinition,
   type NormalizedPoint,
@@ -18,6 +47,12 @@ const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
 const startFakeMidiButton = getButton("#start-fake-midi");
 const stopFakeMidiButton = getButton("#stop-fake-midi");
+const strokeWidthInput = getRangeInput("#stroke-width");
+const strokeWidthOutput = getOutput("#stroke-width-value");
+const letterDurationInput = getRangeInput("#letter-duration");
+const letterDurationOutput = getOutput("#letter-duration-value");
+const lightShowDurationInput = getRangeInput("#light-show-duration");
+const lightShowDurationOutput = getOutput("#light-show-duration-value");
 
 let backgroundHue: number | undefined;
 let lightShowHue: number | undefined;
@@ -216,16 +251,37 @@ async function initialiseMidi() {
 
 void initialiseMidi();
 
-const animationStepScale = animationTiming.stepScale;
+let letterAnimationStepScale = animationTiming.letterStepScale;
+let lightShowAnimationStepScale = animationTiming.lightShowStepScale;
 const query = new URLSearchParams(window.location.search);
 const requestedText = (query.get("text") || "TDA").toUpperCase();
 const shouldRunLightShow = query.get("lightShow") !== "false";
-const letters = Array.from(
-  new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(
-    requestedText,
-  ),
-  ({ segment }) => segment,
+const maximumCharactersPerLine = 16;
+const defaultLineWidth = 2;
+const minimumLineWidth = Number(strokeWidthInput.min);
+const maximumLineWidth = Number(strokeWidthInput.max);
+const lineWidthStep = Number(strokeWidthInput.step);
+const queryLineWidth = Number(query.get("lineWidth"));
+const requestedLineWidth = normalizeLineWidth(
+  Number.isFinite(queryLineWidth) && queryLineWidth > 0
+    ? queryLineWidth
+    : defaultLineWidth,
 );
+
+function normalizeLineWidth(lineWidth: number) {
+  const clampedLineWidth = Math.min(
+    Math.max(lineWidth, minimumLineWidth),
+    maximumLineWidth,
+  );
+
+  return Number(
+    (
+      Math.round(clampedLineWidth / lineWidthStep) * lineWidthStep
+    ).toFixed(1),
+  );
+}
+const wrappedLines = wrapText(requestedText, maximumCharactersPerLine);
+const letters = wrappedLines.flatMap(segmentText);
 
 if (!query.get("text")) {
   query.set("text", requestedText);
@@ -236,28 +292,171 @@ if (!query.get("text")) {
   );
 }
 
-function advanceTowards(current: number, step: number, endPoint: number) {
-  return Math.min(current + step * animationStepScale, endPoint);
+strokeWidthInput.value = String(requestedLineWidth);
+strokeWidthOutput.value = `${requestedLineWidth} px`;
+strokeWidthInput.addEventListener("input", () => {
+  const lineWidth = Number(strokeWidthInput.value);
+  const nextQuery = new URLSearchParams(window.location.search);
+
+  strokeWidthOutput.value = `${lineWidth} px`;
+  nextQuery.set("lineWidth", String(lineWidth));
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
+  );
+  startAnimation(lineWidth);
+});
+
+const requestedLetterSeconds = animationTiming.letterDurationMs / 1000;
+letterDurationInput.value = String(requestedLetterSeconds);
+letterDurationOutput.value = formatSeconds(requestedLetterSeconds);
+letterDurationInput.addEventListener("input", () => {
+  const seconds = Number(letterDurationInput.value);
+
+  letterDurationOutput.value = formatSeconds(seconds);
+  letterAnimationStepScale =
+    setLetterAnimationDurationMs(seconds * 1000).letterStepScale;
+  updateAnimationTimingQuery();
+  startAnimation(Number(strokeWidthInput.value));
+});
+
+const requestedLightShowSeconds = animationTiming.lightShowDurationMs / 1000;
+lightShowDurationInput.value = String(requestedLightShowSeconds);
+lightShowDurationOutput.value = formatSeconds(requestedLightShowSeconds);
+lightShowDurationInput.addEventListener("input", () => {
+  const seconds = Number(lightShowDurationInput.value);
+
+  lightShowDurationOutput.value = formatSeconds(seconds);
+  lightShowAnimationStepScale =
+    setLightShowDurationMs(seconds * 1000).lightShowStepScale;
+  updateAnimationTimingQuery();
+  startAnimation(Number(strokeWidthInput.value));
+});
+
+function updateAnimationTimingQuery() {
+  const nextQuery = new URLSearchParams(window.location.search);
+
+  nextQuery.delete("animationDurationMs");
+  nextQuery.set(
+    "letterAnimationDurationMs",
+    String(animationTiming.letterDurationMs),
+  );
+  nextQuery.set(
+    "lightShowDurationMs",
+    String(animationTiming.lightShowDurationMs),
+  );
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
+  );
 }
 
-const numberOfLetters = letters.length;
-const width = canvas.width;
-const height = canvas.height;
-const letterWidth = width / (numberOfLetters + 2);
-const paddingAroundLetters =
-  (width - numberOfLetters * letterWidth) / (numberOfLetters + 1);
+function formatSeconds(seconds: number) {
+  return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+}
 
-canvas.height = letterWidth + 2 * paddingAroundLetters;
+function segmentText(text: string) {
+  return Array.from(
+    new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text),
+    ({ segment }) => segment,
+  );
+}
+
+function wrapText(text: string, maximumLineLength: number) {
+  const words = text.trim().split(/\s+/u).filter(Boolean);
+  const lines: string[] = [];
+  let currentLine = "";
+
+  words.forEach((word) => {
+    let remainingCharacters = segmentText(word);
+
+    while (remainingCharacters.length > maximumLineLength) {
+      if (currentLine) {
+        lines.push(currentLine);
+        currentLine = "";
+      }
+
+      lines.push(remainingCharacters.slice(0, maximumLineLength).join(""));
+      remainingCharacters = remainingCharacters.slice(maximumLineLength);
+    }
+
+    const remainingWord = remainingCharacters.join("");
+    if (!remainingWord) {
+      return;
+    }
+
+    const candidateLine = currentLine
+      ? `${currentLine} ${remainingWord}`
+      : remainingWord;
+
+    if (segmentText(candidateLine).length > maximumLineLength) {
+      lines.push(currentLine);
+      currentLine = remainingWord;
+    } else {
+      currentLine = candidateLine;
+    }
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length > 0 ? lines : [""];
+}
+
+function advanceTowards(current: number, step: number, endPoint: number) {
+  return Math.min(current + step * letterAnimationStepScale, endPoint);
+}
+
+const width = canvas.width;
+const longestLineLength = Math.max(
+  1,
+  ...wrappedLines.map((line) => segmentText(line).length),
+);
+const letterWidth = width / (longestLineLength + 2);
+const paddingAroundLetters =
+  (width - longestLineLength * letterWidth) / (longestLineLength + 1);
+const lineHeight = letterWidth + 2 * paddingAroundLetters;
+
+canvas.height = Math.ceil(lineHeight * wrappedLines.length);
+const height = canvas.height;
+
+interface LetterLayout {
+  x: number;
+  y: number;
+  lineStartX: number;
+  lineIndex: number;
+}
+
+const letterLayouts: LetterLayout[] = wrappedLines.flatMap((line, lineIndex) => {
+  const lineCharacters = segmentText(line);
+  const contentWidth =
+    lineCharacters.length * letterWidth +
+    Math.max(0, lineCharacters.length - 1) * paddingAroundLetters;
+  const lineStartX = (width - contentWidth) / 2;
+
+  return lineCharacters.map((_, characterIndex) => ({
+    x: lineStartX + characterIndex * (letterWidth + paddingAroundLetters),
+    y: lineIndex * lineHeight + paddingAroundLetters,
+    lineStartX,
+    lineIndex,
+  }));
+});
+
 canvas.dataset.animationState = "running";
 canvas.dataset.letterAnimationState = "running";
 canvas.dataset.text = requestedText;
+canvas.dataset.lineCount = String(wrappedLines.length);
 const midiOverlay = getCanvas("#midi-overlay");
 midiOverlay.width = canvas.width;
 midiOverlay.height = canvas.height;
 const midiOverlayContext = getCanvasContext(midiOverlay);
 midiOverlay.dataset.circleVisible = "false";
 ctx.lineCap = "square";
-ctx.lineWidth = 2;
+ctx.lineWidth = requestedLineWidth;
+canvas.dataset.lineWidth = String(requestedLineWidth);
 
 const letterHeight = letterWidth;
 
@@ -305,6 +504,17 @@ interface VerticalLineOptions {
   colour: string;
 }
 
+const animationFrameIds = new Set<number>();
+
+function queueAnimationFrame(callback: FrameRequestCallback) {
+  const frameId = window.requestAnimationFrame((ms) => {
+    animationFrameIds.delete(frameId);
+    callback(ms);
+  });
+
+  animationFrameIds.add(frameId);
+}
+
 class Letter {
   readonly width: number;
   readonly height: number;
@@ -313,6 +523,7 @@ class Letter {
   readonly letterHeight: number;
   readonly letterIndex: number;
   readonly startX: number;
+  readonly startY: number;
   readonly updateFunc: (ms: number) => void;
   readonly shouldContinue: () => boolean;
   readonly next: (ms?: number) => void;
@@ -327,14 +538,12 @@ class Letter {
   ) {
     this.width = width;
     this.height = height;
-    this.letterWidth = width / (numberOfLetters + 2);
-    this.paddingAroundLetters =
-      (width - numberOfLetters * letterWidth) / (numberOfLetters + 1);
+    this.letterWidth = letterWidth;
+    this.paddingAroundLetters = paddingAroundLetters;
     this.letterHeight = this.letterWidth;
     this.letterIndex = letterIndex;
-    this.startX =
-      this.paddingAroundLetters +
-      letterIndex * (this.letterWidth + this.paddingAroundLetters);
+    this.startX = letterLayouts[letterIndex].x;
+    this.startY = letterLayouts[letterIndex].y;
     this.updateFunc = updateFunc;
     this.shouldContinue = shouldContinue;
     this.next = next;
@@ -342,7 +551,7 @@ class Letter {
 
   animationFunc(ms = 0) {
     if (this.shouldContinue()) {
-      window.requestAnimationFrame(this.animationFunc.bind(this));
+      queueAnimationFrame(this.animationFunc.bind(this));
     } else {
       this.next(ms);
     }
@@ -485,7 +694,7 @@ class DeclarativeGlyph extends Letter {
   toCanvasPoint(point: NormalizedPoint): Point {
     return [
       this.startX + point[0] * this.letterWidth,
-      this.paddingAroundLetters + point[1] * this.letterHeight,
+      this.startY + point[1] * this.letterHeight,
     ];
   }
 }
@@ -517,7 +726,7 @@ class T1 extends Letter {
     );
     this.xEnd = 0;
     this.yEnd = 0;
-    this.tStartPoint = [this.startX, paddingAroundLetters];
+    this.tStartPoint = [this.startX, this.startY];
     this.tYEndPoint = tYEndPoint;
     this.tColour = `rgb(0, ${100 + ((0 * 1) % 255)}, ${
       100 + ((0 * 3) % 255)
@@ -575,7 +784,7 @@ class T2 extends Letter {
     );
     this.xEnd = 0;
     this.yEnd = 0;
-    this.tStartPoint = [this.startX, this.paddingAroundLetters];
+    this.tStartPoint = [this.startX, this.startY];
     this.tYEndPoint = tYEndPoint;
     this.tXEndPoint2 = this.letterWidth * 0.35;
     this.tYEndPoint2 = tYEndPoint;
@@ -631,7 +840,7 @@ class T3 extends Letter {
     );
     this.xEnd = 0;
     this.yEnd = 0;
-    this.tStartPoint = [this.startX, this.paddingAroundLetters];
+    this.tStartPoint = [this.startX, this.startY];
     this.tYEndPoint2 = tYEndPoint;
     this.tXEndPoint2 = this.letterWidth * 0.35;
     this.tXEndPoint3 = this.letterWidth * 0.35;
@@ -695,7 +904,7 @@ class T4 extends Letter {
     );
     this.xEnd = 0;
     this.yEnd = 0;
-    this.tStartPoint = [this.startX, this.paddingAroundLetters];
+    this.tStartPoint = [this.startX, this.startY];
     this.tYEndPoint = tYEndPoint;
     this.tYEndPoint2 = tYEndPoint;
     this.tXEndPoint2 = this.letterWidth * 0.35;
@@ -731,7 +940,6 @@ class T4 extends Letter {
 }
 
 class D1 extends Letter {
-  declare dXEnd: number;
   declare dYEnd: number;
   declare dStartPoint: Point;
   declare dYEndPoint: number;
@@ -755,44 +963,63 @@ class D1 extends Letter {
       }
     );
 
-    this.dXEnd = -Math.PI / 2;
     this.dYEnd = 0;
-    this.dStartPoint = [this.startX, paddingAroundLetters];
+    this.dStartPoint = [this.startX, this.startY];
     this.dYEndPoint = dAndGFirstStageDistance;
   }
 
   drawD1() {
+    const animationProgress = this.dYEnd / this.dYEndPoint;
+    const colour = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
+      10 + ((this.dYEnd * 2) % 255)
+    })`;
+    const outerCurveStart: Point = [
+      this.dStartPoint[0] + this.letterWidth / 2,
+      this.dStartPoint[1],
+    ];
+    const outerCurveEnd: Point = [
+      outerCurveStart[0],
+      this.dStartPoint[1] + this.letterHeight,
+    ];
+
     drawLineYForwards({
       initialCoords: this.dStartPoint,
       endPoint: 0,
       length: this.dYEnd,
-      colour: `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
-        10 + ((this.dYEnd * 2) % 255)
-      })`,
+      colour,
+    });
+    drawLineTowards({
+      initialCoords: this.dStartPoint,
+      endCoords: outerCurveStart,
+      progress: animationProgress,
+      colour,
     });
     ctx.beginPath();
     ctx.ellipse(
-      this.dStartPoint[0],
+      this.dStartPoint[0] + this.letterWidth / 2,
       this.dStartPoint[1] + this.letterHeight / 2,
-      this.letterWidth,
+      this.letterWidth / 2,
       this.letterHeight / 2,
       0,
       -Math.PI / 2,
-      this.dXEnd
+      -Math.PI / 2 + Math.PI * animationProgress,
     );
-    ctx.strokeStyle = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
-      10 + ((this.dYEnd * 2) % 255)
-    })`;
+    ctx.strokeStyle = colour;
     ctx.stroke();
+    drawLineTowards({
+      initialCoords: outerCurveEnd,
+      endCoords: [
+        this.dStartPoint[0],
+        this.dStartPoint[1] + this.letterHeight,
+      ],
+      progress: animationProgress,
+      colour,
+    });
     this.dYEnd = advanceTowards(this.dYEnd, 1, this.dYEndPoint);
-    if (this.dXEnd < Math.PI / 2) {
-      this.dXEnd = advanceTowards(this.dXEnd, 0.05, Math.PI / 2);
-    }
   }
 }
 
 class D2 extends Letter {
-  declare dXEnd: number;
   declare dYEnd: number;
   declare dStartPoint: Point;
   declare dXEndPoint: number;
@@ -817,43 +1044,68 @@ class D2 extends Letter {
       }
     );
 
-    this.dXEnd = -Math.PI / 2;
     this.dYEnd = 0;
-    this.dStartPoint = [this.startX, this.paddingAroundLetters];
+    this.dStartPoint = [this.startX, this.startY];
     this.dXEndPoint = this.letterWidth * 0.1375;
     this.dYEndPoint2 = dAndGSecondStageDistance;
   }
 
   drawD2() {
+    const animationProgress = this.dYEnd / this.dYEndPoint2;
+    const stemColour = `rgb(150, ${10 + ((this.dYEnd * 2) % 255)}, ${
+      50 + ((this.dYEnd * 3) % 255)
+    })`;
+    const curveColour = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
+      10 + ((this.dYEnd * 3) % 255)
+    })`;
+    const innerCurveStart: Point = [
+      this.dStartPoint[0] + this.letterWidth / 2,
+      this.dStartPoint[1] + this.letterHeight * 0.2,
+    ];
+    const innerCurveEnd: Point = [
+      innerCurveStart[0],
+      this.dStartPoint[1] + this.letterHeight * 0.8,
+    ];
+    const innerStemTop: Point = [
+      this.dStartPoint[0] + this.dXEndPoint,
+      this.dStartPoint[1] + this.letterWidth * 0.2,
+    ];
+    const innerStemBottom: Point = [
+      innerStemTop[0],
+      innerStemTop[1] + this.dYEndPoint2,
+    ];
+
     drawLineYForwards({
-      initialCoords: [
-        this.dStartPoint[0],
-        this.dStartPoint[1] + this.letterWidth * 0.2,
-      ],
+      initialCoords: [this.dStartPoint[0], innerStemTop[1]],
       endPoint: this.dXEndPoint,
       length: this.dYEnd,
-      colour: `rgb(150, ${10 + ((this.dYEnd * 2) % 255)}, ${
-        50 + ((this.dYEnd * 3) % 255)
-      })`,
+      colour: stemColour,
+    });
+    drawLineTowards({
+      initialCoords: innerStemTop,
+      endCoords: innerCurveStart,
+      progress: animationProgress,
+      colour: curveColour,
     });
     ctx.beginPath();
     ctx.ellipse(
-      this.dStartPoint[0] + this.dXEndPoint,
-      this.dStartPoint[1] + this.dYEndPoint2 / 2 + this.letterWidth * 0.2,
-      this.dYEndPoint2 / 2 + this.letterWidth * 0.325,
-      this.dYEndPoint2 / 2,
+      this.dStartPoint[0] + this.letterWidth / 2,
+      this.dStartPoint[1] + this.letterHeight / 2,
+      this.letterWidth * 0.3,
+      this.letterHeight * 0.3,
       0,
       -Math.PI / 2,
-      this.dXEnd
+      -Math.PI / 2 + Math.PI * animationProgress,
     );
-    ctx.strokeStyle = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
-      10 + ((this.dYEnd * 3) % 255)
-    })`;
+    ctx.strokeStyle = curveColour;
     ctx.stroke();
+    drawLineTowards({
+      initialCoords: innerCurveEnd,
+      endCoords: innerStemBottom,
+      progress: animationProgress,
+      colour: curveColour,
+    });
     this.dYEnd = advanceTowards(this.dYEnd, 1, this.dYEndPoint2);
-    if (this.dXEnd < Math.PI / 2) {
-      this.dXEnd = advanceTowards(this.dXEnd, 0.06, Math.PI / 2);
-    }
   }
 }
 
@@ -883,7 +1135,7 @@ class G1 extends Letter {
     );
 
     this.progress = 0;
-    this.startPoint = [this.startX, this.paddingAroundLetters];
+    this.startPoint = [this.startX, this.startY];
     this.endPoint = dAndGFirstStageDistance;
     this.colour = "rgb(20, 160, 180)";
   }
@@ -944,7 +1196,7 @@ class G2 extends Letter {
     this.endPoint = dAndGSecondStageDistance;
     this.centre = [
       this.startX + this.letterWidth / 2,
-      this.paddingAroundLetters + this.letterHeight / 2,
+      this.startY + this.letterHeight / 2,
     ];
     this.outerRadius = this.letterWidth / 2;
     this.innerRadius = this.letterWidth * gInnerRadiusScale;
@@ -968,7 +1220,7 @@ class G2 extends Letter {
     ];
     this.crossbarTopStart = [
       this.startX + this.letterWidth * 0.5,
-      this.paddingAroundLetters + this.letterHeight * 0.48,
+      this.startY + this.letterHeight * 0.48,
     ];
     this.crossbarTopEnd = [
       this.lowerOuterStart[0],
@@ -1065,22 +1317,23 @@ class A1 extends Letter {
       }
     );
 
-    this.aStartCoords = [this.startX, paddingAroundLetters];
+    this.aStartCoords = [this.startX, this.startY];
     this.aStartCoords2 = [
       this.aStartCoords[0] + this.letterWidth,
-      paddingAroundLetters,
+      this.startY,
     ];
     this.aXEnd = 0;
     this.aXEnd2 = 0;
+    this.aColour = aDefinition.colour;
     this.aBottomLineWidth = aBottomLineWidth;
     this.aOuterLineRun = (this.letterWidth - aTopLineWidth) / 2;
     this.aEndCoords = [
       this.aStartCoords[0],
-      paddingAroundLetters + letterHeight,
+      this.startY + letterHeight,
     ];
     this.aEndCoords2 = [
       this.aStartCoords2[0],
-      paddingAroundLetters + letterHeight,
+      this.startY + letterHeight,
     ];
     const imageMargin = Math.min(5, this.paddingAroundLetters / 2);
     this.imageStart = [
@@ -1102,9 +1355,6 @@ class A1 extends Letter {
   }
 
   drawA1() {
-    this.aColour = `rgb(150, ${10 + ((this.aXEnd * 1) % 255)}, ${
-      10 + ((this.aXEnd * 2) % 255)
-    })`;
     ctx.putImageData(
       this.imageData,
       this.imageStart[0],
@@ -1154,6 +1404,9 @@ class A2 extends Letter {
   declare aXEndFinal: number;
   declare aXStep: number;
   declare aXEndPointFinal: number;
+  declare travelStartX: number;
+  declare rowTop: number;
+  declare rowImage: ImageData;
   declare aColour: string;
   declare aInnerLeftStart: Point;
   declare aInnerRightStart: Point;
@@ -1185,20 +1438,17 @@ class A2 extends Letter {
       }
     );
     this.aXEndFinal = 0;
-    this.aXStep = 7 * animationStepScale;
-    this.aXEndPointFinal = width - letterWidth;
+    this.aXStep = 7 * letterAnimationStepScale;
 
     const halfLetterWidth = this.letterWidth / 2;
     const outerLineRun = halfLetterWidth - aTopLineWidth / 2;
-    this.aColour = `rgb(150, ${10 + (outerLineRun % 255)}, ${
-      10 + ((outerLineRun * 2) % 255)
-    })`;
-    const bottomY = paddingAroundLetters + this.letterHeight;
+    this.aColour = aDefinition.colour;
+    const bottomY = this.startY + this.letterHeight;
     const crossbarY = bottomY - aInnerLineHeight;
-    const aStartCoords: Point = [this.startX, paddingAroundLetters];
+    const aStartCoords: Point = [this.startX, this.startY];
     const aStartCoords2: Point = [
       this.startX + this.letterWidth,
-      paddingAroundLetters,
+      this.startY,
     ];
     const innerGapLeft = aStartCoords[0] + halfLetterWidth - aTopLineWidth / 2;
     const innerGapRight = aStartCoords[0] + halfLetterWidth + aTopLineWidth / 2;
@@ -1210,6 +1460,23 @@ class A2 extends Letter {
     this.aCrossbarStartPoint = [innerGapLeft, crossbarY];
     this.aCrossbarEndPoint = [innerGapRight, crossbarY];
     this.aTopShapeCentreX = aStartCoords[0] + halfLetterWidth;
+    this.travelStartX = letterLayouts[letterIndex].lineStartX;
+    const lineIndex = letterLayouts[letterIndex].lineIndex;
+    this.rowTop = Math.floor(lineIndex * lineHeight);
+    const rowBottom =
+      lineIndex === wrappedLines.length - 1
+        ? canvas.height
+        : Math.floor((lineIndex + 1) * lineHeight);
+    this.rowImage = ctx.getImageData(
+      0,
+      this.rowTop,
+      width,
+      rowBottom - this.rowTop,
+    );
+    this.aXEndPointFinal = Math.max(
+      1,
+      this.aTopShapeCentreX - this.travelStartX,
+    );
     const topShapeBottomY = crossbarY - aTopLineWidth / 2;
     const topShapeTopWidth = ctx.lineWidth;
     const outerLineSlope = outerLineRun / this.letterHeight;
@@ -1236,23 +1503,23 @@ class A2 extends Letter {
     ];
     this.aTopLineStart = [
       aStartCoords[0] + outerLineRun,
-      paddingAroundLetters,
+      this.startY,
     ];
     this.aTopLineEnd = [
       aStartCoords2[0] - outerLineRun,
-      paddingAroundLetters,
+      this.startY,
     ];
   }
 
   drawA2() {
-    ctx.putImageData(finalImage, 0, 0);
+    ctx.putImageData(this.rowImage, 0, this.rowTop);
     const animationDistance = Math.min(
       this.aXEndFinal,
       this.aXEndPointFinal
     );
     const animationProgress = animationDistance / this.aXEndPointFinal;
     const topShapeOffsetX =
-      (paddingAroundLetters - this.aTopShapeCentreX) *
+      (this.travelStartX - this.aTopShapeCentreX) *
       (1 - animationProgress);
 
     drawPolygon({
@@ -1296,83 +1563,338 @@ class A2 extends Letter {
   }
 }
 
-const aIndexes = letters.flatMap((letter, index) =>
-  letter === "A" ? [index] : [],
-);
-let unfinishedLetters = letters.filter((letter) =>
-  "TDAGESC".includes(letter),
-).length;
+let travellingCrossbarIndexesByLine: number[][] = [];
+let unfinishedCrossbarLines = 0;
+let unfinishedLetters = 0;
 
 function finishLetter() {
   unfinishedLetters -= 1;
 
   if (unfinishedLetters === 0) {
     finalImage = ctx.getImageData(0, 0, width, canvas.height);
-    animateNextA();
+    startTravellingCrossbars();
   }
 }
 
-function animateNextA() {
-  const letterIndex = aIndexes.shift();
+function startTravellingCrossbars() {
+  const populatedLineQueues = travellingCrossbarIndexesByLine.filter(
+    (lineQueue) => lineQueue.length > 0,
+  );
+  unfinishedCrossbarLines = populatedLineQueues.length;
+
+  if (unfinishedCrossbarLines === 0) {
+    completeLetterPhase();
+    return;
+  }
+
+  populatedLineQueues.forEach(animateNextTravellingCrossbar);
+}
+
+function animateNextTravellingCrossbar(lineQueue: number[]) {
+  const letterIndex = lineQueue.shift();
 
   if (letterIndex === undefined) {
-    finalImage = ctx.getImageData(0, 0, width, canvas.height);
-    canvas.dataset.letterAnimationState = "complete";
-    canvas.dispatchEvent(new CustomEvent("letterscomplete"));
-
-    if (shouldRunLightShow) {
-      flashBorder();
-      lightShow();
-    } else {
-      markAnimationComplete();
+    unfinishedCrossbarLines -= 1;
+    if (unfinishedCrossbarLines === 0) {
+      completeLetterPhase();
     }
     return;
   }
 
   new A2(width, height, letterIndex, () => {
-    finalImage = ctx.getImageData(0, 0, width, canvas.height);
-    animateNextA();
+    animateNextTravellingCrossbar(lineQueue);
   }).animationFunc();
 }
 
-letters.forEach((letter, index) => {
-  if (letter === "T") {
-    new T1(width, height, index, finishLetter).animationFunc();
-  } else if (letter === "D") {
-    new D1(width, height, index, finishLetter).animationFunc();
-  } else if (letter === "A") {
-    new A1(width, height, index, finishLetter).animationFunc();
-  } else if (letter === "G") {
-    new G1(width, height, index, finishLetter).animationFunc();
-  } else if (letter === "E") {
-    new DeclarativeGlyph(
-      width,
-      height,
-      index,
-      eDefinition,
-      finishLetter,
-    ).animationFunc();
-  } else if (letter === "S") {
-    new DeclarativeGlyph(
-      width,
-      height,
-      index,
-      sDefinition,
-      finishLetter,
-    ).animationFunc();
-  } else if (letter === "C") {
-    new DeclarativeGlyph(
-      width,
-      height,
-      index,
-      cDefinition,
-      finishLetter,
-    ).animationFunc();
-  }
-});
+function completeLetterPhase() {
+  finalImage = ctx.getImageData(0, 0, width, canvas.height);
+  canvas.dataset.letterAnimationState = "complete";
+  canvas.dispatchEvent(new CustomEvent("letterscomplete"));
 
-if (unfinishedLetters === 0) {
-  animateNextA();
+  if (shouldRunLightShow) {
+    flashBorder();
+    lightShow();
+  } else {
+    markAnimationComplete();
+  }
+}
+
+function startAnimation(lineWidth: number) {
+  animationFrameIds.forEach((frameId) => {
+    cancelAnimationFrame(frameId);
+  });
+  animationFrameIds.clear();
+
+  stopFlashing = false;
+  borderColour = "yellow";
+  iFlash = 37;
+  xEndLightShow = letterWidth / 2;
+  yEndLightShow = height * 1.5;
+  time = 0;
+
+  ctx.clearRect(0, 0, width, canvas.height);
+  ctx.lineCap = "square";
+  ctx.lineWidth = lineWidth;
+  canvas.dataset.lineWidth = String(lineWidth);
+  canvas.dataset.animationState = "running";
+  canvas.dataset.letterAnimationState = "running";
+
+  finalImage = ctx.getImageData(0, 0, width, canvas.height);
+  travellingCrossbarIndexesByLine = wrappedLines.map(() => []);
+  letters.forEach((letter, index) => {
+    if (isTravellingCrossbarMarker(letter)) {
+      travellingCrossbarIndexesByLine[letterLayouts[index].lineIndex].push(
+        index,
+      );
+    }
+  });
+  unfinishedLetters = letters.filter((letter) =>
+    "'’æÆ0123TDAGESCBFHIJKLMNOPQRUVWXYZ".includes(letter),
+  ).length;
+
+  letters.forEach((letter, index) => {
+    if (letter === "'" || letter === "’") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        apostropheDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "0") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        zeroDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "1") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        oneDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "2") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        twoDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "3") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        threeDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "T") {
+      new T1(width, height, index, finishLetter).animationFunc();
+    } else if (letter === "D") {
+      new D1(width, height, index, finishLetter).animationFunc();
+    } else if (letter === "A") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        aDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (isTravellingCrossbarMarker(letter)) {
+      new A1(width, height, index, finishLetter).animationFunc();
+    } else if (letter === "G") {
+      new G1(width, height, index, finishLetter).animationFunc();
+    } else if (letter === "E") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        eDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "S") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        sDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "C") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        cDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "B") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        bDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "F") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        fDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "H") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        hDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "I") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        iDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "J") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        jDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "K") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        kDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "L") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        lDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "M") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        mDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "N") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        nDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "O") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        oDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "P") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        pDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "Q") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        qDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "R") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        rDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "U") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        uDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "V") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        vDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "W") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        wDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "X") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        xDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "Y") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        yDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === "Z") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        zDefinition,
+        finishLetter,
+      ).animationFunc();
+    }
+  });
+
+  if (unfinishedLetters === 0) {
+    startTravellingCrossbars();
+  }
+}
+
+function isTravellingCrossbarMarker(letter: string) {
+  return letter === "æ" || letter === "Æ";
 }
 
 function drawLineYDiagonal(
@@ -1446,10 +1968,10 @@ let borderColour = "yellow";
 let iFlash = 37;
 
 function flashBorder() {
-  iFlash += 0.05 * animationStepScale;
+  iFlash += 0.05 * lightShowAnimationStepScale;
   if (iFlash <= 1000) {
     if (!stopFlashing) {
-      window.requestAnimationFrame(flashBorder);
+      queueAnimationFrame(flashBorder);
     }
   } else {
     console.log("finished flashing");
@@ -1473,7 +1995,7 @@ function markAnimationComplete() {
 
 function lightShow() {
   if (time < width * 2) {
-    requestAnimationFrame(lightShow);
+    queueAnimationFrame(lightShow);
   } else {
     stopFlashing = true;
     ctx.font = "36px serif";
@@ -1556,13 +2078,13 @@ function lightShow() {
   ctx.fill();
   ctx.restore();
 
-  time += 2 * animationStepScale;
+  time += 2 * lightShowAnimationStepScale;
   if (time < width) {
-    xEndLightShow += 2 * animationStepScale;
-    yEndLightShow -= animationStepScale;
+    xEndLightShow += 2 * lightShowAnimationStepScale;
+    yEndLightShow -= lightShowAnimationStepScale;
   } else {
-    xEndLightShow -= 2 * animationStepScale;
-    yEndLightShow -= 0.5 * animationStepScale;
+    xEndLightShow -= 2 * lightShowAnimationStepScale;
+    yEndLightShow -= 0.5 * lightShowAnimationStepScale;
   }
 }
 
@@ -1586,6 +2108,26 @@ function getButton(selector: string): HTMLButtonElement {
   return element;
 }
 
+function getRangeInput(selector: string): HTMLInputElement {
+  const element = document.querySelector<HTMLInputElement>(selector);
+
+  if (!element || element.type !== "range") {
+    throw new Error(`The range input "${selector}" is missing.`);
+  }
+
+  return element;
+}
+
+function getOutput(selector: string): HTMLOutputElement {
+  const element = document.querySelector<HTMLOutputElement>(selector);
+
+  if (!element) {
+    throw new Error(`The output element "${selector}" is missing.`);
+  }
+
+  return element;
+}
+
 function getCanvasContext(
   element: HTMLCanvasElement,
   options?: CanvasRenderingContext2DSettings,
@@ -1598,3 +2140,5 @@ function getCanvasContext(
 
   return context;
 }
+
+startAnimation(requestedLineWidth);
