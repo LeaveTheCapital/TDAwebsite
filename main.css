@@ -121,6 +121,17 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+.text-control {
+  grid-template-columns: max-content max-content;
+}
+
+.text-control input {
+  width: auto;
+  min-width: 3ch;
+  cursor: text;
+  font-family: monospace;
+}
+
 .fake-midi-controls {
   display: flex;
   gap: 0.75rem;

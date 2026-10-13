@@ -53,6 +53,7 @@ const letterDurationInput = getRangeInput("#letter-duration");
 const letterDurationOutput = getOutput("#letter-duration-value");
 const lightShowDurationInput = getRangeInput("#light-show-duration");
 const lightShowDurationOutput = getOutput("#light-show-duration-value");
+const textInput = getTextInput("#text-input");
 
 let backgroundHue: number | undefined;
 let lightShowHue: number | undefined;
@@ -254,7 +255,7 @@ void initialiseMidi();
 let letterAnimationStepScale = animationTiming.letterStepScale;
 let lightShowAnimationStepScale = animationTiming.lightShowStepScale;
 const query = new URLSearchParams(window.location.search);
-const requestedText = (query.get("text") || "TDA").toUpperCase();
+let requestedText = (query.get("text") || "TDA").toUpperCase();
 const shouldRunLightShow = query.get("lightShow") !== "false";
 const maximumCharactersPerLine = 16;
 const defaultLineWidth = 2;
@@ -280,8 +281,8 @@ function normalizeLineWidth(lineWidth: number) {
     ).toFixed(1),
   );
 }
-const wrappedLines = wrapText(requestedText, maximumCharactersPerLine);
-const letters = wrappedLines.flatMap(segmentText);
+let wrappedLines = wrapText(requestedText, maximumCharactersPerLine);
+let letters = wrappedLines.flatMap(segmentText);
 
 if (!query.get("text")) {
   query.set("text", requestedText);
@@ -291,6 +292,22 @@ if (!query.get("text")) {
     `${window.location.pathname}?${query.toString()}${window.location.hash}`,
   );
 }
+
+textInput.value = query.get("text") || requestedText;
+resizeTextInput();
+textInput.addEventListener("input", () => {
+  const nextQuery = new URLSearchParams(window.location.search);
+
+  resizeTextInput();
+  nextQuery.set("text", textInput.value);
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
+  );
+  updateTextLayout(textInput.value || "TDA");
+  startAnimation(Number(strokeWidthInput.value));
+});
 
 strokeWidthInput.value = String(requestedLineWidth);
 strokeWidthOutput.value = `${requestedLineWidth} px`;
@@ -364,6 +381,10 @@ function segmentText(text: string) {
   );
 }
 
+function resizeTextInput() {
+  textInput.size = Math.max(3, segmentText(textInput.value).length);
+}
+
 function wrapText(text: string, maximumLineLength: number) {
   const words = text.trim().split(/\s+/u).filter(Boolean);
   const lines: string[] = [];
@@ -411,17 +432,17 @@ function advanceTowards(current: number, step: number, endPoint: number) {
 }
 
 const width = canvas.width;
-const longestLineLength = Math.max(
+let longestLineLength = Math.max(
   1,
   ...wrappedLines.map((line) => segmentText(line).length),
 );
-const letterWidth = width / (longestLineLength + 2);
-const paddingAroundLetters =
+let letterWidth = width / (longestLineLength + 2);
+let paddingAroundLetters =
   (width - longestLineLength * letterWidth) / (longestLineLength + 1);
-const lineHeight = letterWidth + 2 * paddingAroundLetters;
+let lineHeight = letterWidth + 2 * paddingAroundLetters;
 
 canvas.height = Math.ceil(lineHeight * wrappedLines.length);
-const height = canvas.height;
+let height = canvas.height;
 
 interface LetterLayout {
   x: number;
@@ -430,7 +451,7 @@ interface LetterLayout {
   lineIndex: number;
 }
 
-const letterLayouts: LetterLayout[] = wrappedLines.flatMap((line, lineIndex) => {
+let letterLayouts: LetterLayout[] = wrappedLines.flatMap((line, lineIndex) => {
   const lineCharacters = segmentText(line);
   const contentWidth =
     lineCharacters.length * letterWidth +
@@ -458,14 +479,14 @@ ctx.lineCap = "square";
 ctx.lineWidth = requestedLineWidth;
 canvas.dataset.lineWidth = String(requestedLineWidth);
 
-const letterHeight = letterWidth;
+let letterHeight = letterWidth;
 
-const tYEndPoint = letterWidth * (13 / 45);
-const aBottomLineWidth = letterWidth * 0.25;
-const aTopLineWidth = letterWidth * 0.15;
-const aInnerLineHeight = letterHeight / 2;
-const dAndGFirstStageDistance = letterHeight;
-const dAndGSecondStageDistance = letterHeight * 0.6;
+let tYEndPoint = letterWidth * (13 / 45);
+let aBottomLineWidth = letterWidth * 0.25;
+let aTopLineWidth = letterWidth * 0.15;
+let aInnerLineHeight = letterHeight / 2;
+let dAndGFirstStageDistance = letterHeight;
+let dAndGSecondStageDistance = letterHeight * 0.6;
 const gOpeningAngle = Math.PI / 6;
 const gInnerRadiusScale = 0.32;
 const gLowerOuterOpeningAngle = Math.asin(
@@ -474,6 +495,50 @@ const gLowerOuterOpeningAngle = Math.asin(
 const gOuterArcAngle =
   Math.PI * 2 - gOpeningAngle - gLowerOuterOpeningAngle;
 const gInnerArcAngle = Math.PI * 2 - gOpeningAngle * 2;
+
+function updateTextLayout(text: string) {
+  requestedText = text.toUpperCase();
+  wrappedLines = wrapText(requestedText, maximumCharactersPerLine);
+  letters = wrappedLines.flatMap(segmentText);
+  longestLineLength = Math.max(
+    1,
+    ...wrappedLines.map((line) => segmentText(line).length),
+  );
+  letterWidth = width / (longestLineLength + 2);
+  paddingAroundLetters =
+    (width - longestLineLength * letterWidth) / (longestLineLength + 1);
+  lineHeight = letterWidth + 2 * paddingAroundLetters;
+  canvas.height = Math.ceil(lineHeight * wrappedLines.length);
+  height = canvas.height;
+  letterLayouts = wrappedLines.flatMap((line, lineIndex) => {
+    const lineCharacters = segmentText(line);
+    const contentWidth =
+      lineCharacters.length * letterWidth +
+      Math.max(0, lineCharacters.length - 1) * paddingAroundLetters;
+    const lineStartX = (width - contentWidth) / 2;
+
+    return lineCharacters.map((_, characterIndex) => ({
+      x: lineStartX + characterIndex * (letterWidth + paddingAroundLetters),
+      y: lineIndex * lineHeight + paddingAroundLetters,
+      lineStartX,
+      lineIndex,
+    }));
+  });
+
+  canvas.dataset.text = requestedText;
+  canvas.dataset.lineCount = String(wrappedLines.length);
+  midiOverlay.height = canvas.height;
+  midiOverlay.dataset.circleVisible = "false";
+  letterHeight = letterWidth;
+  tYEndPoint = letterWidth * (13 / 45);
+  aBottomLineWidth = letterWidth * 0.25;
+  aTopLineWidth = letterWidth * 0.15;
+  aInnerLineHeight = letterHeight / 2;
+  dAndGFirstStageDistance = letterHeight;
+  dAndGSecondStageDistance = letterHeight * 0.6;
+  lightShowStartCoords = [0, height * 0.5];
+  lightShowStartCoords2 = [width, height * 0.5];
+}
 
 type Point = [number, number];
 
@@ -1982,8 +2047,8 @@ function flashBorder() {
   borderColour = `hsl(${hue}, 100%, 50%)`;
 }
 
-const lightShowStartCoords = [0, height * 0.5];
-const lightShowStartCoords2 = [width, height * 0.5];
+let lightShowStartCoords = [0, height * 0.5];
+let lightShowStartCoords2 = [width, height * 0.5];
 let xEndLightShow = letterWidth / 2;
 let yEndLightShow = height * 1.5;
 let time = 0;
@@ -2113,6 +2178,16 @@ function getRangeInput(selector: string): HTMLInputElement {
 
   if (!element || element.type !== "range") {
     throw new Error(`The range input "${selector}" is missing.`);
+  }
+
+  return element;
+}
+
+function getTextInput(selector: string): HTMLInputElement {
+  const element = document.querySelector<HTMLInputElement>(selector);
+
+  if (!element || element.type !== "text") {
+    throw new Error(`The text input "${selector}" is missing.`);
   }
 
   return element;
