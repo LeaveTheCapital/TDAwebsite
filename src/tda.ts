@@ -1,4 +1,9 @@
-import { Input, WebMidi, type PortEvent } from "webmidi";
+import {
+  Input,
+  WebMidi,
+  type MessageEvent,
+  type PortEvent,
+} from "webmidi";
 
 import "../main.css";
 import {
@@ -66,6 +71,12 @@ const beatsPerBar = 4;
 const fakeMidiBeatsPerMinute = 120;
 const fakeMidiClockIntervalMs =
   60_000 / (fakeMidiBeatsPerMinute * midiClocksPerQuarterNote);
+const songALyrics = "MIDNIGHT LIGHTS MOVE SLOW";
+const songBLyrics = "WILD HEARTS BEAT FOREVER";
+const lyricsByProgram = new Map([
+  [0, songALyrics],
+  [1, songBLyrics],
+]);
 let isFollowingMidiClock = false;
 let midiClockPulseCount = 0;
 let nextMidiCircleSide = "left";
@@ -93,6 +104,18 @@ function handleMidiNoteOn() {
 
   document.body.style.backgroundColor = `hsl(${backgroundHue}, 70%, 25%)`;
   lightShowColour = `hsl(${lightShowHue}, 100%, 50%)`;
+}
+
+function handleMidiProgramChange(event: MessageEvent) {
+  if (typeof event.value !== "number") {
+    return;
+  }
+
+  const lyrics = lyricsByProgram.get(event.value);
+
+  if (lyrics) {
+    setAnimatedText(lyrics);
+  }
 }
 
 function hideMidiBeatCircle() {
@@ -210,6 +233,10 @@ function connectToMidiInput() {
   activeMidiInput.addListener("start", handleMidiStart);
   activeMidiInput.addListener("clock", handleMidiClock);
   activeMidiInput.channels[1].addListener("noteon", handleMidiNoteOn);
+  activeMidiInput.channels[10].addListener(
+    "programchange",
+    handleMidiProgramChange,
+  );
   console.log("Using MIDI input:", activeMidiInput.name, activeMidiInput);
 }
 
@@ -296,18 +323,23 @@ if (!query.get("text")) {
 textInput.value = query.get("text") || requestedText;
 resizeTextInput();
 textInput.addEventListener("input", () => {
+  setAnimatedText(textInput.value || "TDA");
+});
+
+function setAnimatedText(text: string) {
   const nextQuery = new URLSearchParams(window.location.search);
 
+  textInput.value = text;
   resizeTextInput();
-  nextQuery.set("text", textInput.value);
+  nextQuery.set("text", text);
   window.history.replaceState(
     null,
     "",
     `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
   );
-  updateTextLayout(textInput.value || "TDA");
+  updateTextLayout(text);
   startAnimation(Number(strokeWidthInput.value));
-});
+}
 
 strokeWidthInput.value = String(requestedLineWidth);
 strokeWidthOutput.value = `${requestedLineWidth} px`;
