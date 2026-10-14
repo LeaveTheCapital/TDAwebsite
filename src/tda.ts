@@ -15,6 +15,7 @@ import "./dice.ts";
 import {
   aDefinition,
   apostropheDefinition,
+  commaDefinition,
   zeroDefinition,
   oneDefinition,
   twoDefinition,
@@ -59,6 +60,7 @@ const letterDurationOutput = getOutput("#letter-duration-value");
 const lightShowDurationInput = getRangeInput("#light-show-duration");
 const lightShowDurationOutput = getOutput("#light-show-duration-value");
 const textInput = getTextInput("#text-input");
+const songButtons = getElement("#song-buttons");
 
 let backgroundHue: number | undefined;
 let lightShowHue: number | undefined;
@@ -71,11 +73,22 @@ const beatsPerBar = 4;
 const fakeMidiBeatsPerMinute = 120;
 const fakeMidiClockIntervalMs =
   60_000 / (fakeMidiBeatsPerMinute * midiClocksPerQuarterNote);
-const songALyrics = "MIDNIGHT LIGHTS MOVE SLOW";
-const songBLyrics = "WILD HEARTS BEAT FOREVER";
-const lyricsByProgram = new Map([
-  [0, songALyrics],
-  [1, songBLyrics],
+const songsByProgram = new Map([
+  [
+    0,
+    {
+      name: "gcses",
+      lyrics: `I've got 11 GCSEs
+It's easy for you, it's easy for me
+Don't have time for anything else
+Like extracurricular activities
+I don't put it on my CV,
+Doesn't matter to you doesn't matter to me
+Building on your progress
+On your progress`,
+    },
+  ],
+  [1, { name: "Pulse", lyrics: "WILD HEARTS BEAT FOREVER" }],
 ]);
 let isFollowingMidiClock = false;
 let midiClockPulseCount = 0;
@@ -111,12 +124,39 @@ function handleMidiProgramChange(event: MessageEvent) {
     return;
   }
 
-  const lyrics = lyricsByProgram.get(event.value);
-
-  if (lyrics) {
-    setAnimatedText(lyrics);
-  }
+  selectSong(event.value);
 }
+
+function selectSong(program: number) {
+  const song = songsByProgram.get(program);
+
+  if (!song) {
+    return;
+  }
+
+  songButtons
+    .querySelectorAll<HTMLButtonElement>("button")
+    .forEach((button) => {
+      button.setAttribute(
+        "aria-pressed",
+        String(Number(button.dataset.midiProgram) === program),
+      );
+    });
+  setAnimatedText(song.lyrics);
+}
+
+songsByProgram.forEach((song, program) => {
+  const button = document.createElement("button");
+
+  button.type = "button";
+  button.textContent = song.name;
+  button.dataset.midiProgram = String(program);
+  button.setAttribute("aria-pressed", "false");
+  button.addEventListener("click", () => {
+    selectSong(program);
+  });
+  songButtons.append(button);
+});
 
 function hideMidiBeatCircle() {
   midiOverlayContext.clearRect(0, 0, midiOverlay.width, midiOverlay.height);
@@ -1746,7 +1786,7 @@ function startAnimation(lineWidth: number) {
     }
   });
   unfinishedLetters = letters.filter((letter) =>
-    "'’æÆ0123TDAGESCBFHIJKLMNOPQRUVWXYZ".includes(letter),
+    "'’,æÆ0123TDAGESCBFHIJKLMNOPQRUVWXYZ".includes(letter),
   ).length;
 
   letters.forEach((letter, index) => {
@@ -1756,6 +1796,14 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         apostropheDefinition,
+        finishLetter,
+      ).animationFunc();
+    } else if (letter === ",") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        commaDefinition,
         finishLetter,
       ).animationFunc();
     } else if (letter === "0") {
@@ -2190,6 +2238,16 @@ function getCanvas(selector: string): HTMLCanvasElement {
 
   if (!element) {
     throw new Error(`The canvas element "${selector}" is missing.`);
+  }
+
+  return element;
+}
+
+function getElement(selector: string): HTMLElement {
+  const element = document.querySelector<HTMLElement>(selector);
+
+  if (!element) {
+    throw new Error(`The element "${selector}" is missing.`);
   }
 
   return element;

@@ -196,6 +196,84 @@ export const apostropheDefinition: GlyphDefinition = {
   },
 };
 
+export const commaDefinition: GlyphDefinition = {
+  colour: "rgb(235, 190, 80)",
+  strokes: [
+    {
+      id: "comma-top",
+      kind: "line",
+      from: [0.42, 0.7],
+      to: [0.62, 0.7],
+    },
+    {
+      id: "comma-outer-stem",
+      kind: "line",
+      from: [0.62, 0.7],
+      to: [0.62, 0.84],
+    },
+    {
+      id: "comma-outer-tail",
+      kind: "bezier",
+      from: [0.62, 0.84],
+      control1: [0.62, 0.91],
+      control2: [0.54, 0.98],
+      to: [0.46, 1],
+    },
+    {
+      id: "comma-tail-cap",
+      kind: "line",
+      from: [0.46, 1],
+      to: [0.34, 0.95],
+    },
+    {
+      id: "comma-inner-tail",
+      kind: "bezier",
+      from: [0.34, 0.95],
+      control1: [0.42, 0.89],
+      control2: [0.44, 0.84],
+      to: [0.44, 0.8],
+    },
+    {
+      id: "comma-inner-stem",
+      kind: "line",
+      from: [0.44, 0.8],
+      to: [0.44, 0.78],
+    },
+    {
+      id: "comma-left",
+      kind: "line",
+      from: [0.44, 0.78],
+      to: [0.42, 0.78],
+    },
+    {
+      id: "comma-close",
+      kind: "line",
+      from: [0.42, 0.78],
+      to: [0.42, 0.7],
+    },
+  ],
+  pixelContract: {
+    required: [
+      [0.42, 0.7],
+      [0.52, 0.7],
+      [0.62, 0.7],
+      [0.62, 0.84],
+      [0.55, 0.96],
+      [0.46, 1],
+      [0.34, 0.95],
+      [0.44, 0.8],
+      [0.42, 0.78],
+    ],
+    forbidden: [
+      [0.25, 0.75],
+      [0.75, 0.75],
+      [0.52, 0.78],
+      [0.5, 0.5],
+      [0.5, 0.9],
+    ],
+  },
+};
+
 export const zeroOvalWidthScale = 0.75;
 const zeroOuterRadiusX = 0.5 * zeroOvalWidthScale;
 const zeroInnerRadiusX = 0.32 * zeroOvalWidthScale;

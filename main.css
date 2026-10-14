@@ -122,7 +122,7 @@ canvas {
 }
 
 .text-control {
-  grid-template-columns: max-content max-content;
+  grid-template-columns: max-content max-content max-content;
 }
 
 .text-control input {
@@ -130,6 +130,32 @@ canvas {
   min-width: 3ch;
   cursor: text;
   font-family: monospace;
+}
+
+.song-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.song-buttons button {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid turquoise;
+  background: black;
+  color: turquoise;
+  cursor: pointer;
+  font: inherit;
+}
+
+.song-buttons button:hover,
+.song-buttons button[aria-pressed="true"] {
+  background: turquoise;
+  color: black;
+}
+
+.song-buttons button:focus-visible {
+  outline: 3px solid white;
+  outline-offset: 3px;
 }
 
 .fake-midi-controls {

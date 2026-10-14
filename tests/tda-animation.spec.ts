@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import {
   bDefinition,
   cDefinition,
+  commaDefinition,
   eDefinition,
   sDefinition,
   type GlyphDefinition,
@@ -465,6 +466,16 @@ test("draws B from its normalized stroke and pixel contract", async ({
     red: [0, 70],
     green: [110, 210],
     blue: [40, 140],
+  });
+});
+
+test("draws comma from its normalized stroke and pixel contract", async ({
+  page,
+}) => {
+  await expectGlyphPixelContract(page, ",", commaDefinition, {
+    red: [180, 255],
+    green: [140, 230],
+    blue: [30, 130],
   });
 });
 
