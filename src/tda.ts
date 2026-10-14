@@ -88,7 +88,14 @@ Building on your progress
 On your progress`,
     },
   ],
-  [1, { name: "Pulse", lyrics: "WILD HEARTS BEAT FOREVER" }],
+  [
+    1,
+    {
+      name: "mugs game",
+      lyrics:
+        "looking in my notebook to find some ideas it's a mugs game. I wonder what it would be like to live in South Africa. I'd be in the Serengheti every day. This is all going on in the privacy inside my own mind",
+    },
+  ],
 ]);
 let isFollowingMidiClock = false;
 let midiClockPulseCount = 0;
