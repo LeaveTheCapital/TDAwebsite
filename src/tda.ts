@@ -70,6 +70,8 @@ const textInput = getTextInput("#text-input");
 const songButtons = getElement("#song-buttons");
 const transportPosition = getOutput("#transport-position");
 const clockBpm = getOutput("#clock-bpm");
+const songName = getOutput("#song-name");
+const sectionId = getOutput("#section-id");
 const midiDevice = getOutput("#midi-device");
 const midiInputSelect = getSelect("#midi-input");
 
@@ -139,6 +141,7 @@ function selectSong(program: number) {
 
   resetTransportForSelection();
   selectedSongProgram = program;
+  songName.value = `Song: ${song.name}`;
   canvas.dataset.displayMode = "song";
   clearAnimatedText();
   updateSelectionButtonStates();
@@ -148,6 +151,7 @@ function selectSong(program: number) {
 function selectIntro() {
   resetTransportForSelection();
   selectedSongProgram = undefined;
+  songName.value = "Song: –";
   canvas.dataset.displayMode = "intro";
   updateSelectionButtonStates();
   updateFakeMidiButtonStates();
@@ -192,14 +196,21 @@ songsByProgram.forEach((song, program) => {
 function clearDrumAnimation() {
   midiOverlayContext.clearRect(0, 0, midiOverlay.width, midiOverlay.height);
   midiOverlay.dataset.bassDrumVisible = "false";
+  midiOverlay.dataset.snareVisible = "false";
+  delete midiOverlay.dataset.snareSide;
   midiOverlay.dataset.hiHatVisible = "false";
 }
 
 function drawDrumAnimation() {
   const pulsesPerBar = midiClocksPerQuarterNote * beatsPerBar;
   const pulseInBar = midiClockPulseCount % pulsesPerBar;
+  const beatInBar = Math.floor(pulseInBar / midiClocksPerQuarterNote);
+  const pulseInBeat = pulseInBar % midiClocksPerQuarterNote;
   const pulseInEighth = midiClockPulseCount % midiClocksPerEighthNote;
   const showBassDrum = pulseInBar < drumHitVisiblePulses;
+  const showSnare =
+    (beatInBar === 1 || beatInBar === 3) &&
+    pulseInBeat < drumHitVisiblePulses;
   const showHiHat = pulseInEighth < drumHitVisiblePulses;
   const centreY = midiOverlay.height / 2;
 
@@ -216,6 +227,23 @@ function drawDrumAnimation() {
     midiOverlayContext.lineWidth = 2;
     midiOverlayContext.stroke();
     midiOverlay.dataset.bassDrumVisible = "true";
+  }
+
+  if (showSnare) {
+    const side = beatInBar === 1 ? "left" : "right";
+    const radius = Math.min(width / 32, midiOverlay.height / 4);
+    const x = width * (side === "left" ? 0.35 : 0.65);
+    const y = midiOverlay.height - radius * 1.5;
+
+    midiOverlayContext.beginPath();
+    midiOverlayContext.arc(x, y, radius, 0, Math.PI * 2);
+    midiOverlayContext.fillStyle = "white";
+    midiOverlayContext.fill();
+    midiOverlayContext.strokeStyle = "black";
+    midiOverlayContext.lineWidth = 2;
+    midiOverlayContext.stroke();
+    midiOverlay.dataset.snareVisible = "true";
+    midiOverlay.dataset.snareSide = side;
   }
 
   if (showHiHat) {
@@ -309,6 +337,7 @@ function resetTransportForSelection() {
   nextLyricCuePulse = Number.POSITIVE_INFINITY;
   delete transportPosition.dataset.section;
   delete transportPosition.dataset.lyricCue;
+  sectionId.value = "Section: –";
   setClockBpm(undefined);
   if (!activeMidiInput) {
     setMidiDevice(undefined);
@@ -418,6 +447,7 @@ function moveToNextSongSection() {
 
   activeSectionEndPulse += sectionBeats * midiClocksPerQuarterNote;
   transportPosition.dataset.section = section.id;
+  sectionId.value = `Section: ${section.id}`;
 
   startSectionLyrics(section.lyrics, sectionStartPulse);
 }
@@ -907,6 +937,7 @@ const midiOverlay = getCanvas("#midi-overlay");
 midiOverlay.width = canvas.width;
 const midiOverlayContext = getCanvasContext(midiOverlay);
 midiOverlay.dataset.bassDrumVisible = "false";
+midiOverlay.dataset.snareVisible = "false";
 midiOverlay.dataset.hiHatVisible = "false";
 ctx.lineCap = "square";
 ctx.lineWidth = requestedLineWidth;
