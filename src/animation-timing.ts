@@ -9,7 +9,8 @@ export interface AnimationTiming {
 
 const letterReferenceDurationMs = 6_500;
 const lightShowReferenceDurationMs = 15_000;
-const defaultDurationMs = 10_000;
+const defaultLetterDurationMs = 4_000;
+const defaultLightShowDurationMs = 10_000;
 export const minimumDurationMs = 1_000;
 export const maximumDurationMs = 10_000;
 const query = new URLSearchParams(window.location.search);
@@ -17,12 +18,12 @@ const legacyDurationMs = getRequestedDurationMs("animationDurationMs");
 const letterDurationMs = normalizeDurationMs(
   getRequestedDurationMs("letterAnimationDurationMs") ??
     legacyDurationMs ??
-    defaultDurationMs,
+    defaultLetterDurationMs,
 );
 const lightShowDurationMs = normalizeDurationMs(
   getRequestedDurationMs("lightShowDurationMs") ??
     legacyDurationMs ??
-    defaultDurationMs,
+    defaultLightShowDurationMs,
 );
 
 export const animationTiming: AnimationTiming = {

@@ -12,7 +12,15 @@
     <h1>TDA - electronic music project</h1>
     <div class="canvas-container">
         <canvas id="canvas" width="900" height="400"></canvas>
-        <canvas id="midi-overlay" class="midi-overlay" width="900" height="400" aria-hidden="true"></canvas>
+        <canvas id="midi-overlay" class="midi-overlay" width="900" height="140" aria-label="Drum animation"></canvas>
+    </div>
+    <div class="transport-status" role="status" aria-label="MIDI clock status">
+        <output id="transport-position">Bar – · Beat –</output>
+        <output id="clock-bpm">– BPM</output>
+        <output id="midi-device">MIDI: No device</output>
+        <select id="midi-input" aria-label="Choose MIDI input" disabled>
+            <option value="">No MIDI inputs</option>
+        </select>
     </div>
     <div class="canvas-control stroke-width-control">
         <label for="stroke-width">Line thickness</label>
@@ -21,8 +29,8 @@
     </div>
     <div class="canvas-control letter-duration-control">
         <label for="letter-duration">Letter phase</label>
-        <input id="letter-duration" type="range" min="1" max="10" step="1" value="10">
-        <output id="letter-duration-value" for="letter-duration">10 seconds</output>
+        <input id="letter-duration" type="range" min="1" max="10" step="1" value="4">
+        <output id="letter-duration-value" for="letter-duration">4 seconds</output>
     </div>
     <div class="canvas-control light-show-duration-control">
         <label for="light-show-duration">Light show</label>

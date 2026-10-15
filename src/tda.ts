@@ -48,6 +48,13 @@ import {
   type GlyphDefinition,
   type NormalizedPoint,
 } from "./glyphs.ts";
+import {
+  parseLyricCues,
+  songsByProgram,
+  TDA,
+  type LyricCue,
+  type Song,
+} from "./songs.ts";
 
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
@@ -61,52 +68,39 @@ const lightShowDurationInput = getRangeInput("#light-show-duration");
 const lightShowDurationOutput = getOutput("#light-show-duration-value");
 const textInput = getTextInput("#text-input");
 const songButtons = getElement("#song-buttons");
+const transportPosition = getOutput("#transport-position");
+const clockBpm = getOutput("#clock-bpm");
+const midiDevice = getOutput("#midi-device");
+const midiInputSelect = getSelect("#midi-input");
 
 let backgroundHue: number | undefined;
 let lightShowHue: number | undefined;
 let lightShowColour = "yellow";
 let activeMidiInput: Input | undefined;
 let fakeMidiTimer: number | undefined;
-const browserMidiInputName = "Midi Through Port-0";
 const midiClocksPerQuarterNote = 24;
 const beatsPerBar = 4;
 const fakeMidiBeatsPerMinute = 120;
 const fakeMidiClockIntervalMs =
   60_000 / (fakeMidiBeatsPerMinute * midiClocksPerQuarterNote);
-const songsByProgram = new Map([
-  [
-    0,
-    {
-      name: "gcses",
-      lyrics: `I've got 11 GCSEs
-It's easy for you, it's easy for me
-Don't have time for anything else
-Like extracurricular activities
-I don't put it on my CV,
-Doesn't matter to you doesn't matter to me
-Building on your progress
-On your progress`,
-    },
-  ],
-  [
-    1,
-    {
-      name: "mugs game",
-      lyrics:
-        "looking in my notebook to find some ideas it's a mugs game. I wonder what it would be like to live in South Africa. I'd be in the Serengheti every day. This is all going on in the privacy inside my own mind",
-    },
-  ],
-]);
 let isFollowingMidiClock = false;
+let midiTransportState: "stopped" | "running" | "paused" = "stopped";
 let midiClockPulseCount = 0;
 let nextMidiCircleSide = "left";
+let selectedSongProgram: number | undefined;
+let activeSong: Song | undefined;
+let activeSectionIndex = -1;
+let activeSectionEndPulse = 0;
+let activeLyricCues: LyricCue[] = [];
+let activeLyricCueIndex = -1;
+let nextLyricCuePulse = Number.POSITIVE_INFINITY;
+let midiClockTimestamps: number[] = [];
 
 startFakeMidiButton.addEventListener("click", startFakeMidiTimer);
 stopFakeMidiButton.addEventListener("click", stopFakeMidiTimer);
-
-function isBrowserMidiInput(input: Input) {
-  return input.name === browserMidiInputName;
-}
+midiInputSelect.addEventListener("change", () => {
+  connectToMidiInput(midiInputSelect.value);
+});
 
 function randomHueExcept(...excludedHues: Array<number | undefined>): number {
   let nextHue;
@@ -141,16 +135,44 @@ function selectSong(program: number) {
     return;
   }
 
+  resetTransportForSelection();
+  selectedSongProgram = program;
+  canvas.dataset.displayMode = "song";
+  clearAnimatedText();
+  updateSelectionButtonStates();
+  updateFakeMidiButtonStates();
+}
+
+function selectIntro() {
+  resetTransportForSelection();
+  selectedSongProgram = undefined;
+  canvas.dataset.displayMode = "intro";
+  updateSelectionButtonStates();
+  updateFakeMidiButtonStates();
+  setAnimatedText(TDA);
+}
+
+function updateSelectionButtonStates() {
   songButtons
     .querySelectorAll<HTMLButtonElement>("button")
     .forEach((button) => {
-      button.setAttribute(
-        "aria-pressed",
-        String(Number(button.dataset.midiProgram) === program),
-      );
+      const buttonProgram = button.dataset.midiProgram;
+      const isSelected = buttonProgram === undefined
+        ? selectedSongProgram === undefined
+        : Number(buttonProgram) === selectedSongProgram;
+
+      button.setAttribute("aria-pressed", String(isSelected));
     });
-  setAnimatedText(song.lyrics);
 }
+
+const introButton = document.createElement("button");
+
+introButton.type = "button";
+introButton.textContent = "TDA";
+introButton.setAttribute("aria-pressed", "true");
+introButton.addEventListener("click", selectIntro);
+songButtons.append(introButton);
+canvas.dataset.displayMode = "intro";
 
 songsByProgram.forEach((song, program) => {
   const button = document.createElement("button");
@@ -189,19 +211,95 @@ function showMidiBeatCircle() {
 }
 
 function handleMidiStart() {
-  document.body.style.backgroundColor = "green";
+  if (selectedSongProgram === undefined) {
+    return;
+  }
+
+  if (midiTransportState === "running") {
+    pauseMidiTransport();
+    return;
+  }
+
+  const isStartingFromReset = midiTransportState === "stopped";
+
   isFollowingMidiClock = true;
-  midiClockPulseCount = 0;
-  nextMidiCircleSide = "left";
+  midiTransportState = "running";
+  transportPosition.dataset.transport = midiTransportState;
+  midiClockTimestamps = [];
+  setClockBpm(fakeMidiTimer === undefined ? undefined : fakeMidiBeatsPerMinute);
+  hideMidiBeatCircle();
+
+  if (isStartingFromReset) {
+    midiClockPulseCount = 0;
+    nextMidiCircleSide = "left";
+    updateTransportPosition();
+    startSelectedSong();
+  }
+}
+
+function pauseMidiTransport() {
+  isFollowingMidiClock = false;
+  midiTransportState = "paused";
+  transportPosition.dataset.transport = midiTransportState;
+  midiClockTimestamps = [];
+  setClockBpm(undefined);
   hideMidiBeatCircle();
 }
 
-function handleMidiClock() {
+function handleMidiStop() {
+  isFollowingMidiClock = false;
+  midiTransportState = "stopped";
+  transportPosition.dataset.transport = midiTransportState;
+  midiClockPulseCount = 0;
+  nextMidiCircleSide = "left";
+  midiClockTimestamps = [];
+  setClockBpm(undefined);
+  hideMidiBeatCircle();
+  updateTransportPosition();
+  startSelectedSong();
+}
+
+function resetTransportForSelection() {
+  if (fakeMidiTimer !== undefined) {
+    window.clearInterval(fakeMidiTimer);
+    fakeMidiTimer = undefined;
+    updateFakeMidiButtonStates();
+  }
+
+  isFollowingMidiClock = false;
+  midiTransportState = "stopped";
+  transportPosition.dataset.transport = midiTransportState;
+  midiClockPulseCount = 0;
+  nextMidiCircleSide = "left";
+  midiClockTimestamps = [];
+  activeSong = undefined;
+  activeSectionIndex = -1;
+  activeSectionEndPulse = 0;
+  activeLyricCues = [];
+  activeLyricCueIndex = -1;
+  nextLyricCuePulse = Number.POSITIVE_INFINITY;
+  delete transportPosition.dataset.section;
+  delete transportPosition.dataset.lyricCue;
+  setClockBpm(undefined);
+  if (!activeMidiInput) {
+    setMidiDevice(undefined);
+  }
+  hideMidiBeatCircle();
+  updateTransportPosition();
+}
+
+function handleMidiClock(event?: MessageEvent) {
   if (!isFollowingMidiClock) {
     return;
   }
 
+  if (event) {
+    updateClockBpm(event.timestamp);
+  }
   midiClockPulseCount += 1;
+  updateTransportPosition();
+  advanceSongSections();
+  advanceLyricCues();
   const pulseInBar =
     midiClockPulseCount % (midiClocksPerQuarterNote * beatsPerBar);
 
@@ -218,30 +316,187 @@ function handleMidiClock() {
   }
 }
 
+function updateClockBpm(timestamp: number) {
+  if (!Number.isFinite(timestamp)) {
+    return;
+  }
+
+  midiClockTimestamps.push(timestamp);
+  if (midiClockTimestamps.length > midiClocksPerQuarterNote + 1) {
+    midiClockTimestamps.shift();
+  }
+
+  const elapsedMs = timestamp - midiClockTimestamps[0];
+  const intervalCount = midiClockTimestamps.length - 1;
+
+  if (intervalCount === 0 || elapsedMs <= 0) {
+    return;
+  }
+
+  setClockBpm(
+    (60_000 * intervalCount) / (elapsedMs * midiClocksPerQuarterNote),
+  );
+}
+
+function setClockBpm(beatsPerMinute?: number) {
+  const roundedBpm =
+    beatsPerMinute === undefined ? undefined : Math.round(beatsPerMinute);
+  const nextValue = roundedBpm === undefined ? "– BPM" : `${roundedBpm} BPM`;
+
+  if (clockBpm.value !== nextValue) {
+    clockBpm.value = nextValue;
+  }
+  if (roundedBpm === undefined) {
+    delete clockBpm.dataset.bpm;
+  } else {
+    clockBpm.dataset.bpm = String(roundedBpm);
+  }
+}
+
+function setMidiDevice(name?: string) {
+  midiDevice.value = `MIDI: ${name ?? "No device"}`;
+  if (name === undefined) {
+    delete midiDevice.dataset.device;
+  } else {
+    midiDevice.dataset.device = name;
+  }
+}
+
+function startSelectedSong() {
+  activeSong = selectedSongProgram === undefined
+    ? undefined
+    : songsByProgram.get(selectedSongProgram);
+  activeSectionIndex = -1;
+  activeSectionEndPulse = 0;
+  activeLyricCues = [];
+  activeLyricCueIndex = -1;
+  nextLyricCuePulse = Number.POSITIVE_INFINITY;
+
+  if (!activeSong || activeSong.sections.length === 0) {
+    return;
+  }
+
+  moveToNextSongSection();
+  advanceSongSections();
+}
+
+function advanceSongSections() {
+  while (
+    activeSong &&
+    activeSectionIndex < activeSong.sections.length - 1 &&
+    midiClockPulseCount >= activeSectionEndPulse
+  ) {
+    moveToNextSongSection();
+  }
+}
+
+function moveToNextSongSection() {
+  if (!activeSong || activeSectionIndex >= activeSong.sections.length - 1) {
+    return;
+  }
+
+  activeSectionIndex += 1;
+  const section = activeSong.sections[activeSectionIndex];
+  const sectionBeats = section.bars * beatsPerBar + section.beats;
+  const sectionStartPulse = activeSectionEndPulse;
+
+  activeSectionEndPulse += sectionBeats * midiClocksPerQuarterNote;
+  transportPosition.dataset.section = section.id;
+
+  startSectionLyrics(section.lyrics, sectionStartPulse);
+}
+
+function startSectionLyrics(lyrics: string | null, sectionStartPulse: number) {
+  activeLyricCues = lyrics === null ? [] : parseLyricCues(lyrics);
+  activeLyricCueIndex = -1;
+  nextLyricCuePulse = Number.POSITIVE_INFINITY;
+
+  if (activeLyricCues.length === 0) {
+    delete transportPosition.dataset.lyricCue;
+    clearAnimatedText();
+    return;
+  }
+
+  activeLyricCueIndex = 0;
+  showActiveLyricCue();
+  nextLyricCuePulse = getNextLyricCuePulse(sectionStartPulse);
+}
+
+function advanceLyricCues() {
+  while (
+    activeLyricCueIndex < activeLyricCues.length - 1 &&
+    midiClockPulseCount >= nextLyricCuePulse
+  ) {
+    activeLyricCueIndex += 1;
+    showActiveLyricCue();
+    nextLyricCuePulse = getNextLyricCuePulse(nextLyricCuePulse);
+  }
+}
+
+function showActiveLyricCue() {
+  const cue = activeLyricCues[activeLyricCueIndex];
+
+  transportPosition.dataset.lyricCue = String(activeLyricCueIndex + 1);
+  setAnimatedText(cue.text, { updateLocation: false });
+}
+
+function getNextLyricCuePulse(cueStartPulse: number) {
+  const cue = activeLyricCues[activeLyricCueIndex];
+
+  if (cue.bars === undefined || activeLyricCueIndex >= activeLyricCues.length - 1) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return cueStartPulse + cue.bars * beatsPerBar * midiClocksPerQuarterNote;
+}
+
+function updateTransportPosition() {
+  const elapsedBeats = Math.floor(
+    midiClockPulseCount / midiClocksPerQuarterNote,
+  );
+  const bar = Math.floor(elapsedBeats / beatsPerBar) + 1;
+  const beat = (elapsedBeats % beatsPerBar) + 1;
+  const nextPosition = `Bar ${bar} · Beat ${beat}`;
+
+  if (transportPosition.value !== nextPosition) {
+    transportPosition.value = nextPosition;
+  }
+  transportPosition.dataset.bar = String(bar);
+  transportPosition.dataset.beat = String(beat);
+}
+
 function startFakeMidiTimer() {
-  if (fakeMidiTimer !== undefined) {
+  if (fakeMidiTimer !== undefined || selectedSongProgram === undefined) {
     return;
   }
 
   handleMidiStart();
+  setClockBpm(fakeMidiBeatsPerMinute);
+  setMidiDevice("Fake MIDI");
   fakeMidiTimer = window.setInterval(handleMidiClock, fakeMidiClockIntervalMs);
   updateFakeMidiButtonStates();
 }
 
 function stopFakeMidiTimer() {
+  const wasRunning = fakeMidiTimer !== undefined;
+
   if (fakeMidiTimer !== undefined) {
     window.clearInterval(fakeMidiTimer);
     fakeMidiTimer = undefined;
   }
 
-  isFollowingMidiClock = false;
-  hideMidiBeatCircle();
+  if (wasRunning) {
+    handleMidiStop();
+  }
+  if (!activeMidiInput) {
+    setMidiDevice(undefined);
+  }
   updateFakeMidiButtonStates();
 }
 
 function updateFakeMidiButtonStates() {
   const isRunning = fakeMidiTimer !== undefined;
-  startFakeMidiButton.disabled = isRunning;
+  startFakeMidiButton.disabled = isRunning || selectedSongProgram === undefined;
   stopFakeMidiButton.disabled = !isRunning;
 }
 
@@ -251,25 +506,64 @@ function setFakeMidiControlsVisible(visible: boolean) {
   updateFakeMidiButtonStates();
 }
 
-function connectToMidiInput() {
-  if (activeMidiInput) {
+function getConnectedMidiInputs() {
+  return WebMidi.inputs.filter((input) => input.state === "connected");
+}
+
+function refreshMidiInputOptions() {
+  const inputs = getConnectedMidiInputs();
+  const placeholder = document.createElement("option");
+
+  placeholder.value = "";
+  placeholder.textContent = inputs.length === 0
+    ? "No MIDI inputs"
+    : "Choose MIDI input…";
+  midiInputSelect.replaceChildren(placeholder);
+  inputs.forEach((input) => {
+    const option = document.createElement("option");
+
+    option.value = input.id;
+    option.textContent = input.name;
+    midiInputSelect.append(option);
+  });
+  midiInputSelect.disabled = inputs.length === 0;
+  midiInputSelect.value = activeMidiInput?.id ?? "";
+}
+
+function disconnectActiveMidiInput() {
+  if (!activeMidiInput) {
     return;
   }
 
-  const midiInput = WebMidi.inputs.find(
-    (input) => input.state === "connected" && isBrowserMidiInput(input)
+  activeMidiInput.removeListener("start", handleMidiStart);
+  activeMidiInput.removeListener("stop", handleMidiStop);
+  activeMidiInput.removeListener("clock", handleMidiClock);
+  activeMidiInput.channels[1].removeListener("noteon", handleMidiNoteOn);
+  activeMidiInput.channels[10].removeListener(
+    "programchange",
+    handleMidiProgramChange,
+  );
+  activeMidiInput = undefined;
+  isFollowingMidiClock = false;
+  midiTransportState = "stopped";
+  transportPosition.dataset.transport = midiTransportState;
+  midiClockTimestamps = [];
+  setClockBpm(undefined);
+  setMidiDevice(undefined);
+}
+
+function connectToMidiInput(inputId: string) {
+  if (activeMidiInput?.id === inputId) {
+    return;
+  }
+
+  disconnectActiveMidiInput();
+  const midiInput = getConnectedMidiInputs().find(
+    (input) => input.id === inputId,
   );
 
   if (!midiInput) {
-    const availableInputs = WebMidi.inputs.map((input) => ({
-      manufacturer: input.manufacturer,
-      name: input.name,
-      state: input.state,
-    }));
-
-    console.warn(`MIDI input "${browserMidiInputName}" was not found.`, {
-      availableInputs,
-    });
+    refreshMidiInputOptions();
     setFakeMidiControlsVisible(true);
     return;
   }
@@ -277,21 +571,24 @@ function connectToMidiInput() {
   stopFakeMidiTimer();
   setFakeMidiControlsVisible(false);
   activeMidiInput = midiInput;
+  setMidiDevice(activeMidiInput.name);
   activeMidiInput.addListener("start", handleMidiStart);
+  activeMidiInput.addListener("stop", handleMidiStop);
   activeMidiInput.addListener("clock", handleMidiClock);
   activeMidiInput.channels[1].addListener("noteon", handleMidiNoteOn);
   activeMidiInput.channels[10].addListener(
     "programchange",
     handleMidiProgramChange,
   );
+  refreshMidiInputOptions();
   console.log("Using MIDI input:", activeMidiInput.name, activeMidiInput);
 }
 
 function handleMidiPortConnected(event: PortEvent) {
   const input = getInputFromPortEvent(event);
 
-  if (input && isBrowserMidiInput(input)) {
-    connectToMidiInput();
+  if (input) {
+    refreshMidiInputOptions();
   }
 }
 
@@ -303,8 +600,9 @@ function handleMidiPortDisconnected(event: PortEvent) {
   }
 
   console.warn("MIDI input disconnected:", input.name);
-  activeMidiInput = undefined;
-  connectToMidiInput();
+  disconnectActiveMidiInput();
+  refreshMidiInputOptions();
+  setFakeMidiControlsVisible(true);
 }
 
 function getInputFromPortEvent(event: PortEvent): Input | undefined {
@@ -317,7 +615,8 @@ async function initialiseMidi() {
     await WebMidi.enable();
     WebMidi.addListener("connected", handleMidiPortConnected);
     WebMidi.addListener("disconnected", handleMidiPortDisconnected);
-    connectToMidiInput();
+    refreshMidiInputOptions();
+    setFakeMidiControlsVisible(true);
   } catch (error) {
     console.error("WebMidi could not be enabled.", error);
     setFakeMidiControlsVisible(true);
@@ -329,7 +628,7 @@ void initialiseMidi();
 let letterAnimationStepScale = animationTiming.letterStepScale;
 let lightShowAnimationStepScale = animationTiming.lightShowStepScale;
 const query = new URLSearchParams(window.location.search);
-let requestedText = (query.get("text") || "TDA").toUpperCase();
+let requestedText = (query.get("text") || TDA).toUpperCase();
 const shouldRunLightShow = query.get("lightShow") !== "false";
 const maximumCharactersPerLine = 16;
 const defaultLineWidth = 2;
@@ -370,22 +669,43 @@ if (!query.get("text")) {
 textInput.value = query.get("text") || requestedText;
 resizeTextInput();
 textInput.addEventListener("input", () => {
-  setAnimatedText(textInput.value || "TDA");
+  setAnimatedText(textInput.value || TDA);
 });
 
-function setAnimatedText(text: string) {
-  const nextQuery = new URLSearchParams(window.location.search);
+function setAnimatedText(
+  text: string,
+  { updateLocation = true }: { updateLocation?: boolean } = {},
+) {
 
   textInput.value = text;
   resizeTextInput();
-  nextQuery.set("text", text);
-  window.history.replaceState(
-    null,
-    "",
-    `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
-  );
+  if (updateLocation) {
+    const nextQuery = new URLSearchParams(window.location.search);
+
+    nextQuery.set("text", text);
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
+    );
+  }
   updateTextLayout(text);
   startAnimation(Number(strokeWidthInput.value));
+}
+
+function clearAnimatedText() {
+  animationFrameIds.forEach((frameId) => {
+    cancelAnimationFrame(frameId);
+  });
+  animationFrameIds.clear();
+  stopFlashing = true;
+  textInput.value = "";
+  resizeTextInput();
+  ctx.clearRect(0, 0, width, canvas.height);
+  canvas.dataset.text = "";
+  canvas.dataset.animationState = "empty";
+  canvas.dataset.letterAnimationState = "empty";
+  canvas.dataset.lightShowState = "idle";
 }
 
 strokeWidthInput.value = String(requestedLineWidth);
@@ -551,7 +871,6 @@ canvas.dataset.text = requestedText;
 canvas.dataset.lineCount = String(wrappedLines.length);
 const midiOverlay = getCanvas("#midi-overlay");
 midiOverlay.width = canvas.width;
-midiOverlay.height = canvas.height;
 const midiOverlayContext = getCanvasContext(midiOverlay);
 midiOverlay.dataset.circleVisible = "false";
 ctx.lineCap = "square";
@@ -606,7 +925,7 @@ function updateTextLayout(text: string) {
 
   canvas.dataset.text = requestedText;
   canvas.dataset.lineCount = String(wrappedLines.length);
-  midiOverlay.height = canvas.height;
+  midiOverlayContext.clearRect(0, 0, midiOverlay.width, midiOverlay.height);
   midiOverlay.dataset.circleVisible = "false";
   letterHeight = letterWidth;
   tYEndPoint = letterWidth * (13 / 45);
@@ -811,7 +1130,7 @@ class DeclarativeGlyph extends Letter {
         0,
         stroke.startAngle,
         stroke.startAngle +
-          (stroke.endAngle - stroke.startAngle) * progress,
+        (stroke.endAngle - stroke.startAngle) * progress,
         stroke.anticlockwise,
       );
     } else {
@@ -872,9 +1191,8 @@ class T1 extends Letter {
     this.yEnd = 0;
     this.tStartPoint = [this.startX, this.startY];
     this.tYEndPoint = tYEndPoint;
-    this.tColour = `rgb(0, ${100 + ((0 * 1) % 255)}, ${
-      100 + ((0 * 3) % 255)
-    })`;
+    this.tColour = `rgb(0, ${100 + ((0 * 1) % 255)}, ${100 + ((0 * 3) % 255)
+      })`;
   }
 
   drawT1() {
@@ -1114,9 +1432,8 @@ class D1 extends Letter {
 
   drawD1() {
     const animationProgress = this.dYEnd / this.dYEndPoint;
-    const colour = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
-      10 + ((this.dYEnd * 2) % 255)
-    })`;
+    const colour = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${10 + ((this.dYEnd * 2) % 255)
+      })`;
     const outerCurveStart: Point = [
       this.dStartPoint[0] + this.letterWidth / 2,
       this.dStartPoint[1],
@@ -1196,12 +1513,10 @@ class D2 extends Letter {
 
   drawD2() {
     const animationProgress = this.dYEnd / this.dYEndPoint2;
-    const stemColour = `rgb(150, ${10 + ((this.dYEnd * 2) % 255)}, ${
-      50 + ((this.dYEnd * 3) % 255)
-    })`;
-    const curveColour = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${
-      10 + ((this.dYEnd * 3) % 255)
-    })`;
+    const stemColour = `rgb(150, ${10 + ((this.dYEnd * 2) % 255)}, ${50 + ((this.dYEnd * 3) % 255)
+      })`;
+    const curveColour = `rgb(150, ${10 + ((this.dYEnd * 1) % 255)}, ${10 + ((this.dYEnd * 3) % 255)
+      })`;
     const innerCurveStart: Point = [
       this.dStartPoint[0] + this.letterWidth / 2,
       this.dStartPoint[1] + this.letterHeight * 0.2,
@@ -1358,9 +1673,9 @@ class G2 extends Letter {
     ];
     this.lowerOuterStart = [
       this.centre[0] +
-        this.outerRadius * Math.cos(gLowerOuterOpeningAngle),
+      this.outerRadius * Math.cos(gLowerOuterOpeningAngle),
       this.centre[1] +
-        this.outerRadius * Math.sin(gLowerOuterOpeningAngle),
+      this.outerRadius * Math.sin(gLowerOuterOpeningAngle),
     ];
     this.crossbarTopStart = [
       this.startX + this.letterWidth * 0.5,
@@ -1755,10 +2070,12 @@ function completeLetterPhase() {
   canvas.dataset.letterAnimationState = "complete";
   canvas.dispatchEvent(new CustomEvent("letterscomplete"));
 
-  if (shouldRunLightShow) {
+  if (shouldRunLightShow && selectedSongProgram === undefined) {
+    canvas.dataset.lightShowState = "running";
     flashBorder();
     lightShow();
   } else {
+    canvas.dataset.lightShowState = "skipped";
     markAnimationComplete();
   }
 }
@@ -1782,6 +2099,7 @@ function startAnimation(lineWidth: number) {
   canvas.dataset.lineWidth = String(lineWidth);
   canvas.dataset.animationState = "running";
   canvas.dataset.letterAnimationState = "running";
+  canvas.dataset.lightShowState = "pending";
 
   finalImage = ctx.getImageData(0, 0, width, canvas.height);
   travellingCrossbarIndexesByLine = wrappedLines.map(() => []);
@@ -2153,6 +2471,7 @@ function lightShow() {
     ctx.font = "36px serif";
     ctx.fillStyle = "yellow";
     ctx.fillText("Presents", width / 3, (height * 7) / 8);
+    canvas.dataset.lightShowState = "complete";
     markAnimationComplete();
     console.log("finished light show");
     return;
@@ -2295,6 +2614,16 @@ function getOutput(selector: string): HTMLOutputElement {
 
   if (!element) {
     throw new Error(`The output element "${selector}" is missing.`);
+  }
+
+  return element;
+}
+
+function getSelect(selector: string): HTMLSelectElement {
+  const element = document.querySelector<HTMLSelectElement>(selector);
+
+  if (!element) {
+    throw new Error(`The select element "${selector}" is missing.`);
   }
 
   return element;

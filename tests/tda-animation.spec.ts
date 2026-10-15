@@ -9,7 +9,7 @@ import {
   type GlyphPixelContract,
 } from "../src/glyphs.ts";
 
-test("records the complete TDA canvas animation", async ({ page }, testInfo) => {
+test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   const browserErrors: string[] = [];
 
   page.on("pageerror", (error) => browserErrors.push(error.message));
@@ -53,21 +53,64 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
 
     globalThis.testMidi = {
       ready: () => typeof input.onmidimessage === "function",
-      emit: (type: "clock" | "start") => {
-        const data = new Uint8Array([type === "clock" ? 0xf8 : 0xfa]);
-        input.onmidimessage?.({ data, receivedTime: performance.now() });
+      emit: (
+        type: "clock" | "start" | "stop",
+        receivedTime = performance.now(),
+      ) => {
+        const statusByte = type === "clock" ? 0xf8 : type === "start" ? 0xfa : 0xfc;
+        const data = new Uint8Array([statusByte]);
+        input.onmidimessage?.({ data, receivedTime, timeStamp: receivedTime });
       },
     };
   });
 
   await page.goto("/tda.html?text=TDA&animationDurationMs=2000");
   await page.waitForFunction(() => globalThis.testMidi?.ready());
+  const midiInputSelect = page.getByLabel("Choose MIDI input");
+  await expect(midiInputSelect).toHaveValue("");
+  await expect(midiInputSelect.locator("option")).toHaveText([
+    "Choose MIDI input…",
+    "Midi Through Port-0",
+  ]);
+  await midiInputSelect.selectOption("test-midi-input");
   await expect(page.getByRole("button", { name: "start fake midi timer" })).toBeHidden();
   await expect(page.getByRole("button", { name: "stop fake midi timer" })).toBeHidden();
 
   const canvas = page.locator("#canvas");
   await expect(canvas).toHaveAttribute("data-text", "TDA");
   const midiOverlay = page.locator("#midi-overlay");
+  const transportPosition = page.locator("#transport-position");
+  const clockBpm = page.locator("#clock-bpm");
+  const midiDevice = page.locator("#midi-device");
+  const canvasBox = await canvas.boundingBox();
+  const drumCanvasBox = await midiOverlay.boundingBox();
+  const transportBox = await transportPosition.locator("..").boundingBox();
+
+  if (!canvasBox || !drumCanvasBox || !transportBox) {
+    throw new Error("Canvas or transport layout is unavailable.");
+  }
+
+  expect(drumCanvasBox.width).toBeCloseTo(canvasBox.width);
+  expect(drumCanvasBox.y).toBeGreaterThanOrEqual(canvasBox.y + canvasBox.height);
+  expect(transportBox.y).toBeGreaterThanOrEqual(
+    drumCanvasBox.y + drumCanvasBox.height,
+  );
+  await expect(midiDevice).toHaveText("MIDI: Midi Through Port-0");
+  await expect(page.getByRole("button", { name: "TDA", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("button", { name: "gcses" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await page.getByRole("button", { name: "gcses" }).click();
+  await expect(page.getByRole("button", { name: "gcses" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(canvas).toHaveAttribute("data-display-mode", "song");
+  await expect(canvas).toHaveAttribute("data-text", "");
   const circleCentreAlpha = (side: "left" | "right") =>
     midiOverlay.evaluate<number, "left" | "right", HTMLCanvasElement>((element, circleSide) => {
       const x = element.width * (circleSide === "left" ? 0.35 : 0.65);
@@ -87,19 +130,37 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
 
   await page.evaluate(() => globalThis.testMidi?.emit("start"));
-  await expect(page.locator("body")).toHaveCSS(
-    "background-color",
-    "rgb(0, 128, 0)"
-  );
+  await expect(canvas).toHaveAttribute("data-text", "");
+  await expect(canvas).toHaveAttribute("data-animation-state", "empty");
+  await expect(transportPosition).toHaveText("Bar 1 · Beat 1");
+  await expect(transportPosition).toHaveAttribute("data-section", "Intro");
+  await expect(transportPosition).toHaveAttribute("data-transport", "running");
 
+  await page.evaluate(() => {
+    const bpm = 123.6;
+    const intervalMs = 60_000 / (bpm * 24);
+    for (let pulse = 0; pulse < 24; pulse += 1) {
+      globalThis.testMidi?.emit("clock", 1_000 + pulse * intervalMs);
+    }
+  });
+  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true");
+  await expect(midiOverlay).toHaveAttribute("data-circle-side", "left");
+  await expect(transportPosition).toHaveText("Bar 1 · Beat 2");
+  await expect(clockBpm).toHaveText("124 BPM");
+  await expect(clockBpm).toHaveAttribute("data-bpm", "124");
+  expect(await circleCentreAlpha("left")).toBeGreaterThan(0);
+
+  await page.evaluate(() => globalThis.testMidi?.emit("start"));
+  await expect(transportPosition).toHaveAttribute("data-transport", "paused");
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
       globalThis.testMidi?.emit("clock");
     }
   });
-  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true");
-  await expect(midiOverlay).toHaveAttribute("data-circle-side", "left");
-  expect(await circleCentreAlpha("left")).toBeGreaterThan(0);
+  await expect(transportPosition).toHaveText("Bar 1 · Beat 2");
+
+  await page.evaluate(() => globalThis.testMidi?.emit("start"));
+  await expect(transportPosition).toHaveAttribute("data-transport", "running");
 
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
@@ -118,7 +179,21 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
   await expect(midiOverlay).toHaveAttribute("data-circle-side", "right");
   expect(await circleCentreAlpha("right")).toBeGreaterThan(0);
 
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 120; pulse += 1) {
+      globalThis.testMidi?.emit("clock");
+    }
+  });
+  await expect(transportPosition).toHaveText("Bar 3 · Beat 1");
+  await expect(transportPosition).toHaveAttribute("data-section", "Verse 1");
+  await expect(canvas).toHaveAttribute(
+    "data-text",
+    "I'VE GOT 11 GCSES",
+  );
+  await expect(transportPosition).toHaveAttribute("data-lyric-cue", "1");
+
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
+  await expect(canvas).toHaveAttribute("data-light-show-state", "skipped");
   expect(await page.evaluate(() => window.animationTiming.durationMs)).toBe(2000);
 
   const canvasWidth = () =>
@@ -168,6 +243,48 @@ test("records the complete TDA canvas animation", async ({ page }, testInfo) => 
     path: finalScreenshot,
     contentType: "image/png",
   });
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 192; pulse += 1) {
+      globalThis.testMidi?.emit("clock");
+    }
+  });
+  await expect(transportPosition).toHaveAttribute("data-section", "Verse 1");
+  await expect(transportPosition).toHaveAttribute("data-lyric-cue", "2");
+  await expect(canvas).toHaveAttribute(
+    "data-text",
+    "IT'S EASY FOR YOU, IT'S EASY FOR ME",
+  );
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 192; pulse += 1) {
+      globalThis.testMidi?.emit("clock");
+    }
+  });
+  await expect(transportPosition).toHaveAttribute("data-lyric-cue", "3");
+  await expect(canvas).toHaveAttribute(
+    "data-text",
+    "DON'T HAVE TIME FOR ANYTHING ELSE",
+  );
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 192; pulse += 1) {
+      globalThis.testMidi?.emit("clock");
+    }
+  });
+  await expect(transportPosition).toHaveAttribute("data-lyric-cue", "4");
+  await expect(canvas).toHaveAttribute(
+    "data-text",
+    "LIKE EXTRACURRICULAR ACTIVITIES",
+  );
+
+  await page.evaluate(() => globalThis.testMidi?.emit("stop"));
+  await expect(transportPosition).toHaveAttribute("data-transport", "stopped");
+  await expect(transportPosition).toHaveText("Bar 1 · Beat 1");
+  await expect(transportPosition).toHaveAttribute("data-section", "Intro");
+  await expect(canvas).toHaveAttribute("data-text", "");
+  await expect(clockBpm).toHaveText("– BPM");
+  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
 
   expect(browserErrors).toEqual([]);
 });
@@ -509,17 +626,36 @@ test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) 
   const startButton = page.getByRole("button", { name: "start fake midi timer" });
   const stopButton = page.getByRole("button", { name: "stop fake midi timer" });
   const midiOverlay = page.locator("#midi-overlay");
+  const clockBpm = page.locator("#clock-bpm");
+  const midiDevice = page.locator("#midi-device");
 
   await expect(startButton).toBeVisible();
   await expect(stopButton).toBeVisible();
-  await expect(startButton).toBeEnabled();
+  await expect(startButton).toBeDisabled();
   await expect(stopButton).toBeDisabled();
+  await expect(page.getByLabel("Choose MIDI input")).toBeDisabled();
+  await page.getByRole("button", { name: "mugs game" }).click();
+  await expect(page.getByRole("button", { name: "mugs game" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(startButton).toBeEnabled();
   await startButton.click();
   await expect(startButton).toBeDisabled();
   await expect(stopButton).toBeEnabled();
-  await expect(page.locator("body")).toHaveCSS(
-    "background-color",
-    "rgb(0, 128, 0)",
+  await expect(clockBpm).toHaveText("120 BPM");
+  await expect(clockBpm).toHaveAttribute("data-bpm", "120");
+  await expect(midiDevice).toHaveText("MIDI: Fake MIDI");
+  await expect(page.locator("#transport-position")).toHaveText(
+    "Bar 1 · Beat 1",
+  );
+  await expect(page.locator("#transport-position")).toHaveAttribute(
+    "data-section",
+    "Verse 1",
+  );
+  await expect(page.locator("#canvas")).toHaveAttribute(
+    "data-text",
+    "LOOKING IN MY NOTEBOOK TO FIND SOME IDEAS IT'S A MUGS GAME. I WONDER WHAT IT WOULD BE LIKE TO LIVE IN SOUTH AFRICA. I'D BE IN THE SERENGHETI EVERY DAY. THIS IS ALL GOING ON IN THE PRIVACY INSIDE MY OWN MIND",
   );
   await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true", {
     timeout: 900,
@@ -528,6 +664,8 @@ test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) 
   await stopButton.click();
   await expect(startButton).toBeEnabled();
   await expect(stopButton).toBeDisabled();
+  await expect(clockBpm).toHaveText("– BPM");
+  await expect(midiDevice).toHaveText("MIDI: No device");
   await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
   await page.waitForTimeout(600);
   await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
