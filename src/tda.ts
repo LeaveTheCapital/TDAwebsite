@@ -358,6 +358,7 @@ function handleMidiClock(event?: MessageEvent) {
   updateTransportPosition();
   advanceSongSections();
   advanceLyricCues();
+  advanceScheduledWords();
   drawDrumAnimation();
 }
 
@@ -464,7 +465,7 @@ function startSectionLyrics(lyrics: string | null, sectionStartPulse: number) {
   }
 
   activeLyricCueIndex = 0;
-  showActiveLyricCue();
+  showActiveLyricCue(sectionStartPulse);
   nextLyricCuePulse = getNextLyricCuePulse(sectionStartPulse);
 }
 
@@ -473,17 +474,29 @@ function advanceLyricCues() {
     activeLyricCueIndex < activeLyricCues.length - 1 &&
     midiClockPulseCount >= nextLyricCuePulse
   ) {
+    const cueStartPulse = nextLyricCuePulse;
+
     activeLyricCueIndex += 1;
-    showActiveLyricCue();
-    nextLyricCuePulse = getNextLyricCuePulse(nextLyricCuePulse);
+    showActiveLyricCue(cueStartPulse);
+    nextLyricCuePulse = getNextLyricCuePulse(cueStartPulse);
   }
 }
 
-function showActiveLyricCue() {
+function showActiveLyricCue(cueStartPulse: number) {
   const cue = activeLyricCues[activeLyricCueIndex];
+  const requestedDurationPulses = cue.bars === undefined
+    ? activeSectionEndPulse - cueStartPulse
+    : cue.bars * beatsPerBar * midiClocksPerQuarterNote;
+  const durationPulses = Math.max(
+    1,
+    Math.min(requestedDurationPulses, activeSectionEndPulse - cueStartPulse),
+  );
 
   transportPosition.dataset.lyricCue = String(activeLyricCueIndex + 1);
-  setAnimatedText(cue.text, { updateLocation: false });
+  setAnimatedText(cue.text, {
+    updateLocation: false,
+    wordSchedule: { startPulse: cueStartPulse, durationPulses },
+  });
 }
 
 function getNextLyricCuePulse(cueStartPulse: number) {
@@ -738,9 +751,14 @@ textInput.addEventListener("input", () => {
 
 function setAnimatedText(
   text: string,
-  { updateLocation = true }: { updateLocation?: boolean } = {},
+  {
+    updateLocation = true,
+    wordSchedule,
+  }: {
+    updateLocation?: boolean;
+    wordSchedule?: WordAnimationSchedule;
+  } = {},
 ) {
-
   textInput.value = text;
   resizeTextInput();
   if (updateLocation) {
@@ -754,6 +772,7 @@ function setAnimatedText(
     );
   }
   updateTextLayout(text);
+  currentWordAnimationSchedule = wordSchedule;
   startAnimation(Number(strokeWidthInput.value));
 }
 
@@ -770,6 +789,9 @@ function clearAnimatedText() {
   canvas.dataset.animationState = "empty";
   canvas.dataset.letterAnimationState = "empty";
   canvas.dataset.lightShowState = "idle";
+  delete canvas.dataset.startedWordCount;
+  delete canvas.dataset.wordCount;
+  currentWordAnimationSchedule = undefined;
 }
 
 strokeWidthInput.value = String(requestedLineWidth);
@@ -2090,9 +2112,28 @@ class A2 extends Letter {
 let travellingCrossbarIndexesByLine: number[][] = [];
 let unfinishedCrossbarLines = 0;
 let unfinishedLetters = 0;
+let unfinishedLettersByWord: number[] = [];
+let letterWordIndexes: number[] = [];
+let startedWordCount = 0;
+let currentWordAnimationSchedule: WordAnimationSchedule | undefined;
 
-function finishLetter() {
+interface WordAnimationSchedule {
+  startPulse: number;
+  durationPulses: number;
+}
+
+const animatableLetters = "'’,æÆ0123TDAGESCBFHIJKLMNOPQRUVWXYZ";
+
+function finishLetter(wordIndex: number) {
   unfinishedLetters -= 1;
+  unfinishedLettersByWord[wordIndex] -= 1;
+
+  if (
+    unfinishedLettersByWord[wordIndex] === 0 &&
+    currentWordAnimationSchedule === undefined
+  ) {
+    startNextSequentialWord();
+  }
 
   if (unfinishedLetters === 0) {
     finalImage = ctx.getImageData(0, 0, width, canvas.height);
@@ -2145,6 +2186,63 @@ function completeLetterPhase() {
   }
 }
 
+function getLetterWordIndexes() {
+  const indexes: number[] = [];
+  let wordIndex = -1;
+
+  wrappedLines.forEach((line) => {
+    let isInsideWord = false;
+
+    segmentText(line).forEach((letter) => {
+      if (/\s/u.test(letter)) {
+        isInsideWord = false;
+        indexes.push(-1);
+        return;
+      }
+
+      if (!isInsideWord) {
+        wordIndex += 1;
+        isInsideWord = true;
+      }
+      indexes.push(wordIndex);
+    });
+  });
+
+  return indexes;
+}
+
+function startNextSequentialWord() {
+  while (startedWordCount < unfinishedLettersByWord.length) {
+    const wordIndex = startedWordCount;
+
+    startWordAnimation(wordIndex);
+    if (unfinishedLettersByWord[wordIndex] > 0) {
+      return;
+    }
+  }
+}
+
+function advanceScheduledWords() {
+  if (!currentWordAnimationSchedule || unfinishedLettersByWord.length === 0) {
+    return;
+  }
+
+  const { startPulse, durationPulses } = currentWordAnimationSchedule;
+
+  while (startedWordCount < unfinishedLettersByWord.length) {
+    const wordStartPulse =
+      startPulse +
+      Math.floor(
+        (startedWordCount * durationPulses) / unfinishedLettersByWord.length,
+      );
+
+    if (midiClockPulseCount < wordStartPulse) {
+      return;
+    }
+    startWordAnimation(startedWordCount);
+  }
+}
+
 function startAnimation(lineWidth: number) {
   animationFrameIds.forEach((frameId) => {
     cancelAnimationFrame(frameId);
@@ -2175,18 +2273,52 @@ function startAnimation(lineWidth: number) {
       );
     }
   });
-  unfinishedLetters = letters.filter((letter) =>
-    "'’,æÆ0123TDAGESCBFHIJKLMNOPQRUVWXYZ".includes(letter),
-  ).length;
+  letterWordIndexes = getLetterWordIndexes();
+  const wordCount = Math.max(-1, ...letterWordIndexes) + 1;
+
+  unfinishedLettersByWord = Array.from({ length: wordCount }, () => 0);
+  letters.forEach((letter, index) => {
+    if (animatableLetters.includes(letter)) {
+      unfinishedLettersByWord[letterWordIndexes[index]] += 1;
+    }
+  });
+  unfinishedLetters = unfinishedLettersByWord.reduce(
+    (total, count) => total + count,
+    0,
+  );
+  startedWordCount = 0;
+  canvas.dataset.startedWordCount = "0";
+  canvas.dataset.wordCount = String(wordCount);
+
+  if (unfinishedLetters === 0) {
+    startTravellingCrossbars();
+  } else if (currentWordAnimationSchedule) {
+    advanceScheduledWords();
+  } else {
+    startNextSequentialWord();
+  }
+}
+
+function startWordAnimation(wordIndex: number) {
+  startedWordCount = Math.max(startedWordCount, wordIndex + 1);
+  canvas.dataset.startedWordCount = String(startedWordCount);
 
   letters.forEach((letter, index) => {
+    if (letterWordIndexes[index] !== wordIndex) {
+      return;
+    }
+
+    const onComplete = () => {
+      finishLetter(wordIndex);
+    };
+
     if (letter === "'" || letter === "’") {
       new DeclarativeGlyph(
         width,
         height,
         index,
         apostropheDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === ",") {
       new DeclarativeGlyph(
@@ -2194,7 +2326,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         commaDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "0") {
       new DeclarativeGlyph(
@@ -2202,7 +2334,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         zeroDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "1") {
       new DeclarativeGlyph(
@@ -2210,7 +2342,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         oneDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "2") {
       new DeclarativeGlyph(
@@ -2218,7 +2350,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         twoDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "3") {
       new DeclarativeGlyph(
@@ -2226,31 +2358,31 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         threeDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "T") {
-      new T1(width, height, index, finishLetter).animationFunc();
+      new T1(width, height, index, onComplete).animationFunc();
     } else if (letter === "D") {
-      new D1(width, height, index, finishLetter).animationFunc();
+      new D1(width, height, index, onComplete).animationFunc();
     } else if (letter === "A") {
       new DeclarativeGlyph(
         width,
         height,
         index,
         aDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (isTravellingCrossbarMarker(letter)) {
-      new A1(width, height, index, finishLetter).animationFunc();
+      new A1(width, height, index, onComplete).animationFunc();
     } else if (letter === "G") {
-      new G1(width, height, index, finishLetter).animationFunc();
+      new G1(width, height, index, onComplete).animationFunc();
     } else if (letter === "E") {
       new DeclarativeGlyph(
         width,
         height,
         index,
         eDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "S") {
       new DeclarativeGlyph(
@@ -2258,7 +2390,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         sDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "C") {
       new DeclarativeGlyph(
@@ -2266,7 +2398,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         cDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "B") {
       new DeclarativeGlyph(
@@ -2274,7 +2406,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         bDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "F") {
       new DeclarativeGlyph(
@@ -2282,7 +2414,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         fDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "H") {
       new DeclarativeGlyph(
@@ -2290,7 +2422,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         hDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "I") {
       new DeclarativeGlyph(
@@ -2298,7 +2430,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         iDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "J") {
       new DeclarativeGlyph(
@@ -2306,7 +2438,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         jDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "K") {
       new DeclarativeGlyph(
@@ -2314,7 +2446,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         kDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "L") {
       new DeclarativeGlyph(
@@ -2322,7 +2454,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         lDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "M") {
       new DeclarativeGlyph(
@@ -2330,7 +2462,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         mDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "N") {
       new DeclarativeGlyph(
@@ -2338,7 +2470,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         nDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "O") {
       new DeclarativeGlyph(
@@ -2346,7 +2478,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         oDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "P") {
       new DeclarativeGlyph(
@@ -2354,7 +2486,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         pDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "Q") {
       new DeclarativeGlyph(
@@ -2362,7 +2494,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         qDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "R") {
       new DeclarativeGlyph(
@@ -2370,7 +2502,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         rDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "U") {
       new DeclarativeGlyph(
@@ -2378,7 +2510,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         uDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "V") {
       new DeclarativeGlyph(
@@ -2386,7 +2518,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         vDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "W") {
       new DeclarativeGlyph(
@@ -2394,7 +2526,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         wDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "X") {
       new DeclarativeGlyph(
@@ -2402,7 +2534,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         xDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "Y") {
       new DeclarativeGlyph(
@@ -2410,7 +2542,7 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         yDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     } else if (letter === "Z") {
       new DeclarativeGlyph(
@@ -2418,14 +2550,10 @@ function startAnimation(lineWidth: number) {
         height,
         index,
         zDefinition,
-        finishLetter,
+        onComplete,
       ).animationFunc();
     }
   });
-
-  if (unfinishedLetters === 0) {
-    startTravellingCrossbars();
-  }
 }
 
 function isTravellingCrossbarMarker(letter: string) {

@@ -246,6 +246,25 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
     "I'VE GOT 11 GCSES",
   );
   await expect(transportPosition).toHaveAttribute("data-lyric-cue", "1");
+  await expect(canvas).toHaveAttribute("data-word-count", "4");
+  await expect(canvas).toHaveAttribute("data-started-word-count", "1");
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 47; pulse += 1) {
+      globalThis.testMidi?.emit("clock");
+    }
+  });
+  await expect(canvas).toHaveAttribute("data-started-word-count", "1");
+
+  await page.evaluate(() => globalThis.testMidi?.emit("clock"));
+  await expect(canvas).toHaveAttribute("data-started-word-count", "2");
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 96; pulse += 1) {
+      globalThis.testMidi?.emit("clock");
+    }
+  });
+  await expect(canvas).toHaveAttribute("data-started-word-count", "4");
 
   await expect(canvas).toHaveAttribute("data-animation-state", "complete");
   await expect(canvas).toHaveAttribute("data-light-show-state", "skipped");
@@ -300,12 +319,13 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   });
 
   await page.evaluate(() => {
-    for (let pulse = 0; pulse < 192; pulse += 1) {
+    for (let pulse = 0; pulse < 48; pulse += 1) {
       globalThis.testMidi?.emit("clock");
     }
   });
   await expect(transportPosition).toHaveAttribute("data-section", "Verse 1");
   await expect(transportPosition).toHaveAttribute("data-lyric-cue", "2");
+  await expect(canvas).toHaveAttribute("data-started-word-count", "1");
   await expect(canvas).toHaveAttribute(
     "data-text",
     "IT'S EASY FOR YOU, IT'S EASY FOR ME",
@@ -341,6 +361,37 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   await expect(clockBpm).toHaveText("– BPM");
   await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
   await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "false");
+
+  await page.getByRole("button", { name: "mugs game" }).click();
+  await page.evaluate(() => globalThis.testMidi?.emit("start"));
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 192; pulse += 1) {
+      globalThis.testMidi?.emit("clock");
+    }
+  });
+  await expect(transportPosition).toHaveAttribute("data-section", "Verse 1");
+  await expect(canvas).toHaveAttribute("data-word-count", "12");
+  await expect(canvas).toHaveAttribute("data-started-word-count", "1");
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 175; pulse += 1) {
+      globalThis.testMidi?.emit("clock");
+    }
+  });
+  await expect(canvas).toHaveAttribute("data-started-word-count", "11");
+  await page.evaluate(() => globalThis.testMidi?.emit("clock"));
+  await expect(canvas).toHaveAttribute("data-started-word-count", "12");
+
+  await page.evaluate(() => {
+    for (let pulse = 0; pulse < 16; pulse += 1) {
+      globalThis.testMidi?.emit("clock");
+    }
+  });
+  await expect(transportPosition).toHaveAttribute(
+    "data-section",
+    "Instrumental",
+  );
+  await expect(canvas).toHaveAttribute("data-text", "");
 
   expect(browserErrors).toEqual([]);
 });
