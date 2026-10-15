@@ -13,6 +13,12 @@
     <div class="canvas-container">
         <canvas id="canvas" width="900" height="400"></canvas>
         <canvas id="midi-overlay" class="midi-overlay" width="900" height="140" aria-label="Drum animation"></canvas>
+        <div class="dice-container">
+            <button id="roll-die" class="dice-button" type="button" aria-label="Roll the die">
+                <canvas id="dice-canvas" class="dice-canvas" width="260" height="260" aria-hidden="true"></canvas>
+            </button>
+            <output id="dice-result" class="dice-result" aria-live="polite">Click the dice to roll</output>
+        </div>
     </div>
     <div class="transport-status" role="status" aria-label="MIDI clock status">
         <output id="transport-position">Bar – · Beat –</output>
@@ -47,12 +53,6 @@
     <div class="fake-midi-controls">
         <button id="start-fake-midi" type="button" hidden>start fake midi timer</button>
         <button id="stop-fake-midi" type="button" hidden disabled>stop fake midi timer</button>
-    </div>
-    <div class="dice-container">
-        <button id="roll-die" class="dice-button" type="button" aria-label="Roll the die">
-            <canvas id="dice-canvas" class="dice-canvas" width="260" height="260" aria-hidden="true"></canvas>
-        </button>
-        <output id="dice-result" class="dice-result" aria-live="polite">Click the dice to roll</output>
     </div>
     <div class="canvas-control text-control">
         <label for="text-input">Text</label>

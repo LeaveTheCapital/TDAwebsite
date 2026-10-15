@@ -84,19 +84,20 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   const songName = page.locator("#song-name");
   const sectionId = page.locator("#section-id");
   const midiDevice = page.locator("#midi-device");
+  const die = page.locator("#roll-die");
   const canvasBox = await canvas.boundingBox();
   const drumCanvasBox = await midiOverlay.boundingBox();
+  const dieBox = await die.boundingBox();
   const transportBox = await transportPosition.locator("..").boundingBox();
 
-  if (!canvasBox || !drumCanvasBox || !transportBox) {
-    throw new Error("Canvas or transport layout is unavailable.");
+  if (!canvasBox || !drumCanvasBox || !dieBox || !transportBox) {
+    throw new Error("Canvas, dice, or transport layout is unavailable.");
   }
 
   expect(drumCanvasBox.width).toBeCloseTo(canvasBox.width);
   expect(drumCanvasBox.y).toBeGreaterThanOrEqual(canvasBox.y + canvasBox.height);
-  expect(transportBox.y).toBeGreaterThanOrEqual(
-    drumCanvasBox.y + drumCanvasBox.height,
-  );
+  expect(dieBox.y).toBeGreaterThan(drumCanvasBox.y + drumCanvasBox.height);
+  expect(transportBox.y).toBeGreaterThanOrEqual(dieBox.y + dieBox.height);
   await expect(midiDevice).toHaveText("MIDI: Korg Tonverk MIDI 1");
   await expect(page.getByRole("button", { name: "TDA", exact: true })).toHaveAttribute(
     "aria-pressed",
@@ -117,8 +118,8 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   await expect(canvas).toHaveAttribute("data-text", "");
   const drumHitPixel = (instrument: "bass" | "hi-hat") =>
     midiOverlay.evaluate<number[], "bass" | "hi-hat", HTMLCanvasElement>((element, drum) => {
-      const x = element.width * (drum === "bass" ? 0.35 : 0.65);
-      const y = drum === "bass" ? element.height / 3 : element.height / 2;
+      const x = element.width * (drum === "bass" ? 0.125 : 0.875);
+      const y = element.height / 2;
       const context = element.getContext("2d");
       if (!context) {
         throw new Error("Canvas context unavailable.");
@@ -127,9 +128,8 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
     }, instrument);
   const snareHitPixel = (side: "left" | "right") =>
     midiOverlay.evaluate<number[], "left" | "right", HTMLCanvasElement>((element, hitSide) => {
-      const radius = Math.min(element.width / 32, element.height / 4);
-      const x = element.width * (hitSide === "left" ? 0.35 : 0.65);
-      const y = element.height - radius * 1.5;
+      const x = element.width * (hitSide === "left" ? 0.375 : 0.625);
+      const y = element.height / 2;
       const context = element.getContext("2d");
       if (!context) {
         throw new Error("Canvas context unavailable.");

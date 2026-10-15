@@ -213,7 +213,7 @@ function drawDrumAnimation() {
     const radius = Math.min(width / 32, midiOverlay.height / 4);
 
     midiOverlayContext.beginPath();
-    midiOverlayContext.arc(width * 0.35, centreY, radius, 0, Math.PI * 2);
+    midiOverlayContext.arc(width * 0.125, centreY, radius, 0, Math.PI * 2);
     midiOverlayContext.fillStyle = "#ffff00";
     midiOverlayContext.fill();
     midiOverlayContext.strokeStyle = "black";
@@ -225,11 +225,10 @@ function drawDrumAnimation() {
   if (pattern.snareDrumVisible && pattern.snareSide) {
     const side = pattern.snareSide;
     const radius = Math.min(width / 32, midiOverlay.height / 4);
-    const x = width * (side === "left" ? 0.35 : 0.65);
-    const y = midiOverlay.height - radius * 1.5;
+    const x = width * (side === "left" ? 0.375 : 0.625);
 
     midiOverlayContext.beginPath();
-    midiOverlayContext.arc(x, y, radius, 0, Math.PI * 2);
+    midiOverlayContext.arc(x, centreY, radius, 0, Math.PI * 2);
     midiOverlayContext.fillStyle = "white";
     midiOverlayContext.fill();
     midiOverlayContext.strokeStyle = "black";
@@ -244,7 +243,7 @@ function drawDrumAnimation() {
 
     midiOverlayContext.fillStyle = "#ff8c00";
     midiOverlayContext.fillRect(
-      width * 0.65 - squareSize / 2,
+      width * 0.875 - squareSize / 2,
       centreY - squareSize / 2,
       squareSize,
       squareSize,
@@ -252,7 +251,7 @@ function drawDrumAnimation() {
     midiOverlayContext.strokeStyle = "black";
     midiOverlayContext.lineWidth = 2;
     midiOverlayContext.strokeRect(
-      width * 0.65 - squareSize / 2,
+      width * 0.875 - squareSize / 2,
       centreY - squareSize / 2,
       squareSize,
       squareSize,

@@ -37,11 +37,15 @@ The visibility windows within one bar are therefore:
 
 ## Visual design
 
-- The bass drum is a yellow circle centred at 35% of the overlay width.
-- The snare is a white round circle near the bottom of the overlay. Beat 2 is
-  placed at 35% of the width and beat 4 at 65%.
-- The hi-hat is an orange square centred at 65% of the overlay width.
+- The overlay is divided into four evenly spaced horizontal zones.
+- The bass drum is a yellow circle centred in the left zone at 12.5%.
+- The snare is a white round circle centred vertically. Beat 2 uses the
+  middle-left zone at 37.5%, and beat 4 uses the middle-right zone at 62.5%.
+- The hi-hat is an orange square centred in the right zone at 87.5%.
 - Every shape has a two-pixel black outline.
+
+The dice sits directly below the drum overlay inside the same black canvas
+area, separated by a half-rem top gap.
 
 The overlay exposes `data-bass-drum-visible`, `data-snare-visible`, and
 `data-hi-hat-visible` for browser integration checks. While the snare is
