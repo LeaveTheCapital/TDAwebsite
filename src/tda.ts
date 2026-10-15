@@ -13,6 +13,11 @@ import {
 } from "./animation-timing.ts";
 import "./dice.ts";
 import {
+  beatsPerBar,
+  getDrumPatternState,
+  midiClocksPerQuarterNote,
+} from "./drum-pattern.ts";
+import {
   aDefinition,
   apostropheDefinition,
   commaDefinition,
@@ -80,10 +85,6 @@ let lightShowHue: number | undefined;
 let lightShowColour = "yellow";
 let activeMidiInput: Input | undefined;
 let fakeMidiTimer: number | undefined;
-const midiClocksPerQuarterNote = 24;
-const midiClocksPerEighthNote = midiClocksPerQuarterNote / 2;
-const drumHitVisiblePulses = midiClocksPerEighthNote / 2;
-const beatsPerBar = 4;
 const fakeMidiBeatsPerMinute = 120;
 const fakeMidiClockIntervalMs =
   60_000 / (fakeMidiBeatsPerMinute * midiClocksPerQuarterNote);
@@ -202,21 +203,12 @@ function clearDrumAnimation() {
 }
 
 function drawDrumAnimation() {
-  const pulsesPerBar = midiClocksPerQuarterNote * beatsPerBar;
-  const pulseInBar = midiClockPulseCount % pulsesPerBar;
-  const beatInBar = Math.floor(pulseInBar / midiClocksPerQuarterNote);
-  const pulseInBeat = pulseInBar % midiClocksPerQuarterNote;
-  const pulseInEighth = midiClockPulseCount % midiClocksPerEighthNote;
-  const showBassDrum = pulseInBar < drumHitVisiblePulses;
-  const showSnare =
-    (beatInBar === 1 || beatInBar === 3) &&
-    pulseInBeat < drumHitVisiblePulses;
-  const showHiHat = pulseInEighth < drumHitVisiblePulses;
+  const pattern = getDrumPatternState(midiClockPulseCount);
   const centreY = midiOverlay.height / 2;
 
   clearDrumAnimation();
 
-  if (showBassDrum) {
+  if (pattern.bassDrumVisible) {
     const radius = Math.min(width / 32, midiOverlay.height / 4);
 
     midiOverlayContext.beginPath();
@@ -229,8 +221,8 @@ function drawDrumAnimation() {
     midiOverlay.dataset.bassDrumVisible = "true";
   }
 
-  if (showSnare) {
-    const side = beatInBar === 1 ? "left" : "right";
+  if (pattern.snareDrumVisible && pattern.snareSide) {
+    const side = pattern.snareSide;
     const radius = Math.min(width / 32, midiOverlay.height / 4);
     const x = width * (side === "left" ? 0.35 : 0.65);
     const y = midiOverlay.height - radius * 1.5;
@@ -246,7 +238,7 @@ function drawDrumAnimation() {
     midiOverlay.dataset.snareSide = side;
   }
 
-  if (showHiHat) {
+  if (pattern.hiHatVisible) {
     const squareSize = Math.min(width / 48, midiOverlay.height / 5);
 
     midiOverlayContext.fillStyle = "#ff8c00";

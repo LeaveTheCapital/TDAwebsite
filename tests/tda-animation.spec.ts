@@ -286,6 +286,7 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
 
   const heading = page.locator("h1");
   await expect(heading).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(heading).toHaveCSS("color", "rgb(0, 255, 100)");
   await expect(heading).toHaveCSS("font-family", /sans-serif/);
 
   const drawnPixelCount = await canvas.evaluate<

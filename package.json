@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && node scripts/check-comments.mjs",
-    "test": "playwright test",
+    "test": "npm run test:unit && npm run test:browser",
+    "test:unit": "node --test --test-isolation=none tests/*.test.ts",
+    "test:browser": "playwright test",
     "test:evidence": "playwright test"
   },
   "repository": {
