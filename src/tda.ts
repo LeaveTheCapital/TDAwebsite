@@ -79,14 +79,16 @@ let lightShowColour = "yellow";
 let activeMidiInput: Input | undefined;
 let fakeMidiTimer: number | undefined;
 const midiClocksPerQuarterNote = 24;
+const midiClocksPerEighthNote = midiClocksPerQuarterNote / 2;
+const drumHitVisiblePulses = midiClocksPerEighthNote / 2;
 const beatsPerBar = 4;
 const fakeMidiBeatsPerMinute = 120;
 const fakeMidiClockIntervalMs =
   60_000 / (fakeMidiBeatsPerMinute * midiClocksPerQuarterNote);
+const preferredMidiInputName = "tonverk";
 let isFollowingMidiClock = false;
 let midiTransportState: "stopped" | "running" | "paused" = "stopped";
 let midiClockPulseCount = 0;
-let nextMidiCircleSide = "left";
 let selectedSongProgram: number | undefined;
 let activeSong: Song | undefined;
 let activeSectionIndex = -1;
@@ -187,27 +189,55 @@ songsByProgram.forEach((song, program) => {
   songButtons.append(button);
 });
 
-function hideMidiBeatCircle() {
+function clearDrumAnimation() {
   midiOverlayContext.clearRect(0, 0, midiOverlay.width, midiOverlay.height);
-  midiOverlay.dataset.circleVisible = "false";
+  midiOverlay.dataset.bassDrumVisible = "false";
+  midiOverlay.dataset.hiHatVisible = "false";
 }
 
-function showMidiBeatCircle() {
-  const radius = width / 32;
-  const x = width * (nextMidiCircleSide === "left" ? 0.35 : 0.65);
-  const y = midiOverlay.height - radius * 1.5;
+function drawDrumAnimation() {
+  const pulsesPerBar = midiClocksPerQuarterNote * beatsPerBar;
+  const pulseInBar = midiClockPulseCount % pulsesPerBar;
+  const pulseInEighth = midiClockPulseCount % midiClocksPerEighthNote;
+  const showBassDrum = pulseInBar < drumHitVisiblePulses;
+  const showHiHat = pulseInEighth < drumHitVisiblePulses;
+  const centreY = midiOverlay.height / 2;
 
-  hideMidiBeatCircle();
-  midiOverlayContext.beginPath();
-  midiOverlayContext.arc(x, y, radius, 0, Math.PI * 2);
-  midiOverlayContext.fillStyle = "white";
-  midiOverlayContext.fill();
-  midiOverlayContext.strokeStyle = "black";
-  midiOverlayContext.lineWidth = 2;
-  midiOverlayContext.stroke();
-  midiOverlay.dataset.circleVisible = "true";
-  midiOverlay.dataset.circleSide = nextMidiCircleSide;
-  nextMidiCircleSide = nextMidiCircleSide === "left" ? "right" : "left";
+  clearDrumAnimation();
+
+  if (showBassDrum) {
+    const radius = Math.min(width / 32, midiOverlay.height / 4);
+
+    midiOverlayContext.beginPath();
+    midiOverlayContext.arc(width * 0.35, centreY, radius, 0, Math.PI * 2);
+    midiOverlayContext.fillStyle = "#ffff00";
+    midiOverlayContext.fill();
+    midiOverlayContext.strokeStyle = "black";
+    midiOverlayContext.lineWidth = 2;
+    midiOverlayContext.stroke();
+    midiOverlay.dataset.bassDrumVisible = "true";
+  }
+
+  if (showHiHat) {
+    const squareSize = Math.min(width / 48, midiOverlay.height / 5);
+
+    midiOverlayContext.fillStyle = "#ff8c00";
+    midiOverlayContext.fillRect(
+      width * 0.65 - squareSize / 2,
+      centreY - squareSize / 2,
+      squareSize,
+      squareSize,
+    );
+    midiOverlayContext.strokeStyle = "black";
+    midiOverlayContext.lineWidth = 2;
+    midiOverlayContext.strokeRect(
+      width * 0.65 - squareSize / 2,
+      centreY - squareSize / 2,
+      squareSize,
+      squareSize,
+    );
+    midiOverlay.dataset.hiHatVisible = "true";
+  }
 }
 
 function handleMidiStart() {
@@ -227,14 +257,15 @@ function handleMidiStart() {
   transportPosition.dataset.transport = midiTransportState;
   midiClockTimestamps = [];
   setClockBpm(fakeMidiTimer === undefined ? undefined : fakeMidiBeatsPerMinute);
-  hideMidiBeatCircle();
+  clearDrumAnimation();
 
   if (isStartingFromReset) {
     midiClockPulseCount = 0;
-    nextMidiCircleSide = "left";
     updateTransportPosition();
     startSelectedSong();
   }
+
+  drawDrumAnimation();
 }
 
 function pauseMidiTransport() {
@@ -243,7 +274,7 @@ function pauseMidiTransport() {
   transportPosition.dataset.transport = midiTransportState;
   midiClockTimestamps = [];
   setClockBpm(undefined);
-  hideMidiBeatCircle();
+  clearDrumAnimation();
 }
 
 function handleMidiStop() {
@@ -251,10 +282,9 @@ function handleMidiStop() {
   midiTransportState = "stopped";
   transportPosition.dataset.transport = midiTransportState;
   midiClockPulseCount = 0;
-  nextMidiCircleSide = "left";
   midiClockTimestamps = [];
   setClockBpm(undefined);
-  hideMidiBeatCircle();
+  clearDrumAnimation();
   updateTransportPosition();
   startSelectedSong();
 }
@@ -270,7 +300,6 @@ function resetTransportForSelection() {
   midiTransportState = "stopped";
   transportPosition.dataset.transport = midiTransportState;
   midiClockPulseCount = 0;
-  nextMidiCircleSide = "left";
   midiClockTimestamps = [];
   activeSong = undefined;
   activeSectionIndex = -1;
@@ -284,7 +313,7 @@ function resetTransportForSelection() {
   if (!activeMidiInput) {
     setMidiDevice(undefined);
   }
-  hideMidiBeatCircle();
+  clearDrumAnimation();
   updateTransportPosition();
 }
 
@@ -300,20 +329,7 @@ function handleMidiClock(event?: MessageEvent) {
   updateTransportPosition();
   advanceSongSections();
   advanceLyricCues();
-  const pulseInBar =
-    midiClockPulseCount % (midiClocksPerQuarterNote * beatsPerBar);
-
-  if (
-    pulseInBar === midiClocksPerQuarterNote ||
-    pulseInBar === midiClocksPerQuarterNote * 3
-  ) {
-    showMidiBeatCircle();
-  } else if (
-    pulseInBar === midiClocksPerQuarterNote * 2 ||
-    pulseInBar === 0
-  ) {
-    hideMidiBeatCircle();
-  }
+  drawDrumAnimation();
 }
 
 function updateClockBpm(timestamp: number) {
@@ -510,6 +526,12 @@ function getConnectedMidiInputs() {
   return WebMidi.inputs.filter((input) => input.state === "connected");
 }
 
+function getPreferredMidiInput() {
+  return getConnectedMidiInputs().find((input) =>
+    input.name.toLocaleLowerCase().includes(preferredMidiInputName)
+  );
+}
+
 function refreshMidiInputOptions() {
   const inputs = getConnectedMidiInputs();
   const placeholder = document.createElement("option");
@@ -589,6 +611,12 @@ function handleMidiPortConnected(event: PortEvent) {
 
   if (input) {
     refreshMidiInputOptions();
+    if (
+      !activeMidiInput &&
+      input.name.toLocaleLowerCase().includes(preferredMidiInputName)
+    ) {
+      connectToMidiInput(input.id);
+    }
   }
 }
 
@@ -616,7 +644,13 @@ async function initialiseMidi() {
     WebMidi.addListener("connected", handleMidiPortConnected);
     WebMidi.addListener("disconnected", handleMidiPortDisconnected);
     refreshMidiInputOptions();
-    setFakeMidiControlsVisible(true);
+    const preferredMidiInput = getPreferredMidiInput();
+
+    if (preferredMidiInput) {
+      connectToMidiInput(preferredMidiInput.id);
+    } else {
+      setFakeMidiControlsVisible(true);
+    }
   } catch (error) {
     console.error("WebMidi could not be enabled.", error);
     setFakeMidiControlsVisible(true);
@@ -872,7 +906,8 @@ canvas.dataset.lineCount = String(wrappedLines.length);
 const midiOverlay = getCanvas("#midi-overlay");
 midiOverlay.width = canvas.width;
 const midiOverlayContext = getCanvasContext(midiOverlay);
-midiOverlay.dataset.circleVisible = "false";
+midiOverlay.dataset.bassDrumVisible = "false";
+midiOverlay.dataset.hiHatVisible = "false";
 ctx.lineCap = "square";
 ctx.lineWidth = requestedLineWidth;
 canvas.dataset.lineWidth = String(requestedLineWidth);
@@ -925,8 +960,7 @@ function updateTextLayout(text: string) {
 
   canvas.dataset.text = requestedText;
   canvas.dataset.lineCount = String(wrappedLines.length);
-  midiOverlayContext.clearRect(0, 0, midiOverlay.width, midiOverlay.height);
-  midiOverlay.dataset.circleVisible = "false";
+  clearDrumAnimation();
   letterHeight = letterWidth;
   tYEndPoint = letterWidth * (13 / 45);
   aBottomLineWidth = letterWidth * 0.25;

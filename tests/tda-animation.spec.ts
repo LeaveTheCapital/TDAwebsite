@@ -24,7 +24,7 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
     const input = {
       id: "test-midi-input",
       manufacturer: "Playwright",
-      name: "Midi Through Port-0",
+      name: "Korg Tonverk MIDI 1",
       state: "connected",
       connection: "open",
       type: "input",
@@ -67,12 +67,11 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   await page.goto("/tda.html?text=TDA&animationDurationMs=2000");
   await page.waitForFunction(() => globalThis.testMidi?.ready());
   const midiInputSelect = page.getByLabel("Choose MIDI input");
-  await expect(midiInputSelect).toHaveValue("");
+  await expect(midiInputSelect).toHaveValue("test-midi-input");
   await expect(midiInputSelect.locator("option")).toHaveText([
     "Choose MIDI input…",
-    "Midi Through Port-0",
+    "Korg Tonverk MIDI 1",
   ]);
-  await midiInputSelect.selectOption("test-midi-input");
   await expect(page.getByRole("button", { name: "start fake midi timer" })).toBeHidden();
   await expect(page.getByRole("button", { name: "stop fake midi timer" })).toBeHidden();
 
@@ -95,7 +94,7 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   expect(transportBox.y).toBeGreaterThanOrEqual(
     drumCanvasBox.y + drumCanvasBox.height,
   );
-  await expect(midiDevice).toHaveText("MIDI: Midi Through Port-0");
+  await expect(midiDevice).toHaveText("MIDI: Korg Tonverk MIDI 1");
   await expect(page.getByRole("button", { name: "TDA", exact: true })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -111,23 +110,24 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   );
   await expect(canvas).toHaveAttribute("data-display-mode", "song");
   await expect(canvas).toHaveAttribute("data-text", "");
-  const circleCentreAlpha = (side: "left" | "right") =>
-    midiOverlay.evaluate<number, "left" | "right", HTMLCanvasElement>((element, circleSide) => {
-      const x = element.width * (circleSide === "left" ? 0.35 : 0.65);
-      const y = element.height - (element.width / 32) * 1.5;
+  const drumHitPixel = (instrument: "bass" | "hi-hat") =>
+    midiOverlay.evaluate<number[], "bass" | "hi-hat", HTMLCanvasElement>((element, drum) => {
+      const x = element.width * (drum === "bass" ? 0.35 : 0.65);
+      const y = element.height / 2;
       const context = element.getContext("2d");
       if (!context) {
         throw new Error("Canvas context unavailable.");
       }
-      return context.getImageData(x, y, 1, 1).data[3];
-    }, side);
+      return [...context.getImageData(x, y, 1, 1).data];
+    }, instrument);
 
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
       globalThis.testMidi?.emit("clock");
     }
   });
-  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "false");
 
   await page.evaluate(() => globalThis.testMidi?.emit("start"));
   await expect(canvas).toHaveAttribute("data-text", "");
@@ -135,23 +135,51 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   await expect(transportPosition).toHaveText("Bar 1 · Beat 1");
   await expect(transportPosition).toHaveAttribute("data-section", "Intro");
   await expect(transportPosition).toHaveAttribute("data-transport", "running");
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "true");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true");
+  expect(await drumHitPixel("bass")).toEqual([255, 255, 0, 255]);
+  expect(await drumHitPixel("hi-hat")).toEqual([255, 140, 0, 255]);
 
   await page.evaluate(() => {
     const bpm = 123.6;
     const intervalMs = 60_000 / (bpm * 24);
-    for (let pulse = 0; pulse < 24; pulse += 1) {
+    for (let pulse = 0; pulse < 6; pulse += 1) {
       globalThis.testMidi?.emit("clock", 1_000 + pulse * intervalMs);
     }
   });
-  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true");
-  await expect(midiOverlay).toHaveAttribute("data-circle-side", "left");
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "false");
+
+  await page.evaluate(() => {
+    const bpm = 123.6;
+    const intervalMs = 60_000 / (bpm * 24);
+    for (let pulse = 6; pulse < 12; pulse += 1) {
+      globalThis.testMidi?.emit("clock", 1_000 + pulse * intervalMs);
+    }
+  });
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true");
+  expect(await drumHitPixel("hi-hat")).toEqual([255, 140, 0, 255]);
+
+  await page.evaluate(() => {
+    const bpm = 123.6;
+    const intervalMs = 60_000 / (bpm * 24);
+    for (let pulse = 12; pulse < 24; pulse += 1) {
+      globalThis.testMidi?.emit("clock", 1_000 + pulse * intervalMs);
+    }
+  });
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true");
   await expect(transportPosition).toHaveText("Bar 1 · Beat 2");
   await expect(clockBpm).toHaveText("124 BPM");
   await expect(clockBpm).toHaveAttribute("data-bpm", "124");
-  expect(await circleCentreAlpha("left")).toBeGreaterThan(0);
+  expect(await drumHitPixel("bass")).toEqual([0, 0, 0, 0]);
+  expect(await drumHitPixel("hi-hat")).toEqual([255, 140, 0, 255]);
 
   await page.evaluate(() => globalThis.testMidi?.emit("start"));
   await expect(transportPosition).toHaveAttribute("data-transport", "paused");
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "false");
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
       globalThis.testMidi?.emit("clock");
@@ -167,17 +195,17 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
       globalThis.testMidi?.emit("clock");
     }
   });
-  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
-  expect(await circleCentreAlpha("left")).toBe(0);
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true");
 
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
       globalThis.testMidi?.emit("clock");
     }
   });
-  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true");
-  await expect(midiOverlay).toHaveAttribute("data-circle-side", "right");
-  expect(await circleCentreAlpha("right")).toBeGreaterThan(0);
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true");
+  expect(await drumHitPixel("hi-hat")).toEqual([255, 140, 0, 255]);
 
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 120; pulse += 1) {
@@ -185,6 +213,8 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
     }
   });
   await expect(transportPosition).toHaveText("Bar 3 · Beat 1");
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "true");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true");
   await expect(transportPosition).toHaveAttribute("data-section", "Verse 1");
   await expect(canvas).toHaveAttribute(
     "data-text",
@@ -284,7 +314,8 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   await expect(transportPosition).toHaveAttribute("data-section", "Intro");
   await expect(canvas).toHaveAttribute("data-text", "");
   await expect(clockBpm).toHaveText("– BPM");
-  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "false");
 
   expect(browserErrors).toEqual([]);
 });
@@ -657,17 +688,18 @@ test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) 
     "data-text",
     "LOOKING IN MY NOTEBOOK TO FIND SOME IDEAS IT'S A MUGS GAME. I WONDER WHAT IT WOULD BE LIKE TO LIVE IN SOUTH AFRICA. I'D BE IN THE SERENGHETI EVERY DAY. THIS IS ALL GOING ON IN THE PRIVACY INSIDE MY OWN MIND",
   );
-  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "true", {
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true", {
     timeout: 900,
   });
-  await expect(midiOverlay).toHaveAttribute("data-circle-side", "left");
   await stopButton.click();
   await expect(startButton).toBeEnabled();
   await expect(stopButton).toBeDisabled();
   await expect(clockBpm).toHaveText("– BPM");
   await expect(midiDevice).toHaveText("MIDI: No device");
-  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "false");
   await page.waitForTimeout(600);
-  await expect(midiOverlay).toHaveAttribute("data-circle-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "false");
   expect(browserErrors).toEqual([]);
 });
