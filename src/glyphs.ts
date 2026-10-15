@@ -274,6 +274,38 @@ export const commaDefinition: GlyphDefinition = {
   },
 };
 
+const hyphenContour: NormalizedPoint[] = [
+  [0.1, 0.44],
+  [0.9, 0.44],
+  [0.9, 0.56],
+  [0.1, 0.56],
+  [0.1, 0.44],
+];
+
+export const hyphenDefinition: GlyphDefinition = {
+  colour: "rgb(235, 190, 80)",
+  strokes: createLineContour("hyphen", hyphenContour),
+  pixelContract: {
+    required: [
+      [0.1, 0.44],
+      [0.5, 0.44],
+      [0.9, 0.44],
+      [0.9, 0.5],
+      [0.9, 0.56],
+      [0.5, 0.56],
+      [0.1, 0.56],
+      [0.1, 0.5],
+    ],
+    forbidden: [
+      [0.5, 0.5],
+      [0.02, 0.5],
+      [0.98, 0.5],
+      [0.5, 0.34],
+      [0.5, 0.66],
+    ],
+  },
+};
+
 export const zeroOvalWidthScale = 0.75;
 const zeroOuterRadiusX = 0.5 * zeroOvalWidthScale;
 const zeroInnerRadiusX = 0.32 * zeroOvalWidthScale;

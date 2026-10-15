@@ -49,7 +49,7 @@ export const songsByProgram = new Map<number, Song>([
           lyrics: `{2}I've got 11 GCSEs {2}
 It's easy for you, it's easy for me {2}
 Don't have time for anything else {2}
-Like extracurricular activities`,
+Like extra-curricular activities`,
         },
         {
           id: "Instrumental Interlude",

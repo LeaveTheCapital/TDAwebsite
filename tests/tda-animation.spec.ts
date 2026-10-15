@@ -4,6 +4,7 @@ import {
   cDefinition,
   commaDefinition,
   eDefinition,
+  hyphenDefinition,
   sDefinition,
   type GlyphDefinition,
   type GlyphPixelContract,
@@ -351,7 +352,7 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   await expect(transportPosition).toHaveAttribute("data-lyric-cue", "4");
   await expect(canvas).toHaveAttribute(
     "data-text",
-    "LIKE EXTRACURRICULAR ACTIVITIES",
+    "LIKE EXTRA-CURRICULAR ACTIVITIES",
   );
 
   await page.evaluate(() => globalThis.testMidi?.emit("stop"));
@@ -698,6 +699,16 @@ test("draws comma from its normalized stroke and pixel contract", async ({
   page,
 }) => {
   await expectGlyphPixelContract(page, ",", commaDefinition, {
+    red: [180, 255],
+    green: [140, 230],
+    blue: [30, 130],
+  });
+});
+
+test("draws hyphen from its normalized stroke and pixel contract", async ({
+  page,
+}) => {
+  await expectGlyphPixelContract(page, "-", hyphenDefinition, {
     red: [180, 255],
     green: [140, 230],
     blue: [30, 130],

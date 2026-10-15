@@ -32,6 +32,7 @@ import {
   getBezierPoint,
   getPartialBezier,
   hDefinition,
+  hyphenDefinition,
   iDefinition,
   jDefinition,
   kDefinition,
@@ -2114,7 +2115,7 @@ interface WordAnimationSchedule {
   durationPulses: number;
 }
 
-const animatableLetters = "'’,æÆ0123TDAGESCBFHIJKLMNOPQRUVWXYZ";
+const animatableLetters = "'’,-æÆ0123TDAGESCBFHIJKLMNOPQRUVWXYZ";
 
 function finishLetter(wordIndex: number) {
   unfinishedLetters -= 1;
@@ -2318,6 +2319,14 @@ function startWordAnimation(wordIndex: number) {
         height,
         index,
         commaDefinition,
+        onComplete,
+      ).animationFunc();
+    } else if (letter === "-") {
+      new DeclarativeGlyph(
+        width,
+        height,
+        index,
+        hyphenDefinition,
         onComplete,
       ).animationFunc();
     } else if (letter === "0") {
