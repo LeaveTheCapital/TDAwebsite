@@ -81,6 +81,8 @@ const songButtons = getElement("#song-buttons");
 const transportPosition = getOutput("#transport-position");
 const clockBpm = getOutput("#clock-bpm");
 const songName = getOutput("#song-name");
+const useSpeechTextButton = getButton("#use-speech-text");
+const captions = getElement("#captions");
 const sectionId = getOutput("#section-id");
 const midiDevice = getOutput("#midi-device");
 const midiInputSelect = getSelect("#midi-input");
@@ -106,6 +108,8 @@ let activeLyricCues: LyricCue[] = [];
 let activeLyricCueIndex = -1;
 let nextLyricCuePulse = Number.POSITIVE_INFINITY;
 let midiClockTimestamps: number[] = [];
+let isUsingSpeechText = false;
+let textBeforeSpeech = "";
 
 startFakeMidiButton.addEventListener("click", startFakeMidiTimer);
 stopFakeMidiButton.addEventListener("click", stopFakeMidiTimer);
@@ -150,7 +154,7 @@ function selectSong(program: number) {
   selectedSongProgram = program;
   songName.value = `Song: ${song.name}`;
   canvas.dataset.displayMode = "song";
-  clearAnimatedText();
+  if (!isUsingSpeechText) clearAnimatedText();
   updateSelectionButtonStates();
   updateFakeMidiButtonStates();
 }
@@ -162,7 +166,7 @@ function selectIntro() {
   canvas.dataset.displayMode = "intro";
   updateSelectionButtonStates();
   updateFakeMidiButtonStates();
-  setAnimatedText(TDA);
+  if (!isUsingSpeechText) setAnimatedText(TDA);
 }
 
 function updateSelectionButtonStates() {
@@ -608,7 +612,7 @@ function startSectionLyrics(lyrics: string | null, sectionStartPulse: number) {
 
   if (activeLyricCues.length === 0) {
     delete transportPosition.dataset.lyricCue;
-    clearAnimatedText();
+    if (!isUsingSpeechText) clearAnimatedText();
     return;
   }
 
@@ -641,10 +645,12 @@ function showActiveLyricCue(cueStartPulse: number) {
   );
 
   transportPosition.dataset.lyricCue = String(activeLyricCueIndex + 1);
-  setAnimatedText(cue.text, {
-    updateLocation: false,
-    wordSchedule: { startPulse: cueStartPulse, durationPulses },
-  });
+  if (!isUsingSpeechText) {
+    setAnimatedText(cue.text, {
+      updateLocation: false,
+      wordSchedule: { startPulse: cueStartPulse, durationPulses },
+    });
+  }
 }
 
 function getNextLyricCuePulse(cueStartPulse: number) {
@@ -916,7 +922,43 @@ if (!query.get("text")) {
 textInput.value = query.get("text") || requestedText;
 resizeTextInput();
 textInput.addEventListener("input", () => {
+  if (isUsingSpeechText) {
+    isUsingSpeechText = false;
+    useSpeechTextButton.setAttribute("aria-pressed", "false");
+  }
   setAnimatedText(textInput.value || TDA);
+});
+
+function showSpeechText() {
+  const text = captions.textContent.trim();
+  if (!text) {
+    if (canvas.dataset.text !== "") clearAnimatedText();
+  } else if (textInput.value !== text) {
+    setAnimatedText(text, { updateLocation: false });
+  }
+}
+
+captions.addEventListener("captionchange", () => {
+  if (isUsingSpeechText) showSpeechText();
+});
+
+useSpeechTextButton.addEventListener("click", () => {
+  isUsingSpeechText = !isUsingSpeechText;
+  useSpeechTextButton.setAttribute("aria-pressed", String(isUsingSpeechText));
+  if (isUsingSpeechText) {
+    textBeforeSpeech = textInput.value;
+    showSpeechText();
+  } else if (activeSong) {
+    const cue = activeLyricCues[activeLyricCueIndex];
+    if (activeLyricCueIndex >= 0) {
+      setAnimatedText(cue.text, { updateLocation: false });
+    }
+    else clearAnimatedText();
+  } else if (selectedSongProgram !== undefined) {
+    clearAnimatedText();
+  } else {
+    setAnimatedText(textBeforeSpeech || TDA);
+  }
 });
 
 function setAnimatedText(

@@ -10,6 +10,37 @@ import {
   type GlyphPixelContract,
 } from "../src/glyphs.ts";
 
+test("uses live speech text when selected beside the song title", async ({ page }) => {
+  await page.goto("/tda.html?text=HELLO&animationDurationMs=1000");
+  const canvas = page.locator("#canvas");
+  const textInput = page.locator("#text-input");
+  const speechButton = page.getByRole("button", { name: "Use speech text" });
+
+  await expect(speechButton).toHaveAttribute("aria-pressed", "false");
+  await page.locator("#captions").evaluate((element) => {
+    element.textContent = "spoken words";
+    element.dispatchEvent(new Event("captionchange"));
+  });
+  await expect(canvas).toHaveAttribute("data-text", "HELLO");
+
+  await speechButton.click();
+  await expect(speechButton).toHaveAttribute("aria-pressed", "true");
+  await expect(textInput).toHaveValue("spoken words");
+  await expect(canvas).toHaveAttribute("data-text", "SPOKEN WORDS");
+
+  await page.getByRole("button", { name: "gcses" }).click();
+  await expect(canvas).toHaveAttribute("data-text", "SPOKEN WORDS");
+  await page.locator("#captions").evaluate((element) => {
+    element.textContent = "new phrase";
+    element.dispatchEvent(new Event("captionchange"));
+  });
+  await expect(canvas).toHaveAttribute("data-text", "NEW PHRASE");
+
+  await speechButton.click();
+  await expect(speechButton).toHaveAttribute("aria-pressed", "false");
+  await expect(canvas).toHaveAttribute("data-text", "");
+});
+
 test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   const browserErrors: string[] = [];
 

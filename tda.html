@@ -42,7 +42,10 @@
     <div class="transport-status" role="status" aria-label="MIDI clock status">
         <output id="transport-position">Bar – · Beat –</output>
         <output id="clock-bpm">– BPM</output>
-        <output id="song-name">Song: –</output>
+        <span class="song-status">
+            <output id="song-name">Song: –</output>
+            <button id="use-speech-text" type="button" aria-pressed="false">Use speech text</button>
+        </span>
         <output id="section-id">Section: –</output>
         <output id="midi-device">MIDI: No device</output>
         <select id="midi-input" aria-label="Choose MIDI input" disabled>

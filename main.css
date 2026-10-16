@@ -190,6 +190,31 @@ canvas {
   white-space: nowrap;
 }
 
+.song-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.song-status button {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid turquoise;
+  background: black;
+  color: turquoise;
+  font: inherit;
+  cursor: pointer;
+}
+
+.song-status button[aria-pressed="true"] {
+  background: turquoise;
+  color: black;
+}
+
+.song-status button:focus-visible {
+  outline: 3px solid white;
+  outline-offset: 3px;
+}
+
 .transport-status select {
   max-width: min(18rem, 70vw);
   border: 1px solid turquoise;

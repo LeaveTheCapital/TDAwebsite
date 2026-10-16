@@ -87,6 +87,7 @@ function showCaptionResults(event: SpeechRecognitionEvent) {
     else interimParts.push(transcript);
   }
   captions.textContent = [...finalParts, ...interimParts].join(" ").slice(-1000);
+  captions.dispatchEvent(new Event("captionchange"));
 }
 
 function startRecognition(track: MediaStreamTrack, version: number) {
@@ -161,6 +162,7 @@ async function startCaptions() {
     if (availability === "available") {
       captionsRequested = true;
       captions.textContent = "";
+      captions.dispatchEvent(new Event("captionchange"));
       startRecognition(track, version);
     } else if (availability === "downloadable") {
       captionStatus.value = "Offline English pack needs a one-time download";
