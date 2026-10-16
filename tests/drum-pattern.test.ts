@@ -35,7 +35,7 @@ void describe("drum pattern timing", () => {
     ]);
   });
 
-  void it("keeps each visual visible for six clocks from its onset", () => {
+  void it("keeps hits active for six clocks while the hi-hat stays visible", () => {
     for (let pulse = 0; pulse < midiClocksPerBar * 2; pulse += 1) {
       const state = getDrumPatternState(pulse);
       const pulseInBar = pulse % midiClocksPerBar;
@@ -44,7 +44,7 @@ void describe("drum pattern timing", () => {
       const beatInBar = Math.floor(pulseInBar / 24);
 
       assert.equal(
-        state.bassDrumVisible,
+        state.bassDrumHitVisible,
         pulseInBar < drumHitVisiblePulses,
       );
       assert.equal(
@@ -53,17 +53,36 @@ void describe("drum pattern timing", () => {
           pulseInBeat < drumHitVisiblePulses,
       );
       assert.equal(
-        state.hiHatVisible,
-        pulseInEighth < drumHitVisiblePulses,
+        state.snareStrikeProgress,
+        state.snareDrumVisible
+          ? 1 - pulseInBeat / drumHitVisiblePulses
+          : 0,
+      );
+      assert.equal(state.hiHatVisible, true);
+      assert.equal(
+        state.hiHatClosure,
+        pulseInEighth < drumHitVisiblePulses
+          ? 1 - pulseInEighth / drumHitVisiblePulses
+          : 0,
       );
     }
   });
 
-  void it("alternates the snare circle between left and right", () => {
-    assert.equal(getDrumPatternState(24).snareSide, "left");
-    assert.equal(getDrumPatternState(72).snareSide, "right");
-    assert.equal(getDrumPatternState(120).snareSide, "left");
-    assert.equal(getDrumPatternState(168).snareSide, "right");
-    assert.equal(getDrumPatternState(48).snareSide, null);
+  void it("prepares the bass beater before the next bar's downbeat", () => {
+    assert.equal(getDrumPatternState(0).bassBeaterProgress, 1);
+    assert.equal(getDrumPatternState(6).bassBeaterProgress, 1);
+    assert.equal(getDrumPatternState(12).bassBeaterProgress, 1);
+    assert.equal(getDrumPatternState(83).bassBeaterProgress, 1);
+    assert.equal(getDrumPatternState(84).bassBeaterProgress, 1);
+    assert.equal(getDrumPatternState(90).bassBeaterProgress, 1);
+    assert.ok(
+      Math.abs(getDrumPatternState(91).bassBeaterProgress - 2 / 3) < 1e-12,
+    );
+    assert.equal(getDrumPatternState(93).bassBeaterProgress, 0);
+    assert.equal(getDrumPatternState(95).bassBeaterProgress, 2 / 3);
+    assert.equal(getDrumPatternState(95).bassDrumHitVisible, false);
+    assert.equal(getDrumPatternState(96).bassBeaterProgress, 1);
+    assert.equal(getDrumPatternState(96).bassDrumHit, true);
   });
+
 });

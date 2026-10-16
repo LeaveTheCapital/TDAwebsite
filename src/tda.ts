@@ -91,6 +91,7 @@ const fakeMidiClockIntervalMs =
   60_000 / (fakeMidiBeatsPerMinute * midiClocksPerQuarterNote);
 const preferredMidiInputName = "tonverk";
 let isFollowingMidiClock = false;
+let hasDrumPlaybackStarted = false;
 let midiTransportState: "stopped" | "running" | "paused" = "stopped";
 let midiClockPulseCount = 0;
 let selectedSongProgram: number | undefined;
@@ -195,69 +196,216 @@ songsByProgram.forEach((song, program) => {
   songButtons.append(button);
 });
 
-function clearDrumAnimation() {
+function drawDrumFrame(
+  strike = 0,
+  bassBeaterProgress = 1,
+  hiHatClosure = 0,
+  bassHitVisible = false,
+) {
   midiOverlayContext.clearRect(0, 0, midiOverlay.width, midiOverlay.height);
-  midiOverlay.dataset.bassDrumVisible = "false";
-  midiOverlay.dataset.snareVisible = "false";
-  delete midiOverlay.dataset.snareSide;
-  midiOverlay.dataset.hiHatVisible = "false";
+  drawBassDrum(bassBeaterProgress);
+  midiOverlay.dataset.bassDrumVisible = "true";
+  midiOverlay.dataset.bassDrumHitVisible = String(bassHitVisible);
+  midiOverlay.dataset.bassBeaterProgress = String(bassBeaterProgress);
+  drawSnareDrum(width * 0.625, midiOverlay.height / 2, strike);
+  midiOverlay.dataset.snareVisible = "true";
+  midiOverlay.dataset.snareSide = "right";
+  drawHiHat(hiHatClosure);
+  midiOverlay.dataset.hiHatVisible = "true";
+  midiOverlay.dataset.hiHatClosure = String(hiHatClosure);
 }
 
-function drawDrumAnimation() {
-  const pattern = getDrumPatternState(midiClockPulseCount);
-  const centreY = midiOverlay.height / 2;
+function drawBassDrum(beaterProgress: number) {
+  const x = width * 0.125;
+  const y = midiOverlay.height / 2;
+  const radius = Math.min(width / 32, midiOverlay.height / 4);
+  const faceX = x + radius * 0.4;
+  const faceRadiusX = radius * 0.76;
+  const faceRadiusY = radius * 1.1;
+  const backX = x - radius * 0.65;
+  const backRadiusX = faceRadiusX * 0.8;
 
-  clearDrumAnimation();
+  midiOverlayContext.fillStyle = "#397bb8";
+  midiOverlayContext.strokeStyle = "black";
+  midiOverlayContext.lineWidth = 1;
+  midiOverlayContext.beginPath();
+  midiOverlayContext.moveTo(backX, y - faceRadiusY);
+  midiOverlayContext.lineTo(faceX, y - faceRadiusY);
+  midiOverlayContext.lineTo(faceX, y + faceRadiusY);
+  midiOverlayContext.lineTo(backX, y + faceRadiusY);
+  midiOverlayContext.ellipse(
+    backX, y, backRadiusX, faceRadiusY, 0,
+    Math.PI / 2, Math.PI * 1.5,
+  );
+  midiOverlayContext.closePath();
+  midiOverlayContext.fill();
+  midiOverlayContext.stroke();
 
-  if (pattern.bassDrumVisible) {
-    const radius = Math.min(width / 32, midiOverlay.height / 4);
+  midiOverlayContext.beginPath();
+  midiOverlayContext.ellipse(faceX, y, faceRadiusX, faceRadiusY, 0, 0, Math.PI * 2);
+  midiOverlayContext.fillStyle = "white";
+  midiOverlayContext.fill();
+  midiOverlayContext.stroke();
 
+  midiOverlayContext.beginPath();
+  midiOverlayContext.ellipse(faceX, y, faceRadiusX - 4, faceRadiusY - 4, 0, 0, Math.PI * 2);
+  midiOverlayContext.stroke();
+
+  const beaterX = faceX + radius * 0.425 * (1 - beaterProgress);
+  const beaterY = y + radius * 0.11 * (1 - beaterProgress);
+  const pivotY = y + faceRadiusY;
+
+  midiOverlayContext.beginPath();
+  midiOverlayContext.moveTo(faceX, pivotY);
+  midiOverlayContext.lineTo(beaterX, beaterY);
+  midiOverlayContext.lineWidth = 5;
+  midiOverlayContext.strokeStyle = "black";
+  midiOverlayContext.stroke();
+  midiOverlayContext.lineWidth = 3;
+  midiOverlayContext.strokeStyle = "#777777";
+  midiOverlayContext.stroke();
+
+  midiOverlayContext.beginPath();
+  midiOverlayContext.arc(beaterX, beaterY, radius * 0.18, 0, Math.PI * 2);
+  midiOverlayContext.fillStyle = "#333333";
+  midiOverlayContext.fill();
+  midiOverlayContext.lineWidth = 1;
+  midiOverlayContext.strokeStyle = "black";
+  midiOverlayContext.stroke();
+}
+
+function drawHiHat(closure: number) {
+  const x = width * 0.875;
+  const y = midiOverlay.height / 2;
+  const radiusX = Math.min(width / 32, midiOverlay.height * 0.3);
+  const domeHeight = radiusX * 0.42;
+  const gap = radiusX * 0.35 * (1 - closure);
+
+  midiOverlayContext.strokeStyle = "#b8b8b8";
+  midiOverlayContext.lineWidth = 3;
+  midiOverlayContext.beginPath();
+  midiOverlayContext.moveTo(x, y - radiusX * 1.35);
+  midiOverlayContext.lineTo(x, y + radiusX * 1.35);
+  midiOverlayContext.stroke();
+
+  for (const direction of [-1, 1]) {
+    midiOverlayContext.save();
+    midiOverlayContext.translate(x, y);
+    midiOverlayContext.scale(1, direction);
     midiOverlayContext.beginPath();
-    midiOverlayContext.arc(width * 0.125, centreY, radius, 0, Math.PI * 2);
-    midiOverlayContext.fillStyle = "#ffff00";
-    midiOverlayContext.fill();
-    midiOverlayContext.strokeStyle = "black";
-    midiOverlayContext.lineWidth = 2;
-    midiOverlayContext.stroke();
-    midiOverlay.dataset.bassDrumVisible = "true";
-  }
-
-  if (pattern.snareDrumVisible && pattern.snareSide) {
-    const side = pattern.snareSide;
-    const radius = Math.min(width / 32, midiOverlay.height / 4);
-    const x = width * (side === "left" ? 0.375 : 0.625);
-
-    midiOverlayContext.beginPath();
-    midiOverlayContext.arc(x, centreY, radius, 0, Math.PI * 2);
-    midiOverlayContext.fillStyle = "white";
-    midiOverlayContext.fill();
-    midiOverlayContext.strokeStyle = "black";
-    midiOverlayContext.lineWidth = 2;
-    midiOverlayContext.stroke();
-    midiOverlay.dataset.snareVisible = "true";
-    midiOverlay.dataset.snareSide = side;
-  }
-
-  if (pattern.hiHatVisible) {
-    const squareSize = Math.min(width / 48, midiOverlay.height / 5);
-
+    midiOverlayContext.moveTo(0, gap + domeHeight);
+    midiOverlayContext.bezierCurveTo(
+      radiusX * 0.2, gap + domeHeight,
+      radiusX * 0.28, gap + domeHeight * 0.22,
+      radiusX, gap,
+    );
+    midiOverlayContext.quadraticCurveTo(0, gap + domeHeight * 0.12, -radiusX, gap);
+    midiOverlayContext.bezierCurveTo(
+      -radiusX * 0.28, gap + domeHeight * 0.22,
+      -radiusX * 0.2, gap + domeHeight,
+      0, gap + domeHeight,
+    );
+    midiOverlayContext.closePath();
     midiOverlayContext.fillStyle = "#ff8c00";
-    midiOverlayContext.fillRect(
-      width * 0.875 - squareSize / 2,
-      centreY - squareSize / 2,
-      squareSize,
-      squareSize,
-    );
     midiOverlayContext.strokeStyle = "black";
     midiOverlayContext.lineWidth = 2;
-    midiOverlayContext.strokeRect(
-      width * 0.875 - squareSize / 2,
-      centreY - squareSize / 2,
-      squareSize,
-      squareSize,
-    );
-    midiOverlay.dataset.hiHatVisible = "true";
+    midiOverlayContext.fill();
+    midiOverlayContext.stroke();
+    midiOverlayContext.restore();
   }
+}
+
+function drawSnareDrum(x: number, centreY: number, strike = 0) {
+  const radiusX = Math.min(midiOverlay.width / 18, midiOverlay.height * 0.36);
+  const radiusY = radiusX * 0.28;
+  const topY = centreY - radiusX * 0.46;
+  const bottomY = centreY + radiusX * 0.44;
+  const rimHeight = radiusX * 0.12;
+  const frontCurve = radiusY * 0.72;
+
+  midiOverlayContext.strokeStyle = "black";
+  midiOverlayContext.lineWidth = 2;
+
+  midiOverlayContext.beginPath();
+  midiOverlayContext.moveTo(x - radiusX, topY);
+  midiOverlayContext.lineTo(x - radiusX, bottomY);
+  midiOverlayContext.bezierCurveTo(
+    x - radiusX / 2, bottomY + frontCurve,
+    x + radiusX / 2, bottomY + frontCurve,
+    x + radiusX, bottomY,
+  );
+  midiOverlayContext.lineTo(x + radiusX, topY);
+  midiOverlayContext.closePath();
+  midiOverlayContext.fillStyle = "#c9362b";
+  midiOverlayContext.fill();
+  midiOverlayContext.stroke();
+
+  midiOverlayContext.beginPath();
+  midiOverlayContext.moveTo(x - radiusX, bottomY);
+  midiOverlayContext.bezierCurveTo(
+    x - radiusX / 2, bottomY + frontCurve,
+    x + radiusX / 2, bottomY + frontCurve,
+    x + radiusX, bottomY,
+  );
+  midiOverlayContext.lineTo(x + radiusX, bottomY + rimHeight);
+  midiOverlayContext.bezierCurveTo(
+    x + radiusX / 2, bottomY + frontCurve + rimHeight,
+    x - radiusX / 2, bottomY + frontCurve + rimHeight,
+    x - radiusX, bottomY + rimHeight,
+  );
+  midiOverlayContext.closePath();
+  midiOverlayContext.fillStyle = "#397bb8";
+  midiOverlayContext.fill();
+  midiOverlayContext.stroke();
+
+  midiOverlayContext.beginPath();
+  midiOverlayContext.ellipse(x, topY, radiusX, radiusY, 0, 0, Math.PI * 2);
+  midiOverlayContext.fillStyle = "#397bb8";
+  midiOverlayContext.fill();
+  midiOverlayContext.stroke();
+
+  midiOverlayContext.beginPath();
+  midiOverlayContext.ellipse(
+    x, topY, radiusX - 4, radiusY - 4, 0, 0, Math.PI * 2,
+  );
+  midiOverlayContext.fillStyle = "white";
+  midiOverlayContext.fill();
+  midiOverlayContext.stroke();
+
+  const handleX = x + radiusX * 1.02;
+  const handleY = topY - radiusX * 1.15;
+  const tipX = x + radiusX * (0.12 - strike * 0.1);
+  const tipY = topY - radiusX * 0.48 + strike * radiusX * 0.48;
+  const length = Math.hypot(tipX - handleX, tipY - handleY);
+  const normalX = -(tipY - handleY) / length;
+  const normalY = (tipX - handleX) / length;
+  const handleHalfWidth = Math.max(2, radiusX * 0.055);
+  const tipHalfWidth = handleHalfWidth * 0.7;
+
+  midiOverlayContext.beginPath();
+  midiOverlayContext.moveTo(handleX + normalX * handleHalfWidth, handleY + normalY * handleHalfWidth);
+  midiOverlayContext.lineTo(tipX + normalX * tipHalfWidth, tipY + normalY * tipHalfWidth);
+  midiOverlayContext.quadraticCurveTo(
+    tipX + (tipX - handleX) / length * tipHalfWidth * 1.6,
+    tipY + (tipY - handleY) / length * tipHalfWidth * 1.6,
+    tipX - normalX * tipHalfWidth,
+    tipY - normalY * tipHalfWidth,
+  );
+  midiOverlayContext.lineTo(handleX - normalX * handleHalfWidth, handleY - normalY * handleHalfWidth);
+  midiOverlayContext.closePath();
+  midiOverlayContext.fillStyle = "#d5a36a";
+  midiOverlayContext.fill();
+  midiOverlayContext.stroke();
+}
+
+function drawDrumAnimation(preview = false) {
+  const pattern = getDrumPatternState(midiClockPulseCount);
+  drawDrumFrame(
+    preview ? 0 : pattern.snareStrikeProgress,
+    preview ? 1 : pattern.bassBeaterProgress,
+    preview ? 0 : pattern.hiHatClosure,
+    !preview && pattern.bassDrumHitVisible,
+  );
 }
 
 function handleMidiStart() {
@@ -273,11 +421,12 @@ function handleMidiStart() {
   const isStartingFromReset = midiTransportState === "stopped";
 
   isFollowingMidiClock = true;
+  hasDrumPlaybackStarted = true;
   midiTransportState = "running";
   transportPosition.dataset.transport = midiTransportState;
   midiClockTimestamps = [];
   setClockBpm(fakeMidiTimer === undefined ? undefined : fakeMidiBeatsPerMinute);
-  clearDrumAnimation();
+  drawDrumFrame();
 
   if (isStartingFromReset) {
     midiClockPulseCount = 0;
@@ -294,7 +443,7 @@ function pauseMidiTransport() {
   transportPosition.dataset.transport = midiTransportState;
   midiClockTimestamps = [];
   setClockBpm(undefined);
-  clearDrumAnimation();
+  drawDrumFrame();
 }
 
 function handleMidiStop() {
@@ -304,7 +453,7 @@ function handleMidiStop() {
   midiClockPulseCount = 0;
   midiClockTimestamps = [];
   setClockBpm(undefined);
-  clearDrumAnimation();
+  drawDrumFrame();
   updateTransportPosition();
   startSelectedSong();
 }
@@ -334,8 +483,11 @@ function resetTransportForSelection() {
   if (!activeMidiInput) {
     setMidiDevice(undefined);
   }
-  clearDrumAnimation();
+  drawDrumFrame();
   updateTransportPosition();
+  if (!hasDrumPlaybackStarted) {
+    drawDrumAnimation(true);
+  }
 }
 
 function handleMidiClock(event?: MessageEvent) {
@@ -1005,7 +1157,11 @@ function updateTextLayout(text: string) {
 
   canvas.dataset.text = requestedText;
   canvas.dataset.lineCount = String(wrappedLines.length);
-  clearDrumAnimation();
+  if (hasDrumPlaybackStarted) {
+    drawDrumFrame();
+  } else {
+    drawDrumAnimation(true);
+  }
   letterHeight = letterWidth;
   tYEndPoint = letterWidth * (13 / 45);
   aBottomLineWidth = letterWidth * 0.25;
@@ -2836,3 +2992,4 @@ function getCanvasContext(
 }
 
 startAnimation(requestedLineWidth);
+drawDrumAnimation(true);

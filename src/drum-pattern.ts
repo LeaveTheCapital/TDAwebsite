@@ -6,12 +6,14 @@ export const midiClocksPerBar = midiClocksPerQuarterNote * beatsPerBar;
 
 export interface DrumPatternState {
   bassDrumHit: boolean;
-  bassDrumVisible: boolean;
+  bassDrumHitVisible: boolean;
+  bassBeaterProgress: number;
   snareDrumHit: boolean;
   snareDrumVisible: boolean;
-  snareSide: "left" | "right" | null;
+  snareStrikeProgress: number;
   hiHatHit: boolean;
   hiHatVisible: boolean;
+  hiHatClosure: number;
 }
 
 export function getDrumPatternState(pulse: number): DrumPatternState {
@@ -26,19 +28,29 @@ export function getDrumPatternState(pulse: number): DrumPatternState {
   const snareDrumVisible =
     (beatInBar === 1 || beatInBar === 3) &&
     pulseInBeat < drumHitVisiblePulses;
+  const bassSwingHalfPulses = drumHitVisiblePulses / 2;
+  const bassSwingStart = midiClocksPerBar - drumHitVisiblePulses;
+  const bassReturnStart = midiClocksPerBar - bassSwingHalfPulses;
+  const bassBeaterProgress = pulseInBar < bassSwingStart
+    ? 1
+    : pulseInBar < bassReturnStart
+      ? 1 - (pulseInBar - bassSwingStart) / bassSwingHalfPulses
+      : (pulseInBar - bassReturnStart) / bassSwingHalfPulses;
 
   return {
     bassDrumHit,
-    bassDrumVisible: pulseInBar < drumHitVisiblePulses,
+    bassDrumHitVisible: pulseInBar < drumHitVisiblePulses,
+    bassBeaterProgress,
     snareDrumHit,
     snareDrumVisible,
-    snareSide: snareDrumVisible
-      ? beatInBar === 1
-        ? "left"
-        : "right"
-      : null,
+    snareStrikeProgress: snareDrumVisible
+      ? 1 - pulseInBeat / drumHitVisiblePulses
+      : 0,
     hiHatHit,
-    hiHatVisible: pulseInEighth < drumHitVisiblePulses,
+    hiHatVisible: true,
+    hiHatClosure: pulseInEighth < drumHitVisiblePulses
+      ? 1 - pulseInEighth / drumHitVisiblePulses
+      : 0,
   };
 }
 
