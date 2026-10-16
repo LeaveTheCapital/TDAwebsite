@@ -72,3 +72,12 @@ Every glyph definition must include a pixel contract:
 Before handing off a glyph change, run the repository's typecheck, lint, and
 build checks. Run browser tests only when the task calls for them or when the
 change needs browser-level visual evidence.
+
+## Alternative font styles
+### lined / dashed Capitals
+Each Letter is the same shape as the core style. All letters are uppercase. However, they are all made of horizontal lines only.
+For Example the capital T would have say 3 horizontal longer lines for the top bar, and then say 7 shorter horizontal lines for the stick.
+Initially these can be eacy of a solid colour and we'll set it up so that all the horizontal lines for each letter are animated, by them being
+drawn from left to rigth, all at the same time initially. and all at the same speed, so that the longer lines take longer to finish than
+the shorter lines. 
+Initial colour can be the same luminous green used on the dice.

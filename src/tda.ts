@@ -6,6 +6,7 @@ import {
 } from "webmidi";
 
 import "../main.css";
+import "./audio-visualizer.ts";
 import {
   animationTiming,
   setLetterAnimationDurationMs,
@@ -27,6 +28,7 @@ import {
   threeDefinition,
   bDefinition,
   cDefinition,
+  dashedTDefinition,
   eDefinition,
   fDefinition,
   getBezierPoint,
@@ -51,6 +53,7 @@ import {
   yDefinition,
   zDefinition,
   type DeclarativeStroke,
+  type DashedGlyphDefinition,
   type GlyphDefinition,
   type NormalizedPoint,
 } from "./glyphs.ts";
@@ -72,6 +75,7 @@ const letterDurationInput = getRangeInput("#letter-duration");
 const letterDurationOutput = getOutput("#letter-duration-value");
 const lightShowDurationInput = getRangeInput("#light-show-duration");
 const lightShowDurationOutput = getOutput("#light-show-duration-value");
+const fontSelect = getSelect("#font-select");
 const textInput = getTextInput("#text-input");
 const songButtons = getElement("#song-buttons");
 const transportPosition = getOutput("#transport-position");
@@ -849,6 +853,28 @@ void initialiseMidi();
 let letterAnimationStepScale = animationTiming.letterStepScale;
 let lightShowAnimationStepScale = animationTiming.lightShowStepScale;
 const query = new URLSearchParams(window.location.search);
+type FontName = "core" | "dashed";
+let selectedFont: FontName = query.get("font") === "dashed" ? "dashed" : "core";
+fontSelect.value = selectedFont;
+canvas.dataset.font = selectedFont;
+fontSelect.addEventListener("change", () => {
+  selectedFont = fontSelect.value === "dashed" ? "dashed" : "core";
+  canvas.dataset.font = selectedFont;
+  const nextQuery = new URLSearchParams(window.location.search);
+  if (selectedFont === "core") {
+    nextQuery.delete("font");
+  } else {
+    nextQuery.set("font", selectedFont);
+  }
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
+  );
+  if (canvas.dataset.animationState !== "empty") {
+    startAnimation(Number(strokeWidthInput.value));
+  }
+});
 let requestedText = (query.get("text") || TDA).toUpperCase();
 const shouldRunLightShow = query.get("lightShow") !== "false";
 const maximumCharactersPerLine = 16;
@@ -1394,6 +1420,47 @@ class DeclarativeGlyph extends Letter {
       this.startX + point[0] * this.letterWidth,
       this.startY + point[1] * this.letterHeight,
     ];
+  }
+}
+
+class DashedGlyph extends Letter {
+  private progress = 0;
+  private readonly definition: DashedGlyphDefinition;
+
+  constructor(
+    width: number,
+    height: number,
+    letterIndex: number,
+    definition: DashedGlyphDefinition,
+    onComplete: () => void,
+  ) {
+    super(
+      width,
+      height,
+      letterIndex,
+      () => {
+        this.drawGlyph();
+      },
+      () => this.progress < this.letterWidth,
+      onComplete,
+    );
+    this.definition = definition;
+  }
+
+  private drawGlyph() {
+    ctx.fillStyle = this.definition.colour;
+    this.definition.bars.forEach((bar) => {
+      const visibleWidth = Math.min(this.progress, bar.width * this.letterWidth);
+      if (visibleWidth > 0) {
+        ctx.fillRect(
+          this.startX + bar.x * this.letterWidth,
+          this.startY + bar.y * this.letterHeight,
+          visibleWidth,
+          bar.height * this.letterHeight,
+        );
+      }
+    });
+    this.progress = advanceTowards(this.progress, 2, this.letterWidth);
   }
 }
 
@@ -2517,7 +2584,12 @@ function startWordAnimation(wordIndex: number) {
         onComplete,
       ).animationFunc();
     } else if (letter === "T") {
-      new T1(width, height, index, onComplete).animationFunc();
+      if (selectedFont === "dashed") {
+        new DashedGlyph(width, height, index, dashedTDefinition, onComplete)
+          .animationFunc();
+      } else {
+        new T1(width, height, index, onComplete).animationFunc();
+      }
     } else if (letter === "D") {
       new D1(width, height, index, onComplete).animationFunc();
     } else if (letter === "A") {

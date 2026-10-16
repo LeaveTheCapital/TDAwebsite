@@ -20,6 +20,25 @@
             <output id="dice-result" class="dice-result" aria-live="polite">Click the dice to roll</output>
         </div>
     </div>
+    <section class="audio-monitor" aria-label="Live audio input">
+        <div class="audio-controls">
+            <button id="enable-audio" type="button">Enable audio</button>
+            <button id="stop-audio" type="button" disabled>Stop audio</button>
+            <label for="audio-input">Audio input</label>
+            <select id="audio-input">
+                <option value="default">Default microphone</option>
+            </select>
+            <output id="audio-status" role="status">Audio is off</output>
+        </div>
+        <canvas id="audio-visualizer" width="900" height="180" aria-label="Live audio waveform and spectrum"></canvas>
+        <div class="caption-controls">
+            <button id="start-captions" type="button" disabled>Start offline captions</button>
+            <button id="stop-captions" type="button" disabled>Stop captions</button>
+            <button id="install-caption-language" type="button" hidden>Install offline English pack</button>
+            <output id="caption-status" role="status">Enable audio to try offline captions</output>
+        </div>
+        <div id="captions" class="captions" aria-live="polite" aria-label="Live captions"></div>
+    </section>
     <div class="transport-status" role="status" aria-label="MIDI clock status">
         <output id="transport-position">Bar – · Beat –</output>
         <output id="clock-bpm">– BPM</output>
@@ -49,6 +68,13 @@
         <label for="dice-duration">Dice roll</label>
         <input id="dice-duration" type="range" min="1" max="10" step="1" value="4">
         <output id="dice-duration-value" for="dice-duration">4 seconds</output>
+    </div>
+    <div class="canvas-control font-control">
+        <label for="font-select">Font</label>
+        <select id="font-select">
+            <option value="core">core</option>
+            <option value="dashed">dashed</option>
+        </select>
     </div>
     <div class="fake-midi-controls">
         <button id="start-fake-midi" type="button" hidden>start fake midi timer</button>

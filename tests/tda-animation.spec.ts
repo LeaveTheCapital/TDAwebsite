@@ -891,3 +891,40 @@ test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) 
   await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true");
   expect(browserErrors).toEqual([]);
 });
+
+test("selects the dashed T and draws ten horizontal bars", async ({ page }) => {
+  await page.goto("/tda.html?text=T&lightShow=false");
+  const canvas = page.locator("#canvas");
+  const fontSelect = page.getByLabel("Font");
+
+  await expect(fontSelect).toHaveValue("core");
+  await fontSelect.selectOption("dashed");
+  await expect(canvas).toHaveAttribute("data-font", "dashed");
+  await expect.poll(() => new URL(page.url()).searchParams.get("font"))
+    .toBe("dashed");
+  await expect(canvas).toHaveAttribute("data-letter-animation-state", "complete");
+
+  const rows = await canvas.evaluate<number[][], null, HTMLCanvasElement>((element) => {
+    const context = element.getContext("2d");
+    if (!context) throw new Error("Canvas context unavailable.");
+    const size = element.width / 3;
+    const x = size;
+    const y = size;
+    return Array.from({ length: 10 }, (_, index) => {
+      const barY = y + (0.04 + index * 0.1) * size;
+      return [0.2, 0.5, 0.8].map((fraction) =>
+        context.getImageData(x + fraction * size, barY, 1, 1).data[1],
+      );
+    });
+  }, null);
+
+  expect(rows.slice(0, 3)).toEqual(Array.from({ length: 3 }, () => [255, 255, 255]));
+  expect(rows.slice(3)).toEqual(Array.from({ length: 7 }, () => [0, 255, 0]));
+
+  await page.reload();
+  await expect(fontSelect).toHaveValue("dashed");
+  await fontSelect.selectOption("core");
+  await expect(canvas).toHaveAttribute("data-font", "core");
+  await expect.poll(() => new URL(page.url()).searchParams.get("font"))
+    .toBeNull();
+});

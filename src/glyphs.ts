@@ -42,6 +42,43 @@ export interface GlyphDefinition {
   pixelContract: GlyphPixelContract;
 }
 
+export interface HorizontalBar {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface DashedGlyphDefinition {
+  colour: string;
+  bars: HorizontalBar[];
+  pixelContract: GlyphPixelContract;
+}
+
+const dashedBarHeight = 0.045;
+
+export const dashedTDefinition: DashedGlyphDefinition = {
+  colour: "#39ff14",
+  bars: Array.from({ length: 10 }, (_, index) => ({
+    x: index < 3 ? 0 : 0.35,
+    y: 0.02 + index * 0.1,
+    width: index < 3 ? 1 : 0.3,
+    height: dashedBarHeight,
+  })),
+  pixelContract: {
+    required: [
+      [0.02, 0.04], [0.98, 0.04],
+      [0.02, 0.14], [0.98, 0.24],
+      [0.36, 0.34], [0.64, 0.34],
+      [0.36, 0.94], [0.64, 0.94],
+    ],
+    forbidden: [
+      [0.5, 0.09], [0.5, 0.29], [0.5, 0.39],
+      [0.2, 0.34], [0.8, 0.94], [0.5, 0.99],
+    ],
+  },
+};
+
 const aOuterContour: NormalizedPoint[] = [
   [0.4, 0],
   [0, 1],
