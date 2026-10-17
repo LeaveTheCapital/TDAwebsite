@@ -371,7 +371,7 @@ function drawSnareDrum(x: number, centreY: number, strike = 0) {
   );
   midiOverlayContext.lineTo(x + radiusX, topY);
   midiOverlayContext.closePath();
-  midiOverlayContext.fillStyle = "#c9362b";
+  midiOverlayContext.fillStyle = "white";
   midiOverlayContext.fill();
   midiOverlayContext.stroke();
 

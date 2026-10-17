@@ -97,4 +97,14 @@ On your progress`,
       ],
     },
   ],
+  [
+    2,
+    {
+      name: 'Dyno',
+      sections: [
+        { id: 'intro', bars: 2, beats: 0, lyrics: null },
+        { id: 'verse', bars: 2, beats: 0, lyrics: "I'm sick and tired of you" }
+      ]
+    }
+  ]
 ]);
