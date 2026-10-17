@@ -3,6 +3,28 @@ import {
   bDefinition,
   cDefinition,
   commaDefinition,
+  dashedDDefinition,
+  dashedEDefinition,
+  dashedFDefinition,
+  dashedGDefinition,
+  dashedHDefinition,
+  dashedIDefinition,
+  dashedJDefinition,
+  dashedKDefinition,
+  dashedLDefinition,
+  dashedMDefinition,
+  dashedNDefinition,
+  dashedODefinition,
+  dashedPDefinition,
+  dashedQDefinition,
+  dashedRDefinition,
+  dashedSDefinition,
+  dashedUDefinition,
+  dashedVDefinition,
+  dashedWDefinition,
+  dashedXDefinition,
+  dashedYDefinition,
+  dashedZDefinition,
   eDefinition,
   hyphenDefinition,
   sDefinition,
@@ -157,7 +179,7 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
           : element.width * 0.875;
       const cymbalRadius = Math.min(element.width / 32, element.height * 0.3);
       const closure = Number(element.dataset.hiHatClosure);
-      const cymbalOffset = cymbalRadius * (0.35 * (1 - closure) + 0.42 * 0.75);
+      const cymbalOffset = cymbalRadius * (0.175 * (1 - closure) + 0.42 * 0.75);
       const y = element.height / 2 + (
         drum === "hi-hat" ? -cymbalOffset : drum === "hi-hat-lower" ? cymbalOffset : 0
       );
@@ -169,8 +191,17 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
     }, instrument);
   const snareHitPixel = (part: "head" | "shell" | "rim" | "empty") =>
     midiOverlay.evaluate<number[], "head" | "shell" | "rim" | "empty", HTMLCanvasElement>((element, target) => {
-      const x = element.width * (target === "empty" ? 0.375 : 0.625);
-      const y = element.height / 2 + (target === "head" ? -23 : target === "rim" ? 32 : 0);
+      const radiusX = Math.min(element.width / 18, element.height * 0.36);
+      const drumX = element.width * 0.625;
+      const topY = element.height / 2 - radiusX * 0.46;
+      const x = target === "empty"
+        ? element.width * 0.375
+        : target === "head"
+          ? drumX - radiusX * 0.45
+          : drumX;
+      const y = target === "head"
+        ? topY
+        : element.height / 2 + (target === "rim" ? 32 : 0);
       const context = element.getContext("2d");
       if (!context) {
         throw new Error("Canvas context unavailable.");
@@ -201,6 +232,26 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
       }
       return lowestY;
     }, null);
+  const hiHatStandTopY = () =>
+    midiOverlay.evaluate<number, null, HTMLCanvasElement>((element) => {
+      const context = element.getContext("2d");
+      if (!context) {
+        throw new Error("Canvas context unavailable.");
+      }
+      const x = Math.round(element.width * 0.875);
+      for (let y = 0; y < element.height / 2; y += 1) {
+        const pixel = context.getImageData(x, y, 1, 1).data;
+        if (
+          pixel[0] === 184 &&
+          pixel[1] === 184 &&
+          pixel[2] === 184 &&
+          pixel[3] === 255
+        ) {
+          return y;
+        }
+      }
+      return -1;
+    }, null);
 
   await page.evaluate(() => {
     for (let pulse = 0; pulse < 24; pulse += 1) {
@@ -221,7 +272,9 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   expect(await drumHitPixel("hi-hat")).toEqual([255, 140, 0, 255]);
   expect(await drumHitPixel("hi-hat-lower")).toEqual([255, 140, 0, 255]);
   const restingStickY = await snareStickTipY();
+  const openHiHatStandTopY = await hiHatStandTopY();
   expect(restingStickY).toBeGreaterThan(0);
+  expect(openHiHatStandTopY).toBeGreaterThan(0);
 
   await page.evaluate(() => globalThis.testMidi?.emit("start"));
   await expect(canvas).toHaveAttribute("data-text", "");
@@ -239,6 +292,7 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   await expect(midiOverlay).toHaveAttribute("data-bass-beater-progress", "1");
   expect(await drumHitPixel("bass")).toEqual([51, 51, 51, 255]);
   expect(await drumHitPixel("hi-hat")).toEqual([255, 140, 0, 255]);
+  expect(await hiHatStandTopY()).toBeGreaterThan(openHiHatStandTopY);
 
   await page.evaluate(() => {
     const bpm = 123.6;
@@ -253,6 +307,7 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
   await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true");
   await expect(midiOverlay).toHaveAttribute("data-hi-hat-closure", "0");
   expect(await drumHitPixel("bass")).toEqual([51, 51, 51, 255]);
+  expect(await hiHatStandTopY()).toBe(openHiHatStandTopY);
   await expect(midiOverlay).toHaveAttribute("data-snare-side", "right");
   expect(await snareHitPixel("empty")).toEqual([0, 0, 0, 0]);
   expect(await snareStickTipY()).toBe(restingStickY);
@@ -958,4 +1013,102 @@ test("selects the dashed T and draws ten horizontal bars", async ({ page }) => {
   await expect(canvas).toHaveAttribute("data-font", "core");
   await expect.poll(() => new URL(page.url()).searchParams.get("font"))
     .toBeNull();
+});
+
+async function expectDashedGlyphPixelContract(
+  page: Page,
+  letter: string,
+  pixelContract: GlyphPixelContract,
+) {
+  await page.goto(
+    `/tda.html?text=${letter}&font=dashed&lightShow=false&animationDurationMs=100`,
+  );
+  const canvas = page.locator("#canvas");
+
+  await expect(canvas).toHaveAttribute("data-letter-animation-state", "complete");
+
+  const pixels = await canvas.evaluate<
+    { required: boolean[]; forbidden: boolean[] },
+    GlyphPixelContract,
+    HTMLCanvasElement
+  >((element, pixelContract) => {
+    const context = element.getContext("2d");
+    if (!context) throw new Error("Canvas context unavailable.");
+    const size = element.width / 3;
+    const start = size;
+    const hasGreenPixel = ([x, y]: [number, number]) => {
+      const data = context.getImageData(
+        Math.round(start + x * size) - 2,
+        Math.round(start + y * size) - 2,
+        5,
+        5,
+      ).data;
+
+      for (let index = 0; index < data.length; index += 4) {
+        if (data[index + 1] > 200 && data[index] < 100 && data[index + 2] < 100) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    return {
+      required: pixelContract.required.map(hasGreenPixel),
+      forbidden: pixelContract.forbidden.map(hasGreenPixel),
+    };
+  }, pixelContract);
+
+  expect(pixels.required).toEqual(
+    Array<boolean>(pixelContract.required.length).fill(true),
+  );
+  expect(pixels.forbidden).toEqual(
+    Array<boolean>(pixelContract.forbidden.length).fill(false),
+  );
+}
+
+test("draws dashed D with a stem, bowl, and open counter", async ({ page }) => {
+  await expectDashedGlyphPixelContract(page, "D", dashedDDefinition.pixelContract);
+});
+
+test("draws dashed E with three full bars and a left stem", async ({ page }) => {
+  await expectDashedGlyphPixelContract(page, "E", dashedEDefinition.pixelContract);
+});
+
+test("draws dashed F with top and middle bars and a left stem", async ({ page }) => {
+  await expectDashedGlyphPixelContract(page, "F", dashedFDefinition.pixelContract);
+});
+
+test("draws dashed G with an open bowl and inset crossbar", async ({ page }) => {
+  await expectDashedGlyphPixelContract(page, "G", dashedGDefinition.pixelContract);
+});
+
+test("draws dashed H with two stems and a central crossbar", async ({ page }) => {
+  await expectDashedGlyphPixelContract(page, "H", dashedHDefinition.pixelContract);
+});
+
+test("draws every remaining dashed alphabet glyph", async ({ page }) => {
+  test.setTimeout(60_000);
+  const remainingDefinitions = [
+    ["I", dashedIDefinition],
+    ["J", dashedJDefinition],
+    ["K", dashedKDefinition],
+    ["L", dashedLDefinition],
+    ["M", dashedMDefinition],
+    ["N", dashedNDefinition],
+    ["O", dashedODefinition],
+    ["P", dashedPDefinition],
+    ["Q", dashedQDefinition],
+    ["R", dashedRDefinition],
+    ["S", dashedSDefinition],
+    ["U", dashedUDefinition],
+    ["V", dashedVDefinition],
+    ["W", dashedWDefinition],
+    ["X", dashedXDefinition],
+    ["Y", dashedYDefinition],
+    ["Z", dashedZDefinition],
+  ] as const;
+
+  for (const [letter, definition] of remainingDefinitions) {
+    await expectDashedGlyphPixelContract(page, letter, definition.pixelContract);
+  }
 });

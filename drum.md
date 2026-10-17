@@ -51,8 +51,10 @@ The visibility windows within one bar are therefore:
 - The hi-hat is centred in the right zone at 87.5%. A vertical grey stand runs
   through an orange, shallow bell-shaped upper cymbal and an identical lower
   cymbal reflected beneath it. Both cymbals have black outlines. They move
-  symmetrically toward the centre to touch on a hit, then return to their
-  open positions; the stand does not move.
+  symmetrically toward the centre to touch on a hit, then return to a compact
+  open position. The open gap is half the original spacing. As the cymbals
+  close, the top of the stand retracts downward by the same distance that
+  each cymbal travels; the lower end of the stand stays fixed.
 - The snare and hi-hat have two-pixel black outlines.
 
 The dice sits directly below the drum overlay inside the same black canvas

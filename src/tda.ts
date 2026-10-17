@@ -28,7 +28,32 @@ import {
   threeDefinition,
   bDefinition,
   cDefinition,
+  dashedADefinition,
+  dashedBDefinition,
+  dashedCDefinition,
+  dashedDDefinition,
+  dashedEDefinition,
+  dashedFDefinition,
+  dashedGDefinition,
+  dashedHDefinition,
+  dashedIDefinition,
+  dashedJDefinition,
+  dashedKDefinition,
+  dashedLDefinition,
+  dashedMDefinition,
+  dashedNDefinition,
+  dashedODefinition,
+  dashedPDefinition,
+  dashedQDefinition,
+  dashedRDefinition,
+  dashedSDefinition,
   dashedTDefinition,
+  dashedUDefinition,
+  dashedVDefinition,
+  dashedWDefinition,
+  dashedXDefinition,
+  dashedYDefinition,
+  dashedZDefinition,
   eDefinition,
   fDefinition,
   getBezierPoint,
@@ -287,12 +312,14 @@ function drawHiHat(closure: number) {
   const y = midiOverlay.height / 2;
   const radiusX = Math.min(width / 32, midiOverlay.height * 0.3);
   const domeHeight = radiusX * 0.42;
-  const gap = radiusX * 0.35 * (1 - closure);
+  const openGap = radiusX * 0.175;
+  const gap = openGap * (1 - closure);
+  const standTop = y - radiusX * 1.35 + openGap * closure;
 
   midiOverlayContext.strokeStyle = "#b8b8b8";
   midiOverlayContext.lineWidth = 3;
   midiOverlayContext.beginPath();
-  midiOverlayContext.moveTo(x, y - radiusX * 1.35);
+  midiOverlayContext.moveTo(x, standTop);
   midiOverlayContext.lineTo(x, y + radiusX * 1.35);
   midiOverlayContext.stroke();
 
@@ -860,6 +887,34 @@ let letterAnimationStepScale = animationTiming.letterStepScale;
 let lightShowAnimationStepScale = animationTiming.lightShowStepScale;
 const query = new URLSearchParams(window.location.search);
 type FontName = "core" | "dashed";
+const dashedDefinitionsByLetter: Record<string, DashedGlyphDefinition> = {
+  A: dashedADefinition,
+  B: dashedBDefinition,
+  C: dashedCDefinition,
+  D: dashedDDefinition,
+  E: dashedEDefinition,
+  F: dashedFDefinition,
+  G: dashedGDefinition,
+  H: dashedHDefinition,
+  I: dashedIDefinition,
+  J: dashedJDefinition,
+  K: dashedKDefinition,
+  L: dashedLDefinition,
+  M: dashedMDefinition,
+  N: dashedNDefinition,
+  O: dashedODefinition,
+  P: dashedPDefinition,
+  Q: dashedQDefinition,
+  R: dashedRDefinition,
+  S: dashedSDefinition,
+  T: dashedTDefinition,
+  U: dashedUDefinition,
+  V: dashedVDefinition,
+  W: dashedWDefinition,
+  X: dashedXDefinition,
+  Y: dashedYDefinition,
+  Z: dashedZDefinition,
+};
 let selectedFont: FontName = query.get("font") === "dashed" ? "dashed" : "core";
 fontSelect.value = selectedFont;
 canvas.dataset.font = selectedFont;
@@ -1496,9 +1551,9 @@ class DashedGlyph extends Letter {
       if (visibleWidth > 0) {
         ctx.fillRect(
           this.startX + bar.x * this.letterWidth,
-          this.startY + bar.y * this.letterHeight,
+          this.startY + bar.y * this.letterHeight - ctx.lineWidth / 2,
           visibleWidth,
-          bar.height * this.letterHeight,
+          ctx.lineWidth,
         );
       }
     });
@@ -2569,6 +2624,15 @@ function startWordAnimation(wordIndex: number) {
       finishLetter(wordIndex);
     };
 
+    const dashedDefinition = selectedFont === "dashed"
+      ? dashedDefinitionsByLetter[letter]
+      : undefined;
+    if (dashedDefinition) {
+      new DashedGlyph(width, height, index, dashedDefinition, onComplete)
+        .animationFunc();
+      return;
+    }
+
     if (letter === "'" || letter === "’") {
       new DeclarativeGlyph(
         width,
@@ -2626,12 +2690,7 @@ function startWordAnimation(wordIndex: number) {
         onComplete,
       ).animationFunc();
     } else if (letter === "T") {
-      if (selectedFont === "dashed") {
-        new DashedGlyph(width, height, index, dashedTDefinition, onComplete)
-          .animationFunc();
-      } else {
-        new T1(width, height, index, onComplete).animationFunc();
-      }
+      new T1(width, height, index, onComplete).animationFunc();
     } else if (letter === "D") {
       new D1(width, height, index, onComplete).animationFunc();
     } else if (letter === "A") {
