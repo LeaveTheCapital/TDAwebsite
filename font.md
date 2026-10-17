@@ -81,3 +81,7 @@ Initially these can be eacy of a solid colour and we'll set it up so that all th
 drawn from left to rigth, all at the same time initially. and all at the same speed, so that the longer lines take longer to finish than
 the shorter lines. 
 Initial colour can be the same luminous green used on the dice.
+
+### 7 segment style
+Old fashioned 7 segment font.
+exmaple font here, installed in windows. https://www.dafont.com/seven-segment.font

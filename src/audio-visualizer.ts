@@ -1,3 +1,5 @@
+import { setCanvasResolution } from "./canvas-resolution.ts";
+
 function required<T>(value: T | null, message: string): T {
   if (value === null) throw new Error(message);
   return value;
@@ -38,6 +40,7 @@ const defaultInputId = "default";
 const captionLanguage = "en-US";
 const width = canvas.width;
 const height = canvas.height;
+setCanvasResolution(canvas, context, width, height);
 let devices: MediaDeviceInfo[] = [];
 let permissionGranted = false;
 let activeStream: MediaStream | undefined;

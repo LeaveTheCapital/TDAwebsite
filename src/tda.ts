@@ -13,6 +13,7 @@ import {
   setLightShowDurationMs,
 } from "./animation-timing.ts";
 import "./dice.ts";
+import { getCanvasImageData, putCanvasImageData, setCanvasResolution } from "./canvas-resolution.ts";
 import {
   beatsPerBar,
   getDrumPatternState,
@@ -92,6 +93,7 @@ import {
 
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
+const logicalCanvasWidth = canvas.width;
 const startFakeMidiButton = getButton("#start-fake-midi");
 const stopFakeMidiButton = getButton("#stop-fake-midi");
 const strokeWidthInput = getRangeInput("#stroke-width");
@@ -235,12 +237,12 @@ function drawDrumFrame(
   hiHatClosure = 0,
   bassHitVisible = false,
 ) {
-  midiOverlayContext.clearRect(0, 0, midiOverlay.width, midiOverlay.height);
+  midiOverlayContext.clearRect(0, 0, width, midiOverlayHeight);
   drawBassDrum(bassBeaterProgress);
   midiOverlay.dataset.bassDrumVisible = "true";
   midiOverlay.dataset.bassDrumHitVisible = String(bassHitVisible);
   midiOverlay.dataset.bassBeaterProgress = String(bassBeaterProgress);
-  drawSnareDrum(width * 0.625, midiOverlay.height / 2, strike);
+  drawSnareDrum(width * 0.625, midiOverlayHeight / 2, strike);
   midiOverlay.dataset.snareVisible = "true";
   midiOverlay.dataset.snareSide = "right";
   drawHiHat(hiHatClosure);
@@ -249,9 +251,9 @@ function drawDrumFrame(
 }
 
 function drawBassDrum(beaterProgress: number) {
-  const x = width * 0.125;
-  const y = midiOverlay.height / 2;
-  const radius = Math.min(width / 32, midiOverlay.height / 4);
+  const x = width * 0.5;
+  const y = midiOverlayHeight / 2;
+  const radius = Math.min(width / 32, midiOverlayHeight / 4);
   const faceX = x + radius * 0.4;
   const faceRadiusX = radius * 0.76;
   const faceRadiusY = radius * 1.1;
@@ -308,9 +310,9 @@ function drawBassDrum(beaterProgress: number) {
 }
 
 function drawHiHat(closure: number) {
-  const x = width * 0.875;
-  const y = midiOverlay.height / 2;
-  const radiusX = Math.min(width / 32, midiOverlay.height * 0.3);
+  const x = width * 0.735;
+  const y = midiOverlayHeight / 2;
+  const radiusX = Math.min(width / 32, midiOverlayHeight * 0.3);
   const domeHeight = radiusX * 0.42;
   const openGap = radiusX * 0.175;
   const gap = openGap * (1 - closure);
@@ -351,7 +353,7 @@ function drawHiHat(closure: number) {
 }
 
 function drawSnareDrum(x: number, centreY: number, strike = 0) {
-  const radiusX = Math.min(midiOverlay.width / 18, midiOverlay.height * 0.36);
+  const radiusX = Math.min(width / 18, midiOverlayHeight * 0.36);
   const radiusY = radiusX * 0.28;
   const topY = centreY - radiusX * 0.46;
   const bottomY = centreY + radiusX * 0.44;
@@ -371,7 +373,7 @@ function drawSnareDrum(x: number, centreY: number, strike = 0) {
   );
   midiOverlayContext.lineTo(x + radiusX, topY);
   midiOverlayContext.closePath();
-  midiOverlayContext.fillStyle = "white";
+  midiOverlayContext.fillStyle = "#c9362b";
   midiOverlayContext.fill();
   midiOverlayContext.stroke();
 
@@ -1051,7 +1053,7 @@ function clearAnimatedText() {
   stopFlashing = true;
   textInput.value = "";
   resizeTextInput();
-  ctx.clearRect(0, 0, width, canvas.height);
+  ctx.clearRect(0, 0, width, height);
   canvas.dataset.text = "";
   canvas.dataset.animationState = "empty";
   canvas.dataset.letterAnimationState = "empty";
@@ -1183,7 +1185,7 @@ function advanceTowards(current: number, step: number, endPoint: number) {
   return Math.min(current + step * letterAnimationStepScale, endPoint);
 }
 
-const width = canvas.width;
+const width = logicalCanvasWidth;
 let longestLineLength = Math.max(
   1,
   ...wrappedLines.map((line) => segmentText(line).length),
@@ -1193,8 +1195,8 @@ let paddingAroundLetters =
   (width - longestLineLength * letterWidth) / (longestLineLength + 1);
 let lineHeight = letterWidth + 2 * paddingAroundLetters;
 
-canvas.height = Math.ceil(lineHeight * wrappedLines.length);
-let height = canvas.height;
+let height = Math.ceil(lineHeight * wrappedLines.length);
+setCanvasResolution(canvas, ctx, width, height);
 
 interface LetterLayout {
   x: number;
@@ -1223,8 +1225,9 @@ canvas.dataset.letterAnimationState = "running";
 canvas.dataset.text = requestedText;
 canvas.dataset.lineCount = String(wrappedLines.length);
 const midiOverlay = getCanvas("#midi-overlay");
-midiOverlay.width = canvas.width;
 const midiOverlayContext = getCanvasContext(midiOverlay);
+const midiOverlayHeight = midiOverlay.height;
+setCanvasResolution(midiOverlay, midiOverlayContext, width, midiOverlayHeight);
 midiOverlay.dataset.bassDrumVisible = "false";
 midiOverlay.dataset.snareVisible = "false";
 midiOverlay.dataset.hiHatVisible = "false";
@@ -1261,8 +1264,10 @@ function updateTextLayout(text: string) {
   paddingAroundLetters =
     (width - longestLineLength * letterWidth) / (longestLineLength + 1);
   lineHeight = letterWidth + 2 * paddingAroundLetters;
-  canvas.height = Math.ceil(lineHeight * wrappedLines.length);
-  height = canvas.height;
+  height = Math.ceil(lineHeight * wrappedLines.length);
+  setCanvasResolution(canvas, ctx, width, height);
+  ctx.lineCap = "square";
+  ctx.lineWidth = requestedLineWidth;
   letterLayouts = wrappedLines.flatMap((line, lineIndex) => {
     const lineCharacters = segmentText(line);
     const contentWidth =
@@ -2198,7 +2203,7 @@ class A1 extends Letter {
       Math.max(0, this.aStartCoords[0] - imageMargin),
       Math.max(0, this.aStartCoords[1] - imageMargin),
     ];
-    this.imageData = ctx.getImageData(
+    this.imageData = getCanvasImageData(ctx,
       this.imageStart[0],
       this.imageStart[1],
       Math.min(
@@ -2207,13 +2212,13 @@ class A1 extends Letter {
       ),
       Math.min(
         this.letterHeight + 2 * imageMargin,
-        canvas.height - this.imageStart[1],
+        height - this.imageStart[1],
       ),
     );
   }
 
   drawA1() {
-    ctx.putImageData(
+    putCanvasImageData(ctx,
       this.imageData,
       this.imageStart[0],
       this.imageStart[1],
@@ -2256,7 +2261,7 @@ class A1 extends Letter {
   }
 }
 
-let finalImage = ctx.getImageData(0, 0, width, canvas.height);
+let finalImage = getCanvasImageData(ctx, 0, 0, width, height);
 
 class A2 extends Letter {
   declare aXEndFinal: number;
@@ -2323,9 +2328,9 @@ class A2 extends Letter {
     this.rowTop = Math.floor(lineIndex * lineHeight);
     const rowBottom =
       lineIndex === wrappedLines.length - 1
-        ? canvas.height
+        ? height
         : Math.floor((lineIndex + 1) * lineHeight);
-    this.rowImage = ctx.getImageData(
+    this.rowImage = getCanvasImageData(ctx,
       0,
       this.rowTop,
       width,
@@ -2370,7 +2375,7 @@ class A2 extends Letter {
   }
 
   drawA2() {
-    ctx.putImageData(this.rowImage, 0, this.rowTop);
+    putCanvasImageData(ctx, this.rowImage, 0, this.rowTop);
     const animationDistance = Math.min(
       this.aXEndFinal,
       this.aXEndPointFinal
@@ -2448,7 +2453,7 @@ function finishLetter(wordIndex: number) {
   }
 
   if (unfinishedLetters === 0) {
-    finalImage = ctx.getImageData(0, 0, width, canvas.height);
+    finalImage = getCanvasImageData(ctx, 0, 0, width, height);
     startTravellingCrossbars();
   }
 }
@@ -2484,7 +2489,7 @@ function animateNextTravellingCrossbar(lineQueue: number[]) {
 }
 
 function completeLetterPhase() {
-  finalImage = ctx.getImageData(0, 0, width, canvas.height);
+  finalImage = getCanvasImageData(ctx, 0, 0, width, height);
   canvas.dataset.letterAnimationState = "complete";
   canvas.dispatchEvent(new CustomEvent("letterscomplete"));
 
@@ -2568,7 +2573,7 @@ function startAnimation(lineWidth: number) {
   yEndLightShow = height * 1.5;
   time = 0;
 
-  ctx.clearRect(0, 0, width, canvas.height);
+  ctx.clearRect(0, 0, width, height);
   ctx.lineCap = "square";
   ctx.lineWidth = lineWidth;
   canvas.dataset.lineWidth = String(lineWidth);
@@ -2576,7 +2581,7 @@ function startAnimation(lineWidth: number) {
   canvas.dataset.letterAnimationState = "running";
   canvas.dataset.lightShowState = "pending";
 
-  finalImage = ctx.getImageData(0, 0, width, canvas.height);
+  finalImage = getCanvasImageData(ctx, 0, 0, width, height);
   travellingCrossbarIndexesByLine = wrappedLines.map(() => []);
   letters.forEach((letter, index) => {
     if (isTravellingCrossbarMarker(letter)) {
@@ -2998,7 +3003,7 @@ function lightShow() {
     console.log("finished light show");
     return;
   }
-  ctx.putImageData(finalImage, 0, 0);
+  putCanvasImageData(ctx, finalImage, 0, 0);
   ctx.save();
   ctx.globalCompositeOperation = "source-over";
 

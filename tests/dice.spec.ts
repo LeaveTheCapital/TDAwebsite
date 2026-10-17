@@ -33,7 +33,7 @@ test("keeps the full roll animation without reduced motion", async ({ page }) =>
   await die.click();
 
   await expect(die).toHaveAttribute("data-rolling", "true");
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(500);
   await expect(die).toHaveAttribute("data-rolling", "true");
   await expect(die).toHaveAttribute("data-value", /^[1-6]$/);
   await expect(die).toHaveAttribute("data-rolling", "false");

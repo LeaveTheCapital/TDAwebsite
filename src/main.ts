@@ -1,4 +1,8 @@
 import "../main.css";
+import { canvasScale, setCanvasResolution } from "./canvas-resolution.ts";
+
+const canvasWidth = (canvas: HTMLCanvasElement) => canvas.width / canvasScale;
+const canvasHeight = (canvas: HTMLCanvasElement) => canvas.height / canvasScale;
 
 const canvases = document.getElementsByClassName(
   "border-canvas",
@@ -26,10 +30,12 @@ for (let i = 0; i < absolutes.length; i++) {
 }
 
 for (let i = 0; i < absolutes.length; i++) {
-  const canvasWidth = Math.floor(vw / 4);
-  const canvasHeight = absolutes[i].offsetHeight;
-  canvases[i].width = canvasWidth;
-  canvases[i].height = canvasHeight;
+  setCanvasResolution(
+    canvases[i],
+    getCanvasContext(canvases[i]),
+    Math.floor(vw / 4),
+    absolutes[i].offsetHeight,
+  );
 }
 
 let alreadyAnimated = canvases.length;
@@ -56,7 +62,7 @@ function animateBorders(end: number, start = 0, identity = 0) {
     for (let j = alreadyAnimated + 1 || start; j < canvases.length; j++) {
       const c = canvases[j];
       const clearingContext = getCanvasContext(c);
-      clearingContext.clearRect(0, 0, c.width, c.height);
+      clearingContext.clearRect(0, 0, canvasWidth(c), canvasHeight(c));
     }
   }
   if (start > 0 && end > start) {
@@ -68,9 +74,9 @@ function animateBorders(end: number, start = 0, identity = 0) {
       drawBorderLines(
         drawingContext,
         cvs,
-        cvs.width,
-        cvs.height,
-        cvs.width,
+        canvasWidth(cvs),
+        canvasHeight(cvs),
+        canvasWidth(cvs),
         k,
         dun
       );
@@ -84,7 +90,7 @@ function animateBorders(end: number, start = 0, identity = 0) {
     done[i] = false;
     const canvas = canvases[i];
     const steps = 12;
-    const heightSteps = steps * (canvas.height / canvas.width);
+    const heightSteps = steps * (canvasHeight(canvas) / canvasWidth(canvas));
 
     const ctx = getCanvasContext(canvas);
 
@@ -95,37 +101,37 @@ function animateBorders(end: number, start = 0, identity = 0) {
         clearAll();
         return;
       }
-      if (iteratorBottom < canvas.width) {
+      if (iteratorBottom < canvasWidth(canvas)) {
         window.requestAnimationFrame(animateBorder);
       } else {
         console.log("done");
       }
       if (done[i - 1]) {
-        if (iteratorTop >= canvas.width) {
-          if (iteratorSide >= canvas.height && iteratorBottom < canvas.width) {
-            iteratorBottom += canvas.width / steps;
-            if (Math.abs(iteratorBottom - canvas.width) < 0.1) {
-              iteratorBottom = canvas.width;
+        if (iteratorTop >= canvasWidth(canvas)) {
+          if (iteratorSide >= canvasHeight(canvas) && iteratorBottom < canvasWidth(canvas)) {
+            iteratorBottom += canvasWidth(canvas) / steps;
+            if (Math.abs(iteratorBottom - canvasWidth(canvas)) < 0.1) {
+              iteratorBottom = canvasWidth(canvas);
             }
           }
-          if (iteratorSide < canvas.height) {
-            iteratorSide += canvas.height / heightSteps;
+          if (iteratorSide < canvasHeight(canvas)) {
+            iteratorSide += canvasHeight(canvas) / heightSteps;
             if (
-              Math.abs(iteratorSide - canvas.height) < 0.1 ||
-              iteratorSide > canvas.height
+              Math.abs(iteratorSide - canvasHeight(canvas)) < 0.1 ||
+              iteratorSide > canvasHeight(canvas)
             ) {
-              iteratorSide = canvas.height;
+              iteratorSide = canvasHeight(canvas);
             }
           }
         }
-        if (iteratorTop < canvas.width) {
-          iteratorTop += canvas.width / steps;
-          if (Math.abs(iteratorTop - canvas.width) < 0.1) {
-            iteratorTop = canvas.width;
+        if (iteratorTop < canvasWidth(canvas)) {
+          iteratorTop += canvasWidth(canvas) / steps;
+          if (Math.abs(iteratorTop - canvasWidth(canvas)) < 0.1) {
+            iteratorTop = canvasWidth(canvas);
           }
         }
         if (i !== 0) {
-          iteratorTop = canvas.width;
+          iteratorTop = canvasWidth(canvas);
         }
 
         drawBorderLines(
@@ -155,8 +161,8 @@ function drawBorderLines(
     i * (360 / canvases.length) + 30
   }, 100%, 50%)`;
   console.log({ colour });
-  const leftOrRight = i % 2 === 0 ? canvas.width : 0;
-  const rightOrLeft = i % 2 === 1 ? canvas.width : 0;
+  const leftOrRight = i % 2 === 0 ? canvasWidth(canvas) : 0;
+  const rightOrLeft = i % 2 === 1 ? canvasWidth(canvas) : 0;
 
   const isLeftBorder = i % 2 === 1;
 
@@ -164,26 +170,26 @@ function drawBorderLines(
 
   ctx.moveTo(rightOrLeft, 0);
   if (i === 0) {
-    ctx.lineTo(isLeftBorder ? canvas.width - iteratorTop : iteratorTop, 0);
-    ctx.lineTo(isLeftBorder ? canvas.width - iteratorTop : iteratorTop, 0);
+    ctx.lineTo(isLeftBorder ? canvasWidth(canvas) - iteratorTop : iteratorTop, 0);
+    ctx.lineTo(isLeftBorder ? canvasWidth(canvas) - iteratorTop : iteratorTop, 0);
   } else {
-    ctx.moveTo(isLeftBorder ? canvas.width - iteratorTop : iteratorTop, 0);
+    ctx.moveTo(isLeftBorder ? canvasWidth(canvas) - iteratorTop : iteratorTop, 0);
   }
 
-  if (iteratorTop === canvas.width) {
+  if (iteratorTop === canvasWidth(canvas)) {
     ctx.lineTo(leftOrRight, iteratorSide);
     ctx.lineTo(leftOrRight, iteratorSide);
-    if (iteratorSide === canvas.height) {
+    if (iteratorSide === canvasHeight(canvas)) {
       ctx.lineTo(
-        isLeftBorder ? iteratorBottom : canvas.width - iteratorBottom,
-        canvas.height
+        isLeftBorder ? iteratorBottom : canvasWidth(canvas) - iteratorBottom,
+        canvasHeight(canvas)
       );
       ctx.lineTo(
-        isLeftBorder ? iteratorBottom : canvas.width - iteratorBottom,
-        canvas.height
+        isLeftBorder ? iteratorBottom : canvasWidth(canvas) - iteratorBottom,
+        canvasHeight(canvas)
       );
     }
-    if (iteratorBottom === canvas.width) {
+    if (iteratorBottom === canvasWidth(canvas)) {
       done[i] = true;
     }
   }
@@ -191,10 +197,10 @@ function drawBorderLines(
   const getColour = (step: number) =>
     `hsl(${i * (360 / canvases.length) + step}, 100%, 50%)`;
   const grad = ctx.createLinearGradient(
-    canvas.width / 2,
+    canvasWidth(canvas) / 2,
     0,
-    (canvas.width * 3) / 6,
-    canvas.height
+    (canvasWidth(canvas) * 3) / 6,
+    canvasHeight(canvas)
   );
   grad.addColorStop(0, getColour(20));
   grad.addColorStop(1, getColour(90));
@@ -221,9 +227,8 @@ function animatePersonalProjects() {
   }
 
   const ctx = getCanvasContext(canvas);
-
-  const width = canvas.width;
-  const height = canvas.height;
+  const { width, height } = canvas.getBoundingClientRect();
+  setCanvasResolution(canvas, ctx, width, height);
 
   let x = 0;
   let y = 0;

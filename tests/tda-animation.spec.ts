@@ -201,7 +201,7 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
           : drumX;
       const y = target === "head"
         ? topY
-        : element.height / 2 + (target === "rim" ? 32 : 0);
+        : element.height / 2 + (target === "rim" ? radiusX * 0.64 : 0);
       const context = element.getContext("2d");
       if (!context) {
         throw new Error("Canvas context unavailable.");
@@ -471,7 +471,7 @@ test("runs the MIDI clock and song sections", async ({ page }, testInfo) => {
 
   const heading = page.locator("h1");
   await expect(heading).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  await expect(heading).toHaveCSS("color", "rgb(0, 255, 100)");
+  await expect(heading).toHaveCSS("color", "rgb(57, 255, 20)");
   await expect(heading).toHaveCSS("font-family", /sans-serif/);
 
   const drawnPixelCount = await canvas.evaluate<

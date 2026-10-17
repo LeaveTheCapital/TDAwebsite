@@ -133,6 +133,7 @@ between pulses, but never changes which pulse triggers an instrument.
 pulse across two complete bars, including all onsets, visibility windows, bar
 repetition, and both snare hits. Run it with `npm run test:unit`.
 
-Playwright tests should cover browser integration only: MIDI messages reaching
-the transport, canvas pixels using the expected colours, and clearing on pause
+Playwright tests are mainly there to be able to create a visual of the journey which can be uploaded as evidence for the Henry(TDA) to review.
+They should cover browser integration only: MIDI messages reaching
+the transport, visual elements being present (but no need to assert on colour as this can be changed for creative reasons at any time) , and clearing on pause
 or stop. Do not duplicate the full pulse table in browser tests.
