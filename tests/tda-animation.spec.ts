@@ -32,6 +32,31 @@ import {
   type GlyphPixelContract,
 } from "../src/glyphs.ts";
 
+test("toggles the developer controls with q", async ({ page }) => {
+  await page.goto("/tda.html");
+  const developerControls = page.locator("#developer-controls");
+  const sectionDetails = page.locator("#developer-section-details");
+
+  await expect(developerControls).toBeVisible();
+  await expect(sectionDetails).toBeVisible();
+  await expect(page.locator("body")).toHaveAttribute("data-developer-mode", "true");
+
+  await page.keyboard.press("q");
+  await expect(developerControls).toBeHidden();
+  await expect(sectionDetails).toBeHidden();
+  await expect(page.locator("body")).toHaveAttribute("data-developer-mode", "false");
+
+  await page.keyboard.press("Q");
+  await expect(developerControls).toBeVisible();
+  await expect(sectionDetails).toBeVisible();
+
+  const textInput = page.locator("#text-input");
+  await textInput.focus();
+  await page.keyboard.press("q");
+  await expect(textInput).toHaveValue(/q$/);
+  await expect(developerControls).toBeVisible();
+});
+
 test("uses live speech text when selected beside the song title", async ({ page }) => {
   await page.goto("/tda.html?text=HELLO&animationDurationMs=1000");
   const canvas = page.locator("#canvas");
@@ -932,6 +957,7 @@ test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) 
   const clockBpm = page.locator("#clock-bpm");
   const songName = page.locator("#song-name");
   const sectionId = page.locator("#section-id");
+  const sectionNotes = page.locator("#section-notes");
   const midiDevice = page.locator("#midi-device");
 
   await expect(startButton).toBeVisible();
@@ -946,6 +972,7 @@ test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) 
   );
   await expect(songName).toHaveText("Song: mugs game");
   await expect(sectionId).toHaveText("Section: –");
+  await expect(sectionNotes).toHaveText("Notes: –");
   await expect(startButton).toBeEnabled();
   await startButton.click();
   await expect(startButton).toBeDisabled();
@@ -975,6 +1002,13 @@ test("offers a 120 BPM MIDI clock when no input is available", async ({ page }) 
   await page.waitForTimeout(600);
   await expect(midiOverlay).toHaveAttribute("data-bass-drum-visible", "true");
   await expect(midiOverlay).toHaveAttribute("data-hi-hat-visible", "true");
+
+  await page.getByRole("button", { name: "gcses" }).click();
+  await startButton.click();
+  await expect(songName).toHaveText("Song: gcses");
+  await expect(sectionId).toHaveText("Section: Intro");
+  await expect(sectionNotes).toHaveText("Notes: drum intro");
+  await stopButton.click();
   expect(browserErrors).toEqual([]);
 });
 

@@ -134,6 +134,26 @@ canvas {
   pointer-events: none;
 }
 
+.section-details {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 1rem;
+  padding: 0.5rem;
+  background: black;
+  color: turquoise;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
+}
+
+.section-details output {
+  white-space: nowrap;
+}
+
+.section-details[hidden] {
+  display: none;
+}
+
 .audio-monitor {
   background: black;
   color: turquoise;

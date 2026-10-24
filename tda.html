@@ -19,6 +19,11 @@
             </svg>
         </div>
         <canvas id="canvas" width="900" height="400"></canvas>
+        <div id="developer-section-details" class="section-details" aria-label="Active song section" aria-live="polite">
+            <output id="song-name">Song: –</output>
+            <output id="section-id">Section: –</output>
+            <output id="section-notes">Notes: –</output>
+        </div>
         <canvas id="midi-overlay" class="midi-overlay" width="900" height="140" aria-label="Drum animation"></canvas>
         <div class="dice-container">
             <button id="roll-die" class="dice-button" type="button" aria-label="Roll the die">
@@ -27,6 +32,55 @@
             <output id="dice-result" class="dice-result" aria-live="polite">Click the dice to roll</output>
         </div>
     </div>
+    <div class="transport-status" role="status" aria-label="MIDI clock status">
+        <output id="transport-position">Bar – · Beat –</output>
+        <output id="clock-bpm">– BPM</output>
+        <span class="song-status">
+            <button id="use-speech-text" type="button" aria-pressed="false">Use speech text</button>
+        </span>
+        <output id="midi-device">MIDI: No device</output>
+        <select id="midi-input" aria-label="Choose MIDI input" disabled>
+            <option value="">No MIDI inputs</option>
+        </select>
+    </div>
+    <section id="developer-controls" aria-label="Developer controls" aria-keyshortcuts="Q">
+        <div class="canvas-control stroke-width-control">
+            <label for="stroke-width">Line thickness</label>
+            <input id="stroke-width" type="range" min="0.1" max="5" step="0.1" value="2">
+            <output id="stroke-width-value" for="stroke-width">2 px</output>
+        </div>
+        <div class="canvas-control letter-duration-control">
+            <label for="letter-duration">Letter phase</label>
+            <input id="letter-duration" type="range" min="1" max="10" step="1" value="4">
+            <output id="letter-duration-value" for="letter-duration">4 seconds</output>
+        </div>
+        <div class="canvas-control light-show-duration-control">
+            <label for="light-show-duration">Light show</label>
+            <input id="light-show-duration" type="range" min="1" max="10" step="1" value="10">
+            <output id="light-show-duration-value" for="light-show-duration">10 seconds</output>
+        </div>
+        <div class="canvas-control dice-duration-control">
+            <label for="dice-duration">Dice roll</label>
+            <input id="dice-duration" type="range" min="1" max="10" step="1" value="4">
+            <output id="dice-duration-value" for="dice-duration">4 seconds</output>
+        </div>
+        <div class="canvas-control font-control">
+            <label for="font-select">Font</label>
+            <select id="font-select">
+                <option value="core">core</option>
+                <option value="dashed">dashed</option>
+            </select>
+        </div>
+        <div class="fake-midi-controls">
+            <button id="start-fake-midi" type="button" hidden>start fake midi timer</button>
+            <button id="stop-fake-midi" type="button" hidden disabled>stop fake midi timer</button>
+        </div>
+        <div class="canvas-control text-control">
+            <label for="text-input">Text</label>
+            <input id="text-input" type="text" size="3">
+            <div id="song-buttons" class="song-buttons" role="group" aria-label="MIDI songs"></div>
+        </div>
+    </section>
     <section class="audio-monitor" aria-label="Live audio input">
         <div class="audio-controls">
             <button id="enable-audio" type="button">Enable audio</button>
@@ -46,55 +100,6 @@
         </div>
         <div id="captions" class="captions" aria-live="polite" aria-label="Live captions"></div>
     </section>
-    <div class="transport-status" role="status" aria-label="MIDI clock status">
-        <output id="transport-position">Bar – · Beat –</output>
-        <output id="clock-bpm">– BPM</output>
-        <span class="song-status">
-            <output id="song-name">Song: –</output>
-            <button id="use-speech-text" type="button" aria-pressed="false">Use speech text</button>
-        </span>
-        <output id="section-id">Section: –</output>
-        <output id="midi-device">MIDI: No device</output>
-        <select id="midi-input" aria-label="Choose MIDI input" disabled>
-            <option value="">No MIDI inputs</option>
-        </select>
-    </div>
-    <div class="canvas-control stroke-width-control">
-        <label for="stroke-width">Line thickness</label>
-        <input id="stroke-width" type="range" min="0.1" max="5" step="0.1" value="2">
-        <output id="stroke-width-value" for="stroke-width">2 px</output>
-    </div>
-    <div class="canvas-control letter-duration-control">
-        <label for="letter-duration">Letter phase</label>
-        <input id="letter-duration" type="range" min="1" max="10" step="1" value="4">
-        <output id="letter-duration-value" for="letter-duration">4 seconds</output>
-    </div>
-    <div class="canvas-control light-show-duration-control">
-        <label for="light-show-duration">Light show</label>
-        <input id="light-show-duration" type="range" min="1" max="10" step="1" value="10">
-        <output id="light-show-duration-value" for="light-show-duration">10 seconds</output>
-    </div>
-    <div class="canvas-control dice-duration-control">
-        <label for="dice-duration">Dice roll</label>
-        <input id="dice-duration" type="range" min="1" max="10" step="1" value="4">
-        <output id="dice-duration-value" for="dice-duration">4 seconds</output>
-    </div>
-    <div class="canvas-control font-control">
-        <label for="font-select">Font</label>
-        <select id="font-select">
-            <option value="core">core</option>
-            <option value="dashed">dashed</option>
-        </select>
-    </div>
-    <div class="fake-midi-controls">
-        <button id="start-fake-midi" type="button" hidden>start fake midi timer</button>
-        <button id="stop-fake-midi" type="button" hidden disabled>stop fake midi timer</button>
-    </div>
-    <div class="canvas-control text-control">
-        <label for="text-input">Text</label>
-        <input id="text-input" type="text" size="3">
-        <div id="song-buttons" class="song-buttons" role="group" aria-label="MIDI songs"></div>
-    </div>
 
     <script type="module" src="/src/tda.ts"></script>
 </body>

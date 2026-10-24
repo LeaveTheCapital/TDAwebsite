@@ -1,8 +1,11 @@
+/* eslint-disable sourcePolicy/no-comments */
 export interface SongSection {
   id: string;
   bars: number;
   beats: number;
   lyrics: string | null;
+  notes?: string;
+  tonverk?: string;
 }
 
 export interface Song {
@@ -41,30 +44,60 @@ export const songsByProgram = new Map<number, Song>([
     {
       name: "gcses",
       sections: [
-        { id: "Intro", bars: 2, beats: 0, lyrics: null },
+        { id: "Intro", bars: 4, beats: 0, lyrics: null, notes: "drum intro", tonverk: 'section A bars 1-4 of 16' }, // Tonverk 
+        { id: "Piano Intro", bars: 8, beats: 0, lyrics: null, notes: "drum and piano intro" },
         {
           id: "Verse 1",
-          bars: 28,
+          bars: 8,
           beats: 0,
-          lyrics: `{2}I've got 11 GCSEs {2}
-It's easy for you, it's easy for me {2}
-Don't have time for anything else {2}
+          lyrics: `{2}I've got 11 GCSEs{2}
+It's easy for you, it's easy for me{2}
+Don't have time for anything else{2}
 Like extra-curricular activities`,
         },
         {
           id: "Instrumental Interlude",
-          bars: 2,
+          bars: 4,
           beats: 0,
           lyrics: null,
         },
         {
           id: "Verse 2",
-          bars: 2,
+          bars: 4,
           beats: 0,
-          lyrics: `I don't put it on my CV,
-Doesn't matter to you doesn't matter to me
-Building on your progress
-On your progress`,
+          lyrics: `{2}I don't put it on my CV,
+{2}Doesn't matter to you, doesn't matter to me`,
+        },
+        {
+          id: "Instrumental Interlude",
+          bars: 4,
+          beats: 0,
+          lyrics: null,
+        },
+        {
+          id: "Verse 2",
+          bars: 4,
+          beats: 0,
+          lyrics: `{2}I don't put it on my CV,
+{2}Doesn't matter to you, doesn't matter to me`,
+        },
+        {
+          id: "Instrumental Interlude",
+          bars: 4,
+          beats: 0,
+          lyrics: null,
+        },
+        {
+          id: "Outro Instrumental",
+          bars: 8,
+          beats: 0,
+          lyrics: null,
+        },
+        {
+          id: "Outro Building On Your Progress",
+          bars: 16,
+          beats: 0,
+          lyrics: "{4}Building on your progress, {4}building on your progress, {4}building on your progress, {4}building on your progress",
         },
       ],
     },
@@ -102,8 +135,13 @@ On your progress`,
     {
       name: 'Dyno',
       sections: [
-        { id: 'intro', bars: 2, beats: 0, lyrics: null },
-        { id: 'verse', bars: 2, beats: 0, lyrics: "I'm sick and tired of you" }
+        { id: 'intro', bars: 4, beats: 0, lyrics: null },
+        { id: 'verse-instr', bars: 8, beats: 0, lyrics:"{4}'''''{4},,,,,"},
+        { id: 'verse', bars: 8, beats: 0, lyrics: "{3}I'm sick and tired of you{1}And your stupid mates{3}I'm sick and tired of you{1}And your stupid mates" },
+        { id: 'verse-casting', bars: 4, beats: 0, lyrics:"{2}Casting aspersions{2}Casting aspersions"},
+        { id: 'verse-shadow', bars: 16, beats: 0, lyrics:"{2}This stuff casts a long shadow{2}The shadow has already been cast{2}On an island in the sun{2}There's no magic f'ing spell here mate{2}This stuff casts a long shadow{2}You'll be Playing and having fun{2}Casting Aspersions{2}Casting aspesions"},// do the Weezer logo in this section
+        { id: 'break', bars: 4, beats: 0, lyrics: null },
+        { id: 'outro', bars: 36, beats: 0, lyrics: "I'm sick and tired of you" },
       ]
     }
   ]

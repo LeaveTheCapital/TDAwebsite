@@ -111,8 +111,11 @@ const songName = getOutput("#song-name");
 const useSpeechTextButton = getButton("#use-speech-text");
 const captions = getElement("#captions");
 const sectionId = getOutput("#section-id");
+const sectionNotes = getOutput("#section-notes");
 const midiDevice = getOutput("#midi-device");
 const midiInputSelect = getSelect("#midi-input");
+const developerControls = getElement("#developer-controls");
+const developerSectionDetails = getElement("#developer-section-details");
 
 let backgroundHue: number | undefined;
 let lightShowHue: number | undefined;
@@ -137,12 +140,41 @@ let nextLyricCuePulse = Number.POSITIVE_INFINITY;
 let midiClockTimestamps: number[] = [];
 let isUsingSpeechText = false;
 let textBeforeSpeech = "";
+let isDeveloperModeEnabled = true;
 
 startFakeMidiButton.addEventListener("click", startFakeMidiTimer);
 stopFakeMidiButton.addEventListener("click", stopFakeMidiTimer);
 midiInputSelect.addEventListener("change", () => {
   connectToMidiInput(midiInputSelect.value);
 });
+document.addEventListener("keydown", (event) => {
+  if (
+    event.repeat ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    event.key.toLocaleLowerCase() !== "q" ||
+    isTextEntryTarget(event.target)
+  ) {
+    return;
+  }
+
+  setDeveloperModeEnabled(!isDeveloperModeEnabled);
+});
+setDeveloperModeEnabled(isDeveloperModeEnabled);
+
+function isTextEntryTarget(target: EventTarget | null) {
+  return target instanceof HTMLInputElement && target.type === "text" ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLElement && target.isContentEditable;
+}
+
+function setDeveloperModeEnabled(enabled: boolean) {
+  isDeveloperModeEnabled = enabled;
+  developerControls.hidden = !enabled;
+  developerSectionDetails.hidden = !enabled;
+  document.body.dataset.developerMode = String(enabled);
+}
 
 function randomHueExcept(...excludedHues: Array<number | undefined>): number {
   let nextHue;
@@ -163,7 +195,10 @@ function handleMidiNoteOn() {
 }
 
 function handleMidiProgramChange(event: MessageEvent) {
-  if (typeof event.value !== "number") {
+  if (
+    typeof event.value !== "number" ||
+    event.value === selectedSongProgram
+  ) {
     return;
   }
 
@@ -516,6 +551,7 @@ function resetTransportForSelection() {
   delete transportPosition.dataset.section;
   delete transportPosition.dataset.lyricCue;
   sectionId.value = "Section: –";
+  sectionNotes.value = "Notes: –";
   setClockBpm(undefined);
   if (!activeMidiInput) {
     setMidiDevice(undefined);
@@ -630,6 +666,7 @@ function moveToNextSongSection() {
   activeSectionEndPulse += sectionBeats * midiClocksPerQuarterNote;
   transportPosition.dataset.section = section.id;
   sectionId.value = `Section: ${section.id}`;
+  sectionNotes.value = `Notes: ${section.notes ?? "–"}`;
 
   startSectionLyrics(section.lyrics, sectionStartPulse);
 }
