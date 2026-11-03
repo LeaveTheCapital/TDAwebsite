@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Configure MIDI assignments for the TDA live controllers."
+    />
+    <link rel="icon" href="/favicon.ico" />
+    <title>TDA Midi CC Config</title>
+  </head>
+  <body>
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Live rig utility</p>
+        <h1>TDA Midi CC Config</h1>
+        <p class="intro">
+          Map the controls for the TDA live set. Changes are saved automatically
+          in this browser.
+        </p>
+      </div>
+      <div class="header-actions">
+        <output id="save-status" aria-live="polite">Ready</output>
+        <button id="download-config" class="action-button" type="button">
+          Download JSON
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <form id="midi-config-form">
+        <section class="controller-section" aria-labelledby="oxi-title">
+          <div class="section-heading">
+            <div>
+              <p class="controller-brand">OXI Instruments</p>
+              <h2 id="oxi-title">E16</h2>
+            </div>
+            <p>16 endless encoders · 16 push buttons</p>
+          </div>
+          <div class="device device--oxi">
+            <div id="oxi-grid" class="oxi-grid"></div>
+          </div>
+        </section>
+
+        <section class="controller-section" aria-labelledby="monolit-title">
+          <div class="section-heading">
+            <div>
+              <p class="controller-brand">Lightreft</p>
+              <h2 id="monolit-title">Monolit</h2>
+            </div>
+            <p>8 multi-mode sliders · 8 buttons</p>
+          </div>
+          <div class="device device--monolit">
+            <div id="monolit-grid" class="monolit-grid"></div>
+          </div>
+        </section>
+
+        <section class="controller-section" aria-labelledby="zoya-title">
+          <div class="section-heading">
+            <div>
+              <p class="controller-brand">Intech Studio</p>
+              <h2 id="zoya-title">Zoya</h2>
+            </div>
+            <p>XY touch surface · pressure control</p>
+          </div>
+          <div class="device device--zoya">
+            <div class="touch-grid" aria-hidden="true">
+              <span class="axis-label axis-label--x">X</span>
+              <span class="axis-label axis-label--y">Y</span>
+              <span class="axis-label axis-label--z">Z / pressure</span>
+              <div class="touch-point"></div>
+            </div>
+            <div id="zoya-controls" class="zoya-controls"></div>
+          </div>
+        </section>
+      </form>
+    </main>
+
+    <template id="oxi-control-template">
+      <fieldset class="control-card encoder-card">
+        <legend></legend>
+        <div class="encoder-visual" aria-hidden="true">
+          <span></span>
+        </div>
+        <label>
+          Mode
+          <select data-field="mode">
+            <option value="cc">CC</option>
+            <option value="sysex">SysEx</option>
+          </select>
+        </label>
+        <div class="midi-fields">
+          <label>
+            Channel
+            <input data-field="channel" type="number" min="1" max="16" />
+          </label>
+          <label>
+            CC
+            <input data-field="number" type="number" min="0" max="127" />
+          </label>
+        </div>
+        <label>
+          Encoder description
+          <input data-field="description" type="text" placeholder="e.g. Filter cutoff" />
+        </label>
+        <label>
+          Push description
+          <input data-field="button" type="text" placeholder="e.g. Reset filter" />
+        </label>
+      </fieldset>
+    </template>
+
+    <template id="monolit-control-template">
+      <fieldset class="control-card slider-card">
+        <legend></legend>
+        <div class="slider-visual" aria-hidden="true">
+          <span></span>
+        </div>
+        <label>
+          Function
+          <select data-field="mode">
+            <option value="cc">CC</option>
+            <option value="lfo">LFO</option>
+            <option value="note">Note</option>
+          </select>
+        </label>
+        <div class="midi-fields">
+          <label>
+            Channel
+            <input data-field="channel" type="number" min="1" max="16" />
+          </label>
+          <label data-number-label>
+            CC
+            <input data-field="number" type="number" min="0" max="127" />
+          </label>
+        </div>
+        <label>
+          Slider description
+          <input data-field="description" type="text" placeholder="e.g. Delay send" />
+        </label>
+        <label>
+          Button description
+          <input data-field="button" type="text" placeholder="e.g. Start / stop LFO" />
+        </label>
+        <div class="round-button" aria-hidden="true"></div>
+      </fieldset>
+    </template>
+
+    <template id="zoya-axis-template">
+      <fieldset class="axis-card">
+        <legend></legend>
+        <div class="midi-fields">
+          <label>
+            Channel
+            <input data-field="channel" type="number" min="1" max="16" />
+          </label>
+          <label>
+            CC
+            <input data-field="number" type="number" min="0" max="127" />
+          </label>
+        </div>
+        <label>
+          Description
+          <input data-field="description" type="text" placeholder="e.g. Reverb mix" />
+        </label>
+      </fieldset>
+    </template>
+
+    <script type="module" src="/src/midicc.ts"></script>
+  </body>
+</html>

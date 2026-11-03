@@ -5,6 +5,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         home: "index.html",
+        midicc: "midicc.html",
         tda: "tda.html",
       },
     },
