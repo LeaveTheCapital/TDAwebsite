@@ -26,6 +26,11 @@ const storageKey = "tda-midi-cc-config-v1";
 const form = getElement("midi-config-form") as HTMLFormElement;
 const saveStatus = getElement("save-status") as HTMLOutputElement;
 const downloadButton = getElement("download-config") as HTMLButtonElement;
+const viewToggle = getElement("view-toggle") as HTMLButtonElement;
+const viewLabel = getElement("view-label");
+const controlDialog = getElement("control-dialog") as HTMLDialogElement;
+const dialogContent = getElement("dialog-content");
+const closeDialogButton = getElement("close-dialog") as HTMLButtonElement;
 const oxiGrid = getElement("oxi-grid") as HTMLDivElement;
 const monolitGrid = getElement("monolit-grid") as HTMLDivElement;
 const zoyaControls = getElement("zoya-controls") as HTMLDivElement;
@@ -39,7 +44,11 @@ for (let index = 1; index <= 16; index += 1) {
   const card = cloneTemplate(oxiTemplate, ".encoder-card");
   card.dataset.controller = "oxiE16";
   card.dataset.index = String(index - 1);
-  setLegend(card, `Encoder ${String(index).padStart(2, "0")}`);
+  setLegend(
+    card,
+    `Encoder ${String(index).padStart(2, "0")}`,
+    String(index).padStart(2, "0"),
+  );
   nameFields(card, `oxiE16.${index - 1}`);
   oxiGrid.append(card);
 }
@@ -48,7 +57,11 @@ for (let index = 1; index <= 8; index += 1) {
   const card = cloneTemplate(monolitTemplate, ".slider-card");
   card.dataset.controller = "lightreftMonolit";
   card.dataset.index = String(index - 1);
-  setLegend(card, `Slider ${String(index).padStart(2, "0")}`);
+  setLegend(
+    card,
+    `Slider ${String(index).padStart(2, "0")}`,
+    String(index).padStart(2, "0"),
+  );
   nameFields(card, `lightreftMonolit.${index - 1}`);
   monolitGrid.append(card);
 }
@@ -57,23 +70,64 @@ for (const axis of ["x", "y", "z"] as const) {
   const card = cloneTemplate(zoyaTemplate, ".axis-card");
   card.dataset.controller = "intechZoya";
   card.dataset.axis = axis;
-  setLegend(card, `${axis.toUpperCase()} axis`);
+  setLegend(card, `${axis.toUpperCase()} axis`, axis.toUpperCase());
   nameFields(card, `intechZoya.${axis}`);
   zoyaControls.append(card);
 }
 
 restoreConfig();
 updateModeFields();
+updateSummaries();
+document.body.classList.add("is-collapsed");
 
 form.addEventListener("input", () => {
   updateModeFields();
+  updateSummaries();
   saveConfig();
 });
 
 form.addEventListener("change", () => {
   updateModeFields();
+  updateSummaries();
   saveConfig();
 });
+
+form.addEventListener("click", (event) => {
+  if (!document.body.classList.contains("is-collapsed")) {
+    return;
+  }
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    return;
+  }
+  const summary = target.closest<HTMLButtonElement>("[data-open-details]");
+  if (summary === null) {
+    return;
+  }
+  const card = summary.closest<HTMLElement>(".control-card, .axis-card");
+  if (card !== null) {
+    openControlDialog(card);
+  }
+});
+
+viewToggle.addEventListener("click", () => {
+  if (controlDialog.open) {
+    controlDialog.close();
+  }
+  const isCollapsed = document.body.classList.toggle("is-collapsed");
+  viewLabel.textContent = isCollapsed ? "Collapsed" : "Expanded";
+  viewToggle.setAttribute("aria-pressed", String(!isCollapsed));
+  viewToggle.setAttribute(
+    "aria-label",
+    `Switch to ${isCollapsed ? "expanded" : "collapsed"} view`,
+  );
+});
+
+closeDialogButton.addEventListener("click", () => {
+  controlDialog.close();
+});
+
+controlDialog.addEventListener("close", restoreDialogCard);
 
 downloadButton.addEventListener("click", () => {
   const contents = JSON.stringify(readConfig(), null, 2);
@@ -188,6 +242,58 @@ function updateModeFields(): void {
   }
 }
 
+function updateSummaries(): void {
+  for (const card of form.querySelectorAll<HTMLElement>(
+    ".control-card, .axis-card",
+  )) {
+    const channel = getField(card, "channel").value || "—";
+    const number = getField(card, "number").value || "—";
+    const modeField = card.querySelector<HTMLSelectElement>("[data-field=\"mode\"]");
+    const channelSummary = card.querySelector<HTMLElement>(
+      "[data-summary-channel]",
+    );
+    const numberSummary = card.querySelector<HTMLElement>(
+      "[data-summary-number]",
+    );
+    if (channelSummary === null || numberSummary === null) {
+      throw new Error("Missing control summary");
+    }
+    if (modeField?.value === "sysex") {
+      channelSummary.textContent = "SysEx";
+      numberSummary.textContent = "TR-6S";
+    } else {
+      channelSummary.textContent = `Ch ${channel}`;
+      numberSummary.textContent = `${modeField?.value === "note" ? "Note" : "CC"} ${number}`;
+    }
+  }
+}
+
+let dialogReturnParent: HTMLElement | null = null;
+let dialogReturnNext: Element | null = null;
+
+function openControlDialog(card: HTMLElement): void {
+  dialogReturnParent = card.parentElement;
+  dialogReturnNext = card.nextElementSibling;
+  dialogContent.append(card);
+  controlDialog.showModal();
+  const firstField = card.querySelector<HTMLElement>("select, input");
+  firstField?.focus();
+}
+
+function restoreDialogCard(): void {
+  const card = dialogContent.querySelector<HTMLElement>(
+    ".control-card, .axis-card",
+  );
+  if (card === null || dialogReturnParent === null) {
+    return;
+  }
+  dialogReturnParent.insertBefore(card, dialogReturnNext);
+  const summary = card.querySelector<HTMLButtonElement>("[data-open-details]");
+  summary?.focus();
+  dialogReturnParent = null;
+  dialogReturnNext = null;
+}
+
 function isMidiConfig(value: unknown): value is MidiConfig {
   if (typeof value !== "object" || value === null) {
     return false;
@@ -270,12 +376,13 @@ function nameFields(card: HTMLElement, prefix: string): void {
   }
 }
 
-function setLegend(card: HTMLElement, text: string): void {
+function setLegend(card: HTMLElement, text: string, shortText: string): void {
   const legend = card.querySelector("legend");
   if (legend === null) {
     throw new Error("Missing control legend");
   }
   legend.textContent = text;
+  legend.dataset.shortLabel = shortText;
 }
 
 function cloneTemplate(template: HTMLTemplateElement, selector: string): HTMLElement {

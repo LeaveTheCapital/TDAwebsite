@@ -22,6 +22,16 @@
       </div>
       <div class="header-actions">
         <output id="save-status" aria-live="polite">Ready</output>
+        <button
+          id="view-toggle"
+          class="view-toggle"
+          type="button"
+          aria-pressed="false"
+          aria-label="Switch to expanded view"
+        >
+          <span>View</span>
+          <strong id="view-label">Collapsed</strong>
+        </button>
         <button id="download-config" class="action-button" type="button">
           Download JSON
         </button>
@@ -74,96 +84,135 @@
             <div id="zoya-controls" class="zoya-controls"></div>
           </div>
         </section>
+
+        <dialog id="control-dialog" aria-labelledby="dialog-title">
+          <div class="dialog-header">
+            <p id="dialog-title">Edit control</p>
+            <button
+              id="close-dialog"
+              class="dialog-close"
+              type="button"
+              aria-label="Close control editor"
+            >
+              ×
+            </button>
+          </div>
+          <div id="dialog-content"></div>
+        </dialog>
       </form>
     </main>
 
     <template id="oxi-control-template">
       <fieldset class="control-card encoder-card">
         <legend></legend>
-        <div class="encoder-visual" aria-hidden="true">
-          <span></span>
-        </div>
-        <label>
-          Mode
-          <select data-field="mode">
-            <option value="cc">CC</option>
-            <option value="sysex">SysEx</option>
-          </select>
-        </label>
-        <div class="midi-fields">
+        <button class="control-summary" type="button" data-open-details>
+          <span class="encoder-visual" aria-hidden="true">
+            <span></span>
+          </span>
+          <span class="summary-values">
+            <span data-summary-channel>Ch —</span>
+            <span data-summary-number>CC —</span>
+          </span>
+        </button>
+        <div class="control-details">
           <label>
-            Channel
-            <input data-field="channel" type="number" min="1" max="16" />
+            Mode
+            <select data-field="mode">
+              <option value="cc">CC</option>
+              <option value="sysex">SysEx</option>
+            </select>
+          </label>
+          <div class="midi-fields">
+            <label>
+              Channel
+              <input data-field="channel" type="number" min="1" max="16" />
+            </label>
+            <label>
+              CC
+              <input data-field="number" type="number" min="0" max="127" />
+            </label>
+          </div>
+          <label>
+            Encoder description
+            <input data-field="description" type="text" placeholder="e.g. Filter cutoff" />
           </label>
           <label>
-            CC
-            <input data-field="number" type="number" min="0" max="127" />
+            Push description
+            <input data-field="button" type="text" placeholder="e.g. Reset filter" />
           </label>
         </div>
-        <label>
-          Encoder description
-          <input data-field="description" type="text" placeholder="e.g. Filter cutoff" />
-        </label>
-        <label>
-          Push description
-          <input data-field="button" type="text" placeholder="e.g. Reset filter" />
-        </label>
       </fieldset>
     </template>
 
     <template id="monolit-control-template">
       <fieldset class="control-card slider-card">
         <legend></legend>
-        <div class="slider-visual" aria-hidden="true">
-          <span></span>
-        </div>
-        <label>
-          Function
-          <select data-field="mode">
-            <option value="cc">CC</option>
-            <option value="lfo">LFO</option>
-            <option value="note">Note</option>
-          </select>
-        </label>
-        <div class="midi-fields">
+        <button class="control-summary" type="button" data-open-details>
+          <span class="slider-visual" aria-hidden="true">
+            <span></span>
+          </span>
+          <span class="summary-values">
+            <span data-summary-channel>Ch —</span>
+            <span data-summary-number>CC —</span>
+          </span>
+          <span class="round-button" aria-hidden="true"></span>
+        </button>
+        <div class="control-details">
           <label>
-            Channel
-            <input data-field="channel" type="number" min="1" max="16" />
+            Function
+            <select data-field="mode">
+              <option value="cc">CC</option>
+              <option value="lfo">LFO</option>
+              <option value="note">Note</option>
+            </select>
           </label>
-          <label data-number-label>
-            CC
-            <input data-field="number" type="number" min="0" max="127" />
+          <div class="midi-fields">
+            <label>
+              Channel
+              <input data-field="channel" type="number" min="1" max="16" />
+            </label>
+            <label data-number-label>
+              CC
+              <input data-field="number" type="number" min="0" max="127" />
+            </label>
+          </div>
+          <label>
+            Slider description
+            <input data-field="description" type="text" placeholder="e.g. Delay send" />
+          </label>
+          <label>
+            Button description
+            <input data-field="button" type="text" placeholder="e.g. Start / stop LFO" />
           </label>
         </div>
-        <label>
-          Slider description
-          <input data-field="description" type="text" placeholder="e.g. Delay send" />
-        </label>
-        <label>
-          Button description
-          <input data-field="button" type="text" placeholder="e.g. Start / stop LFO" />
-        </label>
-        <div class="round-button" aria-hidden="true"></div>
       </fieldset>
     </template>
 
     <template id="zoya-axis-template">
       <fieldset class="axis-card">
         <legend></legend>
-        <div class="midi-fields">
+        <button class="control-summary axis-summary" type="button" data-open-details>
+          <span class="summary-values">
+            <span data-summary-channel>Ch —</span>
+            <span data-summary-number>CC —</span>
+          </span>
+        </button>
+        <div class="control-details">
+          <div class="midi-fields">
+            <label>
+              Channel
+              <input data-field="channel" type="number" min="1" max="16" />
+            </label>
+            <label>
+              CC
+              <input data-field="number" type="number" min="0" max="127" />
+            </label>
+          </div>
           <label>
-            Channel
-            <input data-field="channel" type="number" min="1" max="16" />
-          </label>
-          <label>
-            CC
-            <input data-field="number" type="number" min="0" max="127" />
+            Description
+            <input data-field="description" type="text" placeholder="e.g. Reverb mix" />
           </label>
         </div>
-        <label>
-          Description
-          <input data-field="description" type="text" placeholder="e.g. Reverb mix" />
-        </label>
       </fieldset>
     </template>
 

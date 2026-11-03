@@ -77,6 +77,8 @@ h1 {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: end;
   gap: 1rem;
 }
 
@@ -95,11 +97,39 @@ h1 {
   cursor: pointer;
 }
 
+.view-toggle {
+  display: grid;
+  min-width: 7.5rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #46524e;
+  border-radius: 0.4rem;
+  background: #101415;
+  color: #f4f7f5;
+  text-align: left;
+  cursor: pointer;
+}
+
+.view-toggle span {
+  color: #9ca9a4;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.view-toggle strong {
+  color: #58f5b5;
+  font-size: 0.82rem;
+}
+
 .action-button:hover {
   background: #9af8d1;
 }
 
 .action-button:focus-visible,
+.view-toggle:focus-visible,
+.control-summary:focus-visible,
+.dialog-close:focus-visible,
 input:focus-visible,
 select:focus-visible {
   outline: 3px solid #f4a950;
@@ -162,6 +192,20 @@ select:focus-visible {
   border: 1px solid #38433f;
   border-radius: 0.75rem;
   background: #101415;
+}
+
+.control-summary {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  pointer-events: none;
+}
+
+.summary-values {
+  display: none;
 }
 
 legend {
@@ -346,6 +390,238 @@ input:disabled {
   gap: 1rem;
 }
 
+#control-dialog {
+  width: min(calc(100% - 2rem), 28rem);
+  max-height: min(90vh, 44rem);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid #46524e;
+  border-radius: 1rem;
+  background: #101415;
+  color: #f4f7f5;
+  box-shadow: 0 2rem 8rem #000;
+}
+
+#control-dialog::backdrop {
+  background: rgb(0 0 0 / 78%);
+  backdrop-filter: blur(4px);
+}
+
+.dialog-header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #38433f;
+  background: #101415;
+}
+
+.dialog-header p {
+  margin: 0;
+  color: #9ca9a4;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dialog-close {
+  display: grid;
+  width: 2.25rem;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid #46524e;
+  border-radius: 50%;
+  background: #080b0c;
+  color: #f4f7f5;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  place-items: center;
+}
+
+#dialog-content {
+  padding: 1rem;
+}
+
+#control-dialog :is(.control-card, .axis-card) {
+  width: 100%;
+  padding: 1rem;
+}
+
+#control-dialog .control-details {
+  display: block;
+}
+
+#control-dialog .control-summary {
+  pointer-events: none;
+}
+
+body.is-collapsed .controller-section {
+  padding: clamp(2.5rem, 6vw, 4.5rem) 0;
+}
+
+body.is-collapsed .device--oxi {
+  width: min(100%, 38rem);
+  padding: clamp(0.55rem, 2vw, 1rem);
+}
+
+body.is-collapsed .oxi-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.3rem, 1.5vw, 0.75rem);
+}
+
+body.is-collapsed :is(.control-card, .axis-card) {
+  padding: 0.45rem 0.3rem 0.55rem;
+  border-radius: 0.55rem;
+}
+
+body.is-collapsed :is(.control-card, .axis-card) legend {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.is-collapsed :is(.control-card, .axis-card) legend::after {
+  content: attr(data-short-label);
+  font-size: 0.55rem;
+}
+
+body.is-collapsed .control-details {
+  display: none;
+}
+
+body.is-collapsed .control-summary {
+  display: grid;
+  gap: 0.35rem;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+body.is-collapsed .summary-values {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem 0.35rem;
+  color: #9ca9a4;
+  font-size: clamp(0.47rem, 1.7vw, 0.65rem);
+  font-weight: 750;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+body.is-collapsed .encoder-visual {
+  width: clamp(2rem, 10vw, 3.25rem);
+  margin: 0.15rem auto 0.2rem;
+  border-width: clamp(0.25rem, 1vw, 0.38rem);
+}
+
+body.is-collapsed .encoder-visual span {
+  height: clamp(0.45rem, 2vw, 0.75rem);
+}
+
+body.is-collapsed .device--monolit {
+  padding: clamp(0.55rem, 2vw, 1rem);
+}
+
+body.is-collapsed .monolit-grid {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: clamp(0.2rem, 1vw, 0.6rem);
+  overflow: visible;
+}
+
+body.is-collapsed .slider-visual {
+  height: clamp(4rem, 16vw, 7rem);
+  margin: 0.2rem auto;
+}
+
+body.is-collapsed .slider-visual span {
+  width: clamp(1rem, 5vw, 1.9rem);
+}
+
+body.is-collapsed .slider-card .summary-values {
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: clamp(0.4rem, 1.4vw, 0.6rem);
+}
+
+body.is-collapsed .round-button {
+  width: clamp(0.8rem, 4vw, 1.6rem);
+  margin: 0.2rem auto 0;
+  border-width: clamp(0.12rem, 0.7vw, 0.22rem);
+}
+
+body.is-collapsed .device--zoya {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 38rem);
+  padding: clamp(0.7rem, 2vw, 1.2rem);
+}
+
+body.is-collapsed .zoya-controls {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+body.is-collapsed .axis-summary {
+  min-height: 2.5rem;
+  place-items: center;
+}
+
+body.is-collapsed #control-dialog :is(.control-card, .axis-card) {
+  padding: 1rem;
+}
+
+body.is-collapsed #control-dialog :is(.control-card, .axis-card) legend {
+  font-size: 0.72rem;
+}
+
+body.is-collapsed #control-dialog :is(.control-card, .axis-card) legend::after {
+  content: none;
+}
+
+body.is-collapsed #control-dialog .control-summary {
+  display: block;
+  pointer-events: none;
+}
+
+body.is-collapsed #control-dialog .summary-values {
+  display: none;
+}
+
+body.is-collapsed #control-dialog .control-details {
+  display: block;
+}
+
+body.is-collapsed #control-dialog .encoder-visual {
+  width: 3.1rem;
+  margin: 0.35rem auto 1rem;
+  border-width: 0.38rem;
+}
+
+body.is-collapsed #control-dialog .encoder-visual span {
+  height: 0.75rem;
+}
+
+body.is-collapsed #control-dialog .slider-visual {
+  height: 7rem;
+  margin: 0.5rem auto 0.8rem;
+}
+
+body.is-collapsed #control-dialog .slider-visual span {
+  width: 1.9rem;
+}
+
+body.is-collapsed #control-dialog .round-button {
+  width: 2rem;
+  margin: 1rem auto 0.2rem;
+  border-width: 0.25rem;
+}
+
 @media (max-width: 900px) {
   .oxi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -370,7 +646,7 @@ input:disabled {
 
   .header-actions {
     width: 100%;
-    justify-content: space-between;
+    justify-content: start;
   }
 
   .section-heading > p {
@@ -390,6 +666,14 @@ input:disabled {
   .device--monolit,
   .device--zoya {
     border-radius: 0.8rem;
+  }
+
+  body.is-collapsed .oxi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  body.is-collapsed .monolit-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
   }
 }
 
