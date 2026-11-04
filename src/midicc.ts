@@ -246,25 +246,18 @@ function updateSummaries(): void {
   for (const card of form.querySelectorAll<HTMLElement>(
     ".control-card, .axis-card",
   )) {
-    const channel = getField(card, "channel").value || "—";
-    const number = getField(card, "number").value || "—";
-    const modeField = card.querySelector<HTMLSelectElement>("[data-field=\"mode\"]");
-    const channelSummary = card.querySelector<HTMLElement>(
-      "[data-summary-channel]",
+    const description = getField(card, "description").value.trim();
+    const buttonDescription = card
+      .querySelector<HTMLInputElement>("[data-field=\"button\"]")
+      ?.value.trim();
+    const descriptionSummary = card.querySelector<HTMLElement>(
+      "[data-summary-description]",
     );
-    const numberSummary = card.querySelector<HTMLElement>(
-      "[data-summary-number]",
-    );
-    if (channelSummary === null || numberSummary === null) {
+    if (descriptionSummary === null) {
       throw new Error("Missing control summary");
     }
-    if (modeField?.value === "sysex") {
-      channelSummary.textContent = "SysEx";
-      numberSummary.textContent = "TR-6S";
-    } else {
-      channelSummary.textContent = `Ch ${channel}`;
-      numberSummary.textContent = `${modeField?.value === "note" ? "Note" : "CC"} ${number}`;
-    }
+    descriptionSummary.textContent =
+      [description, buttonDescription].filter(Boolean).join("/") || "—";
   }
 }
 

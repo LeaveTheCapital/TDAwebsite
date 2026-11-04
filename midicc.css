@@ -504,16 +504,22 @@ body.is-collapsed .control-summary {
 }
 
 body.is-collapsed .summary-values {
-  display: flex;
+  display: block;
   min-width: 0;
-  align-items: center;
-  justify-content: center;
-  gap: 0.2rem 0.35rem;
   color: #9ca9a4;
   font-size: clamp(0.47rem, 1.7vw, 0.65rem);
   font-weight: 750;
-  line-height: 1.15;
-  white-space: nowrap;
+  line-height: 1.2;
+  text-align: center;
+}
+
+body.is-collapsed [data-summary-description] {
+  display: -webkit-box;
+  min-height: 2.4em;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 body.is-collapsed .encoder-visual {
@@ -546,8 +552,6 @@ body.is-collapsed .slider-visual span {
 }
 
 body.is-collapsed .slider-card .summary-values {
-  flex-direction: column;
-  gap: 0.1rem;
   font-size: clamp(0.4rem, 1.4vw, 0.6rem);
 }
 
