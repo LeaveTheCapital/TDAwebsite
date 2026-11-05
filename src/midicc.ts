@@ -16,10 +16,15 @@ interface AxisControl {
   description: string;
 }
 
+interface PurposeControl {
+  description: string;
+}
+
 interface MidiConfig {
   oxiE16: MidiControl[];
   lightreftMonolit: MidiControl[];
   intechZoya: Record<"x" | "y" | "z", AxisControl>;
+  elektronTonverk?: PurposeControl[];
 }
 
 const storageKey = "tda-midi-cc-config-v1";
@@ -33,12 +38,33 @@ const dialogContent = getElement("dialog-content");
 const closeDialogButton = getElement("close-dialog") as HTMLButtonElement;
 const oxiGrid = getElement("oxi-grid") as HTMLDivElement;
 const monolitGrid = getElement("monolit-grid") as HTMLDivElement;
+const tonverkAudioGrid = getElement("tonverk-audio-grid") as HTMLDivElement;
+const tonverkRoutingGrid = getElement("tonverk-routing-grid") as HTMLDivElement;
 const zoyaControls = getElement("zoya-controls") as HTMLDivElement;
 const oxiTemplate = getElement("oxi-control-template") as HTMLTemplateElement;
 const monolitTemplate = getElement(
   "monolit-control-template",
 ) as HTMLTemplateElement;
 const zoyaTemplate = getElement("zoya-axis-template") as HTMLTemplateElement;
+const tonverkTemplate = getElement(
+  "tonverk-track-template",
+) as HTMLTemplateElement;
+
+const tonverkTracks = [
+  ...Array.from({ length: 8 }, (_, index) => ({
+    label: `Audio track ${String(index + 1).padStart(2, "0")}`,
+    kind: "Audio",
+  })),
+  ...Array.from({ length: 4 }, (_, index) => ({
+    label: `Bus ${String(index + 9).padStart(2, "0")}`,
+    kind: "Bus",
+  })),
+  ...Array.from({ length: 3 }, (_, index) => ({
+    label: `Send ${String(index + 13).padStart(2, "0")}`,
+    kind: "Send",
+  })),
+  { label: "Mix 16", kind: "Mix" },
+];
 
 for (let index = 1; index <= 16; index += 1) {
   const card = cloneTemplate(oxiTemplate, ".encoder-card");
@@ -65,6 +91,23 @@ for (let index = 1; index <= 8; index += 1) {
   nameFields(card, `lightreftMonolit.${index - 1}`);
   monolitGrid.append(card);
 }
+
+tonverkTracks.forEach((track, index) => {
+  const number = String(index + 1).padStart(2, "0");
+  const card = cloneTemplate(tonverkTemplate, ".tonverk-card");
+  card.dataset.controller = "elektronTonverk";
+  card.dataset.index = String(index);
+  setLegend(card, track.label, number);
+  nameFields(card, `elektronTonverk.${index}`);
+  const trackNumber = card.querySelector<HTMLElement>("[data-track-number]");
+  const trackKind = card.querySelector<HTMLElement>("[data-track-kind]");
+  if (trackNumber === null || trackKind === null) {
+    throw new Error("Missing Tonverk track visual");
+  }
+  trackNumber.textContent = number;
+  trackKind.textContent = track.kind;
+  (index < 8 ? tonverkAudioGrid : tonverkRoutingGrid).append(card);
+});
 
 for (const axis of ["x", "y", "z"] as const) {
   const card = cloneTemplate(zoyaTemplate, ".axis-card");
@@ -149,6 +192,7 @@ function readConfig(): MidiConfig {
       y: readAxis("y"),
       z: readAxis("z"),
     },
+    elektronTonverk: readPurposeControls("elektronTonverk", 16),
   };
 }
 
@@ -172,6 +216,15 @@ function readAxis(axis: "x" | "y" | "z"): AxisControl {
     number: getField(card, "number").value,
     description: getField(card, "description").value,
   };
+}
+
+function readPurposeControls(controller: string, count: number): PurposeControl[] {
+  return Array.from({ length: count }, (_, index) => ({
+    description: getField(
+      getControlCard(controller, String(index)),
+      "description",
+    ).value,
+  }));
 }
 
 function saveConfig(): void {
@@ -202,6 +255,12 @@ function restoreConfig(): void {
     for (const axis of ["x", "y", "z"] as const) {
       fillAxis(getControlCard("intechZoya", axis), config.intechZoya[axis]);
     }
+    config.elektronTonverk?.forEach((control, index) => {
+      getField(
+        getControlCard("elektronTonverk", String(index)),
+        "description",
+      ).value = control.description;
+    });
     setStatus("Local config restored");
   } catch {
     setStatus("Could not restore local config");
@@ -299,8 +358,19 @@ function isMidiConfig(value: unknown): value is MidiConfig {
     Array.isArray(candidate.lightreftMonolit) &&
     candidate.lightreftMonolit.length === 8 &&
     candidate.lightreftMonolit.every(isMidiControl) &&
-    isAxisCollection(candidate.intechZoya)
+    isAxisCollection(candidate.intechZoya) &&
+    (candidate.elektronTonverk === undefined ||
+      (Array.isArray(candidate.elektronTonverk) &&
+        candidate.elektronTonverk.length === 16 &&
+        candidate.elektronTonverk.every(isPurposeControl)))
   );
+}
+
+function isPurposeControl(value: unknown): value is PurposeControl {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  return typeof (value as Record<string, unknown>).description === "string";
 }
 
 function isMidiControl(value: unknown): value is MidiControl {

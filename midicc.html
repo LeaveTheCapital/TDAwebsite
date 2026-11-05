@@ -66,6 +66,32 @@
           </div>
         </section>
 
+        <section class="controller-section" aria-labelledby="tonverk-title">
+          <div class="section-heading">
+            <div>
+              <p class="controller-brand">Elektron</p>
+              <h2 id="tonverk-title">Tonverk</h2>
+            </div>
+            <p>16 destinations · two banks of eight</p>
+          </div>
+          <div class="device device--tonverk">
+            <section class="tonverk-bank" aria-labelledby="tonverk-audio-title">
+              <div class="bank-heading">
+                <h3 id="tonverk-audio-title">Audio tracks</h3>
+                <p>Tracks 1–8</p>
+              </div>
+              <div id="tonverk-audio-grid" class="tonverk-grid"></div>
+            </section>
+            <section class="tonverk-bank" aria-labelledby="tonverk-routing-title">
+              <div class="bank-heading">
+                <h3 id="tonverk-routing-title">Buses, sends &amp; mix</h3>
+                <p>Tracks 9–16</p>
+              </div>
+              <div id="tonverk-routing-grid" class="tonverk-grid"></div>
+            </section>
+          </div>
+        </section>
+
         <section class="controller-section" aria-labelledby="zoya-title">
           <div class="section-heading">
             <div>
@@ -208,6 +234,31 @@
           <label>
             Description
             <input data-field="description" type="text" placeholder="e.g. Reverb mix" />
+          </label>
+        </div>
+      </fieldset>
+    </template>
+
+    <template id="tonverk-track-template">
+      <fieldset class="control-card tonverk-card">
+        <legend></legend>
+        <button class="control-summary" type="button" data-open-details>
+          <span class="track-visual" aria-hidden="true">
+            <strong data-track-number></strong>
+            <span data-track-kind></span>
+          </span>
+          <span class="summary-values">
+            <span data-summary-description>—</span>
+          </span>
+        </button>
+        <div class="control-details">
+          <label>
+            Purpose
+            <input
+              data-field="description"
+              type="text"
+              placeholder="e.g. Main drums"
+            />
           </label>
         </div>
       </fieldset>

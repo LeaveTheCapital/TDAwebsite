@@ -280,12 +280,83 @@ input:disabled {
   padding: clamp(1rem, 3vw, 2.5rem);
 }
 
-.monolit-grid {
+.monolit-grid,
+.tonverk-grid {
   display: grid;
   grid-template-columns: repeat(8, minmax(8.5rem, 1fr));
   gap: 0.8rem;
   overflow-x: auto;
   padding-bottom: 0.3rem;
+}
+
+.device--tonverk {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.tonverk-bank + .tonverk-bank {
+  padding-top: clamp(1.5rem, 4vw, 3rem);
+  border-top: 1px solid #38433f;
+}
+
+.bank-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.bank-heading h3,
+.bank-heading p {
+  margin: 0;
+}
+
+.bank-heading h3 {
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  letter-spacing: -0.03em;
+}
+
+.bank-heading p {
+  color: #9ca9a4;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tonverk-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.track-visual {
+  display: grid;
+  min-height: 7rem;
+  margin: 0.5rem 0 0.8rem;
+  padding: 0.7rem;
+  border: 1px solid #45514d;
+  border-radius: 0.4rem;
+  background:
+    linear-gradient(90deg, #58f5b5 0 0.22rem, transparent 0.22rem),
+    #080b0c;
+  text-align: left;
+  align-content: space-between;
+}
+
+.track-visual strong {
+  color: #f4f7f5;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.track-visual span {
+  color: #58f5b5;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .slider-card {
@@ -532,14 +603,46 @@ body.is-collapsed .encoder-visual span {
   height: clamp(0.45rem, 2vw, 0.75rem);
 }
 
-body.is-collapsed .device--monolit {
+body.is-collapsed :is(.device--monolit, .device--tonverk) {
   padding: clamp(0.55rem, 2vw, 1rem);
 }
 
-body.is-collapsed .monolit-grid {
+body.is-collapsed :is(.monolit-grid, .tonverk-grid) {
   grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: clamp(0.2rem, 1vw, 0.6rem);
   overflow: visible;
+}
+
+body.is-collapsed .device--tonverk {
+  gap: clamp(1rem, 3vw, 1.5rem);
+}
+
+body.is-collapsed .tonverk-bank + .tonverk-bank {
+  padding-top: clamp(1rem, 3vw, 1.5rem);
+}
+
+body.is-collapsed .bank-heading {
+  margin-bottom: 0.65rem;
+}
+
+body.is-collapsed .track-visual {
+  min-height: clamp(3.5rem, 13vw, 6rem);
+  margin: 0.2rem 0;
+  padding: clamp(0.25rem, 1vw, 0.55rem);
+}
+
+body.is-collapsed .track-visual strong {
+  font-size: clamp(0.65rem, 2.4vw, 1.2rem);
+}
+
+body.is-collapsed .track-visual span {
+  overflow: hidden;
+  font-size: clamp(0.32rem, 1vw, 0.55rem);
+  text-overflow: ellipsis;
+}
+
+body.is-collapsed .tonverk-card .summary-values {
+  font-size: clamp(0.4rem, 1.4vw, 0.6rem);
 }
 
 body.is-collapsed .slider-visual {
@@ -666,8 +769,14 @@ body.is-collapsed #control-dialog .round-button {
     overflow-x: visible;
   }
 
+  .tonverk-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
+  }
+
   .device--oxi,
   .device--monolit,
+  .device--tonverk,
   .device--zoya {
     border-radius: 0.8rem;
   }
@@ -677,6 +786,10 @@ body.is-collapsed #control-dialog .round-button {
   }
 
   body.is-collapsed .monolit-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  body.is-collapsed .tonverk-grid {
     grid-template-columns: repeat(8, minmax(0, 1fr));
   }
 }
