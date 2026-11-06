@@ -23,8 +23,14 @@ interface PurposeControl {
 interface MidiConfig {
   oxiE16: MidiControl[];
   lightreftMonolit: MidiControl[];
-  intechZoya: Record<"x" | "y" | "z", AxisControl>;
+  intechZona: Record<"x" | "y" | "z", AxisControl>;
   elektronTonverk?: PurposeControl[];
+  notes: string;
+}
+
+interface LegacyMidiConfig extends Omit<MidiConfig, "intechZona" | "notes"> {
+  intechZoya: Record<"x" | "y" | "z", AxisControl>;
+  notes?: string;
 }
 
 const storageKey = "tda-midi-cc-config-v1";
@@ -40,12 +46,13 @@ const oxiGrid = getElement("oxi-grid") as HTMLDivElement;
 const monolitGrid = getElement("monolit-grid") as HTMLDivElement;
 const tonverkAudioGrid = getElement("tonverk-audio-grid") as HTMLDivElement;
 const tonverkRoutingGrid = getElement("tonverk-routing-grid") as HTMLDivElement;
-const zoyaControls = getElement("zoya-controls") as HTMLDivElement;
+const zonaControls = getElement("zona-controls") as HTMLDivElement;
+const notes = getElement("config-notes") as HTMLTextAreaElement;
 const oxiTemplate = getElement("oxi-control-template") as HTMLTemplateElement;
 const monolitTemplate = getElement(
   "monolit-control-template",
 ) as HTMLTemplateElement;
-const zoyaTemplate = getElement("zoya-axis-template") as HTMLTemplateElement;
+const zonaTemplate = getElement("zona-axis-template") as HTMLTemplateElement;
 const tonverkTemplate = getElement(
   "tonverk-track-template",
 ) as HTMLTemplateElement;
@@ -110,20 +117,22 @@ tonverkTracks.forEach((track, index) => {
 });
 
 for (const axis of ["x", "y", "z"] as const) {
-  const card = cloneTemplate(zoyaTemplate, ".axis-card");
-  card.dataset.controller = "intechZoya";
+  const card = cloneTemplate(zonaTemplate, ".axis-card");
+  card.dataset.controller = "intechZona";
   card.dataset.axis = axis;
   setLegend(card, `${axis.toUpperCase()} axis`, axis.toUpperCase());
-  nameFields(card, `intechZoya.${axis}`);
-  zoyaControls.append(card);
+  nameFields(card, `intechZona.${axis}`);
+  zonaControls.append(card);
 }
 
 restoreConfig();
+resizeNotes();
 updateModeFields();
 updateSummaries();
 document.body.classList.add("is-collapsed");
 
 form.addEventListener("input", () => {
+  resizeNotes();
   updateModeFields();
   updateSummaries();
   saveConfig();
@@ -187,12 +196,13 @@ function readConfig(): MidiConfig {
   return {
     oxiE16: readMidiControls("oxiE16", 16),
     lightreftMonolit: readMidiControls("lightreftMonolit", 8),
-    intechZoya: {
+    intechZona: {
       x: readAxis("x"),
       y: readAxis("y"),
       z: readAxis("z"),
     },
     elektronTonverk: readPurposeControls("elektronTonverk", 16),
+    notes: notes.value,
   };
 }
 
@@ -210,7 +220,7 @@ function readMidiControls(controller: string, count: number): MidiControl[] {
 }
 
 function readAxis(axis: "x" | "y" | "z"): AxisControl {
-  const card = getControlCard("intechZoya", axis);
+  const card = getControlCard("intechZona", axis);
   return {
     channel: getField(card, "channel").value,
     number: getField(card, "number").value,
@@ -240,27 +250,30 @@ function restoreConfig(): void {
 
   try {
     const config = JSON.parse(saved) as unknown;
-    if (!isMidiConfig(config)) {
+    const normalizedConfig = normalizeMidiConfig(config);
+    if (normalizedConfig === null) {
       return;
     }
-    config.oxiE16.forEach((control, index) => {
+    normalizedConfig.oxiE16.forEach((control, index) => {
       fillMidiControl(getControlCard("oxiE16", String(index)), control);
     });
-    config.lightreftMonolit.forEach((control, index) => {
+    normalizedConfig.lightreftMonolit.forEach((control, index) => {
       fillMidiControl(
         getControlCard("lightreftMonolit", String(index)),
         control,
       );
     });
     for (const axis of ["x", "y", "z"] as const) {
-      fillAxis(getControlCard("intechZoya", axis), config.intechZoya[axis]);
+      fillAxis(getControlCard("intechZona", axis), normalizedConfig.intechZona[axis]);
     }
-    config.elektronTonverk?.forEach((control, index) => {
+    normalizedConfig.elektronTonverk?.forEach((control, index) => {
       getField(
         getControlCard("elektronTonverk", String(index)),
         "description",
       ).value = control.description;
     });
+    notes.value = normalizedConfig.notes;
+    localStorage.setItem(storageKey, JSON.stringify(normalizedConfig));
     setStatus("Local config restored");
   } catch {
     setStatus("Could not restore local config");
@@ -346,6 +359,24 @@ function restoreDialogCard(): void {
   dialogReturnNext = null;
 }
 
+function normalizeMidiConfig(value: unknown): MidiConfig | null {
+  if (isMidiConfig(value)) {
+    return value;
+  }
+  if (isLegacyMidiConfig(value)) {
+    return {
+      oxiE16: value.oxiE16,
+      lightreftMonolit: value.lightreftMonolit,
+      intechZona: value.intechZoya,
+      ...(value.elektronTonverk === undefined
+        ? {}
+        : { elektronTonverk: value.elektronTonverk }),
+      notes: value.notes ?? "",
+    };
+  }
+  return null;
+}
+
 function isMidiConfig(value: unknown): value is MidiConfig {
   if (typeof value !== "object" || value === null) {
     return false;
@@ -358,7 +389,29 @@ function isMidiConfig(value: unknown): value is MidiConfig {
     Array.isArray(candidate.lightreftMonolit) &&
     candidate.lightreftMonolit.length === 8 &&
     candidate.lightreftMonolit.every(isMidiControl) &&
+    isAxisCollection(candidate.intechZona) &&
+    typeof candidate.notes === "string" &&
+    (candidate.elektronTonverk === undefined ||
+      (Array.isArray(candidate.elektronTonverk) &&
+        candidate.elektronTonverk.length === 16 &&
+        candidate.elektronTonverk.every(isPurposeControl)))
+  );
+}
+
+function isLegacyMidiConfig(value: unknown): value is LegacyMidiConfig {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    Array.isArray(candidate.oxiE16) &&
+    candidate.oxiE16.length === 16 &&
+    candidate.oxiE16.every(isMidiControl) &&
+    Array.isArray(candidate.lightreftMonolit) &&
+    candidate.lightreftMonolit.length === 8 &&
+    candidate.lightreftMonolit.every(isMidiControl) &&
     isAxisCollection(candidate.intechZoya) &&
+    (candidate.notes === undefined || typeof candidate.notes === "string") &&
     (candidate.elektronTonverk === undefined ||
       (Array.isArray(candidate.elektronTonverk) &&
         candidate.elektronTonverk.length === 16 &&
@@ -408,7 +461,7 @@ function isAxisControl(value: unknown): value is AxisControl {
 
 function getControlCard(controller: string, position: string): HTMLElement {
   const selector =
-    controller === "intechZoya"
+    controller === "intechZona"
       ? `[data-controller="${controller}"][data-axis="${position}"]`
       : `[data-controller="${controller}"][data-index="${position}"]`;
   const card = form.querySelector<HTMLElement>(selector);
@@ -416,6 +469,11 @@ function getControlCard(controller: string, position: string): HTMLElement {
     throw new Error(`Missing control card: ${controller} ${position}`);
   }
   return card;
+}
+
+function resizeNotes(): void {
+  notes.style.height = "auto";
+  notes.style.height = `${notes.scrollHeight}px`;
 }
 
 function getField(

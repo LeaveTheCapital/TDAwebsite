@@ -42,11 +42,7 @@
       <form id="midi-config-form">
         <section class="controller-section" aria-labelledby="oxi-title">
           <div class="section-heading">
-            <div>
-              <p class="controller-brand">OXI Instruments</p>
-              <h2 id="oxi-title">E16</h2>
-            </div>
-            <p>16 endless encoders · 16 push buttons</p>
+            <h2 id="oxi-title" class="controller-brand">Oxi E16</h2>
           </div>
           <div class="device device--oxi">
             <div id="oxi-grid" class="oxi-grid"></div>
@@ -55,11 +51,7 @@
 
         <section class="controller-section" aria-labelledby="monolit-title">
           <div class="section-heading">
-            <div>
-              <p class="controller-brand">Lightreft</p>
-              <h2 id="monolit-title">Monolit</h2>
-            </div>
-            <p>8 multi-mode sliders · 8 buttons</p>
+            <h2 id="monolit-title" class="controller-brand">Lightreft Monolit</h2>
           </div>
           <div class="device device--monolit">
             <div id="monolit-grid" class="monolit-grid"></div>
@@ -68,11 +60,7 @@
 
         <section class="controller-section" aria-labelledby="tonverk-title">
           <div class="section-heading">
-            <div>
-              <p class="controller-brand">Elektron</p>
-              <h2 id="tonverk-title">Tonverk</h2>
-            </div>
-            <p>16 destinations · two banks of eight</p>
+            <h2 id="tonverk-title" class="controller-brand">Elektron Tonverk</h2>
           </div>
           <div class="device device--tonverk">
             <section class="tonverk-bank" aria-labelledby="tonverk-audio-title">
@@ -92,23 +80,29 @@
           </div>
         </section>
 
-        <section class="controller-section" aria-labelledby="zoya-title">
+        <section class="controller-section" aria-labelledby="zona-title">
           <div class="section-heading">
-            <div>
-              <p class="controller-brand">Intech Studio</p>
-              <h2 id="zoya-title">Zoya</h2>
-            </div>
-            <p>XY touch surface · pressure control</p>
+            <h2 id="zona-title" class="controller-brand">Intech Zona</h2>
           </div>
-          <div class="device device--zoya">
+          <div class="device device--zona">
             <div class="touch-grid" aria-hidden="true">
               <span class="axis-label axis-label--x">X</span>
               <span class="axis-label axis-label--y">Y</span>
               <span class="axis-label axis-label--z">Z / pressure</span>
               <div class="touch-point"></div>
             </div>
-            <div id="zoya-controls" class="zoya-controls"></div>
+            <div id="zona-controls" class="zona-controls"></div>
           </div>
+        </section>
+
+        <section class="notes-section" aria-labelledby="notes-title">
+          <label id="notes-title" for="config-notes">Notes</label>
+          <textarea
+            id="config-notes"
+            name="notes"
+            rows="1"
+            placeholder="Add notes…"
+          ></textarea>
         </section>
 
         <dialog id="control-dialog" aria-labelledby="dialog-title">
@@ -212,7 +206,7 @@
       </fieldset>
     </template>
 
-    <template id="zoya-axis-template">
+    <template id="zona-axis-template">
       <fieldset class="axis-card">
         <legend></legend>
         <button class="control-summary axis-summary" type="button" data-open-details>
