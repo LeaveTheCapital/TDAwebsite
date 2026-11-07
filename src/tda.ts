@@ -2482,6 +2482,7 @@ let travellingCrossbarIndexesByLine: number[][] = [];
 let unfinishedCrossbarLines = 0;
 let unfinishedLetters = 0;
 let unfinishedLettersByWord: number[] = [];
+let unfinishedLettersByLine: number[] = [];
 let letterWordIndexes: number[] = [];
 let startedWordCount = 0;
 let currentWordAnimationSchedule: WordAnimationSchedule | undefined;
@@ -2492,6 +2493,12 @@ interface WordAnimationSchedule {
 }
 
 const animatableLetters = "'’,-æÆ0123TDAGESCBFHIJKLMNOPQRUVWXYZ";
+
+function finishScrollingLine(letterIndex: number) {
+  const lineIndex = letterLayouts[letterIndex].lineIndex;
+  unfinishedLettersByLine[lineIndex] -= 1;
+  if (unfinishedLettersByLine[lineIndex] === 0) scrollingLyrics.completeLine();
+}
 
 function finishLetter(wordIndex: number) {
   unfinishedLetters -= 1;
@@ -2536,6 +2543,7 @@ function animateNextTravellingCrossbar(lineQueue: number[]) {
   }
 
   new A2(width, height, letterIndex, () => {
+    finishScrollingLine(letterIndex);
     animateNextTravellingCrossbar(lineQueue);
   }).animationFunc();
 }
@@ -2646,9 +2654,11 @@ function startAnimation(lineWidth: number) {
   const wordCount = Math.max(-1, ...letterWordIndexes) + 1;
 
   unfinishedLettersByWord = Array.from({ length: wordCount }, () => 0);
+  unfinishedLettersByLine = wrappedLines.map(() => 0);
   letters.forEach((letter, index) => {
     if (animatableLetters.includes(letter)) {
       unfinishedLettersByWord[letterWordIndexes[index]] += 1;
+      unfinishedLettersByLine[letterLayouts[index].lineIndex] += 1;
     }
   });
   unfinishedLetters = unfinishedLettersByWord.reduce(
@@ -2678,6 +2688,9 @@ function startWordAnimation(wordIndex: number) {
     }
 
     const onComplete = () => {
+      if (selectedFont === "dashed" || !isTravellingCrossbarMarker(letter)) {
+        finishScrollingLine(index);
+      }
       finishLetter(wordIndex);
     };
 

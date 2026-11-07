@@ -14,6 +14,9 @@ export class ScrollingLyrics {
   private pixelsPerPulse = 0;
   private offset = 0;
   private lastFrame = 0;
+  private completedLines = 0;
+  private endPulse = 0;
+  private maximumOffset = 0;
 
   constructor(canvas: HTMLCanvasElement, getPulse: () => number) {
     this.canvas = canvas;
@@ -47,23 +50,42 @@ export class ScrollingLyrics {
       this.viewport.style.aspectRatio = `${width} / 600`;
       this.track.style.width = `${width}px`;
       this.track.style.transformOrigin = "top left";
-      this.top = 240;
+      this.top = 40;
       this.lastFrame = performance.now();
       this.draw(this.lastFrame);
     }
-    this.targetOrigin += Math.max(0, startPulse - this.startPulse) * this.pixelsPerPulse;
-    this.top = Math.max(this.top, this.targetOrigin + 240);
+    this.targetOrigin = this.offset;
     this.startPulse = startPulse;
+    this.endPulse = startPulse + durationPulses;
     this.distance = height + 40;
-    this.pixelsPerPulse = this.distance / durationPulses;
+    this.maximumOffset = Math.max(this.offset, this.top + height - 560);
+    this.updateSpeed();
     this.canvas.style.top = `${this.top}px`;
     this.canvas.style.height = `${height}px`;
     this.canvas.style.visibility = "visible";
     this.hasCue = true;
   }
 
+  completeLine(): void {
+    if (!this.active || !this.hasCue) return;
+    this.completedLines += 1;
+    if (this.completedLines === 2) {
+      this.targetOrigin = this.offset;
+      this.startPulse = this.getPulse();
+      this.updateSpeed();
+    }
+  }
+
+  private updateSpeed(): void {
+    this.pixelsPerPulse = this.completedLines < 2 ? 0 :
+      Math.max(0, this.maximumOffset - this.targetOrigin) / Math.max(1, this.endPulse - this.startPulse);
+  }
+
   silence(): void {
     this.retainCue();
+    this.pixelsPerPulse = 0;
+    this.targetOrigin = this.offset;
+    this.startPulse = this.getPulse();
     if (this.active) this.canvas.style.visibility = "hidden";
   }
 
@@ -80,6 +102,9 @@ export class ScrollingLyrics {
     this.startPulse = 0;
     this.pixelsPerPulse = 0;
     this.offset = 0;
+    this.completedLines = 0;
+    this.endPulse = 0;
+    this.maximumOffset = 0;
     this.viewport.classList.remove("is-scrolling");
     this.track.removeAttribute("style");
     this.canvas.style.removeProperty("top");
@@ -88,7 +113,7 @@ export class ScrollingLyrics {
   }
 
   private draw(timestamp: number): void {
-    const target = this.targetOrigin + Math.max(0, this.getPulse() - this.startPulse) * this.pixelsPerPulse;
+    const target = Math.min(this.maximumOffset, this.targetOrigin + Math.max(0, this.getPulse() - this.startPulse) * this.pixelsPerPulse);
     const elapsed = Math.max(0, timestamp - this.lastFrame);
     this.lastFrame = timestamp;
     this.offset += (target - this.offset) * (1 - Math.exp(-elapsed / 100));
