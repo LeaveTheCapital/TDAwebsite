@@ -6,6 +6,8 @@ import {
 } from "webmidi";
 
 import "../main.css";
+import { renderSvgWordmark } from "./svg-wordmark.ts";
+
 import "./audio-visualizer.ts";
 import {
   animationTiming,
@@ -83,6 +85,8 @@ import {
   type GlyphDefinition,
   type NormalizedPoint,
 } from "./glyphs.ts";
+
+renderSvgWordmark();
 import {
   parseLyricCues,
   songsByProgram,
