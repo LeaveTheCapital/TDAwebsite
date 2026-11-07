@@ -1,4 +1,6 @@
 import "../midicc.css";
+import { JsonStorageSocket } from "./storage/json-storage-socket";
+import { LocalStorageAdapter } from "./storage/local-storage-adapter";
 
 type ControlMode = "cc" | "sysex" | "lfo" | "note";
 
@@ -33,6 +35,10 @@ interface LegacyMidiConfig extends Omit<MidiConfig, "intechZona" | "notes"> {
   notes?: string;
 }
 
+const uploadStorage = new JsonStorageSocket(new LocalStorageAdapter(() => localStorage));
+const uploadStorageKey = "tda-midi-cc-config-cloud-demo-v1";
+const uploadButton = getElement("upload-config") as HTMLButtonElement;
+const uploadStatus = getElement("upload-status") as HTMLOutputElement;
 const storageKey = "tda-midi-cc-config-v1";
 const form = getElement("midi-config-form") as HTMLFormElement;
 const saveStatus = getElement("save-status") as HTMLOutputElement;
@@ -191,6 +197,23 @@ downloadButton.addEventListener("click", () => {
   URL.revokeObjectURL(link.href);
   setStatus("JSON downloaded");
 });
+
+uploadButton.addEventListener("click", () => {
+  void uploadConfig();
+});
+
+async function uploadConfig(): Promise<void> {
+  uploadButton.disabled = true;
+  uploadStatus.value = "Uploading…";
+  try {
+    await uploadStorage.write(uploadStorageKey, readConfig());
+    uploadStatus.value = "Demo upload saved in this browser.";
+  } catch {
+    uploadStatus.value = "Upload failed. Please try again. Your local config is unchanged.";
+  } finally {
+    uploadButton.disabled = false;
+  }
+}
 
 function readConfig(): MidiConfig {
   return {
