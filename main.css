@@ -88,37 +88,45 @@ canvas {
 }
 
 .svg-letter-preview {
-  display: grid;
-  place-items: center;
-  padding: 1.5rem 0 1rem;
+  display: flex;
+  justify-content: center;
+  gap: clamp(12px, 3vw, 36px);
+  padding: 1.5rem 1rem 1rem;
 }
 
-.svg-core-t {
+.svg-core-t,
+.svg-core-d,
+.svg-core-a {
   display: block;
-  width: clamp(120px, 18vw, 220px);
+  width: clamp(0px, 24vw, 220px);
+  min-width: 0;
   height: auto;
   overflow: visible;
 }
 
-.svg-core-t-outline {
+.svg-core-outline {
   fill: none;
   stroke: rgb(0, 210, 100);
   stroke-width: 2;
   stroke-linejoin: miter;
   stroke-dasharray: var(--trace-length);
   stroke-dashoffset: var(--trace-length);
-  animation: draw-core-t 5s linear infinite;
+  animation: draw-core-outline 5s linear infinite;
 }
 
-.svg-core-t-outline--left {
+.svg-core-outline--left {
   --trace-length: 150;
 }
 
-.svg-core-t-outline--right {
+.svg-core-outline--right {
   --trace-length: 250;
 }
 
-@keyframes draw-core-t {
+.svg-core-outline--normalized {
+  stroke-width: 0.02;
+}
+
+@keyframes draw-core-outline {
   0% {
     stroke-dashoffset: var(--trace-length);
   }
