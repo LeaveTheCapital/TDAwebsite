@@ -1085,7 +1085,10 @@ function setAnimatedText(
       `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
     );
   }
-  if (wordSchedule) scrollingLyrics.retainCue();
+  if (wordSchedule) {
+    finishPendingSongLyrics();
+    scrollingLyrics.retainCue();
+  }
   else scrollingLyrics.reset();
   updateTextLayout(text);
   if (wordSchedule) {
@@ -1096,12 +1099,17 @@ function setAnimatedText(
 }
 
 function clearAnimatedText(preserveScroll = false) {
-  if (preserveScroll) scrollingLyrics.silence();
-  else scrollingLyrics.reset();
+  if (preserveScroll) {
+    scrollingLyrics.silence();
+    startRemainingSongWords();
+    return;
+  }
+  scrollingLyrics.reset();
   animationFrameIds.forEach((frameId) => {
     cancelAnimationFrame(frameId);
   });
   animationFrameIds.clear();
+  animationFrameCallbacks.clear();
   stopFlashing = true;
   textInput.value = "";
   resizeTextInput();
@@ -1383,14 +1391,39 @@ interface VerticalLineOptions {
 }
 
 const animationFrameIds = new Set<number>();
+const animationFrameCallbacks = new Map<number, FrameRequestCallback>();
+
+function startRemainingSongWords() {
+  if (!currentWordAnimationSchedule) return;
+  while (startedWordCount < unfinishedLettersByWord.length) {
+    startWordAnimation(startedWordCount);
+  }
+}
+
+function finishPendingSongLyrics() {
+  if (!currentWordAnimationSchedule) return;
+  startRemainingSongWords();
+  while (canvas.dataset.letterAnimationState === "running" && animationFrameIds.size > 0) {
+    const pendingFrames = [...animationFrameIds];
+    for (const frameId of pendingFrames) {
+      const callback = animationFrameCallbacks.get(frameId);
+      cancelAnimationFrame(frameId);
+      animationFrameIds.delete(frameId);
+      animationFrameCallbacks.delete(frameId);
+      callback?.(performance.now());
+    }
+  }
+}
 
 function queueAnimationFrame(callback: FrameRequestCallback) {
   const frameId = window.requestAnimationFrame((ms) => {
     animationFrameIds.delete(frameId);
+    animationFrameCallbacks.delete(frameId);
     callback(ms);
   });
 
   animationFrameIds.add(frameId);
+  animationFrameCallbacks.set(frameId, callback);
 }
 
 class Letter {
@@ -2625,6 +2658,7 @@ function startAnimation(lineWidth: number) {
     cancelAnimationFrame(frameId);
   });
   animationFrameIds.clear();
+  animationFrameCallbacks.clear();
 
   stopFlashing = false;
   borderColour = "yellow";

@@ -15,6 +15,7 @@ export class ScrollingLyrics {
   private offset = 0;
   private lastFrame = 0;
   private completedLines = 0;
+  private paused = false;
   private endPulse = 0;
   private maximumOffset = 0;
 
@@ -54,6 +55,7 @@ export class ScrollingLyrics {
       this.lastFrame = performance.now();
       this.draw(this.lastFrame);
     }
+    this.paused = false;
     this.targetOrigin = this.offset;
     this.startPulse = startPulse;
     this.endPulse = startPulse + durationPulses;
@@ -77,16 +79,15 @@ export class ScrollingLyrics {
   }
 
   private updateSpeed(): void {
-    this.pixelsPerPulse = this.completedLines < 2 ? 0 :
+    this.pixelsPerPulse = this.paused || this.completedLines < 2 ? 0 :
       Math.max(0, this.maximumOffset - this.targetOrigin) / Math.max(1, this.endPulse - this.startPulse);
   }
 
   silence(): void {
-    this.retainCue();
+    this.paused = true;
     this.pixelsPerPulse = 0;
     this.targetOrigin = this.offset;
     this.startPulse = this.getPulse();
-    if (this.active) this.canvas.style.visibility = "hidden";
   }
 
   reset(): void {
@@ -103,6 +104,7 @@ export class ScrollingLyrics {
     this.pixelsPerPulse = 0;
     this.offset = 0;
     this.completedLines = 0;
+    this.paused = false;
     this.endPulse = 0;
     this.maximumOffset = 0;
     this.viewport.classList.remove("is-scrolling");
