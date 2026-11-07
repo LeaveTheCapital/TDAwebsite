@@ -6,6 +6,7 @@ import {
 } from "webmidi";
 
 import "../main.css";
+import { ScrollingLyrics } from "./scrolling-lyrics.ts";
 import { renderSvgWordmark } from "./svg-wordmark.ts";
 
 import "./audio-visualizer.ts";
@@ -98,6 +99,7 @@ import {
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
 const logicalCanvasWidth = canvas.width;
+const scrollingLyrics = new ScrollingLyrics(canvas, () => midiClockPulseCount);
 const startFakeMidiButton = getButton("#start-fake-midi");
 const stopFakeMidiButton = getButton("#stop-fake-midi");
 const strokeWidthInput = getRangeInput("#stroke-width");
@@ -535,6 +537,7 @@ function handleMidiStop() {
 }
 
 function resetTransportForSelection() {
+  scrollingLyrics.reset();
   if (fakeMidiTimer !== undefined) {
     window.clearInterval(fakeMidiTimer);
     fakeMidiTimer = undefined;
@@ -630,6 +633,7 @@ function setMidiDevice(name?: string) {
 }
 
 function startSelectedSong() {
+  scrollingLyrics.reset();
   activeSong = selectedSongProgram === undefined
     ? undefined
     : songsByProgram.get(selectedSongProgram);
@@ -682,7 +686,7 @@ function startSectionLyrics(lyrics: string | null, sectionStartPulse: number) {
 
   if (activeLyricCues.length === 0) {
     delete transportPosition.dataset.lyricCue;
-    if (!isUsingSpeechText) clearAnimatedText();
+    if (!isUsingSpeechText) clearAnimatedText(true);
     return;
   }
 
@@ -1081,12 +1085,19 @@ function setAnimatedText(
       `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
     );
   }
+  if (wordSchedule) scrollingLyrics.retainCue();
+  else scrollingLyrics.reset();
   updateTextLayout(text);
+  if (wordSchedule) {
+    scrollingLyrics.startCue(wordSchedule.startPulse, wordSchedule.durationPulses, width, height);
+  }
   currentWordAnimationSchedule = wordSchedule;
   startAnimation(Number(strokeWidthInput.value));
 }
 
-function clearAnimatedText() {
+function clearAnimatedText(preserveScroll = false) {
+  if (preserveScroll) scrollingLyrics.silence();
+  else scrollingLyrics.reset();
   animationFrameIds.forEach((frameId) => {
     cancelAnimationFrame(frameId);
   });
