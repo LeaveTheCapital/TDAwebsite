@@ -83,7 +83,8 @@ h1 {
   gap: 1rem;
 }
 
-#save-status {
+#save-status,
+#upload-status {
   color: #9ca9a4;
   font-size: 0.8rem;
 }
@@ -811,4 +812,14 @@ body.is-collapsed #control-dialog .round-button {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+#upload-status {
+  flex-basis: 100%;
+  text-align: right;
+}
+
+.action-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
