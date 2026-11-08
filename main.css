@@ -502,3 +502,22 @@ canvas {
   display: none;
   width: 12rem;
 }
+
+.lyrics-viewport.is-scrolling {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  background: black;
+}
+
+.is-scrolling .lyrics-track {
+  position: absolute;
+  inset: 0 auto auto 0;
+  will-change: transform;
+}
+
+.is-scrolling .lyrics-track canvas {
+  position: absolute;
+  left: 0;
+  width: 100%;
+}

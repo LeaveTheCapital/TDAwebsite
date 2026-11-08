@@ -6,6 +6,7 @@ import {
 } from "webmidi";
 
 import "../main.css";
+import { ScrollingLyrics } from "./scrolling-lyrics.ts";
 import { renderSvgWordmark } from "./svg-wordmark.ts";
 
 import "./audio-visualizer.ts";
@@ -98,6 +99,7 @@ import {
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
 const logicalCanvasWidth = canvas.width;
+const scrollingLyrics = new ScrollingLyrics(canvas, () => midiClockPulseCount);
 const startFakeMidiButton = getButton("#start-fake-midi");
 const stopFakeMidiButton = getButton("#stop-fake-midi");
 const strokeWidthInput = getRangeInput("#stroke-width");
@@ -535,6 +537,7 @@ function handleMidiStop() {
 }
 
 function resetTransportForSelection() {
+  scrollingLyrics.reset();
   if (fakeMidiTimer !== undefined) {
     window.clearInterval(fakeMidiTimer);
     fakeMidiTimer = undefined;
@@ -630,6 +633,7 @@ function setMidiDevice(name?: string) {
 }
 
 function startSelectedSong() {
+  scrollingLyrics.reset();
   activeSong = selectedSongProgram === undefined
     ? undefined
     : songsByProgram.get(selectedSongProgram);
@@ -682,7 +686,7 @@ function startSectionLyrics(lyrics: string | null, sectionStartPulse: number) {
 
   if (activeLyricCues.length === 0) {
     delete transportPosition.dataset.lyricCue;
-    if (!isUsingSpeechText) clearAnimatedText();
+    if (!isUsingSpeechText) clearAnimatedText(true);
     return;
   }
 
@@ -1081,16 +1085,31 @@ function setAnimatedText(
       `${window.location.pathname}?${nextQuery.toString()}${window.location.hash}`,
     );
   }
+  if (wordSchedule) {
+    finishPendingSongLyrics();
+    scrollingLyrics.retainCue();
+  }
+  else scrollingLyrics.reset();
   updateTextLayout(text);
+  if (wordSchedule) {
+    scrollingLyrics.startCue(wordSchedule.startPulse, wordSchedule.durationPulses, width, height);
+  }
   currentWordAnimationSchedule = wordSchedule;
   startAnimation(Number(strokeWidthInput.value));
 }
 
-function clearAnimatedText() {
+function clearAnimatedText(preserveScroll = false) {
+  if (preserveScroll) {
+    scrollingLyrics.silence();
+    startRemainingSongWords();
+    return;
+  }
+  scrollingLyrics.reset();
   animationFrameIds.forEach((frameId) => {
     cancelAnimationFrame(frameId);
   });
   animationFrameIds.clear();
+  animationFrameCallbacks.clear();
   stopFlashing = true;
   textInput.value = "";
   resizeTextInput();
@@ -1372,14 +1391,39 @@ interface VerticalLineOptions {
 }
 
 const animationFrameIds = new Set<number>();
+const animationFrameCallbacks = new Map<number, FrameRequestCallback>();
+
+function startRemainingSongWords() {
+  if (!currentWordAnimationSchedule) return;
+  while (startedWordCount < unfinishedLettersByWord.length) {
+    startWordAnimation(startedWordCount);
+  }
+}
+
+function finishPendingSongLyrics() {
+  if (!currentWordAnimationSchedule) return;
+  startRemainingSongWords();
+  while (canvas.dataset.letterAnimationState === "running" && animationFrameIds.size > 0) {
+    const pendingFrames = [...animationFrameIds];
+    for (const frameId of pendingFrames) {
+      const callback = animationFrameCallbacks.get(frameId);
+      cancelAnimationFrame(frameId);
+      animationFrameIds.delete(frameId);
+      animationFrameCallbacks.delete(frameId);
+      callback?.(performance.now());
+    }
+  }
+}
 
 function queueAnimationFrame(callback: FrameRequestCallback) {
   const frameId = window.requestAnimationFrame((ms) => {
     animationFrameIds.delete(frameId);
+    animationFrameCallbacks.delete(frameId);
     callback(ms);
   });
 
   animationFrameIds.add(frameId);
+  animationFrameCallbacks.set(frameId, callback);
 }
 
 class Letter {
@@ -2471,6 +2515,7 @@ let travellingCrossbarIndexesByLine: number[][] = [];
 let unfinishedCrossbarLines = 0;
 let unfinishedLetters = 0;
 let unfinishedLettersByWord: number[] = [];
+let unfinishedLettersByLine: number[] = [];
 let letterWordIndexes: number[] = [];
 let startedWordCount = 0;
 let currentWordAnimationSchedule: WordAnimationSchedule | undefined;
@@ -2481,6 +2526,12 @@ interface WordAnimationSchedule {
 }
 
 const animatableLetters = "'’,-æÆ0123TDAGESCBFHIJKLMNOPQRUVWXYZ";
+
+function finishScrollingLine(letterIndex: number) {
+  const lineIndex = letterLayouts[letterIndex].lineIndex;
+  unfinishedLettersByLine[lineIndex] -= 1;
+  if (unfinishedLettersByLine[lineIndex] === 0) scrollingLyrics.completeLine();
+}
 
 function finishLetter(wordIndex: number) {
   unfinishedLetters -= 1;
@@ -2525,6 +2576,7 @@ function animateNextTravellingCrossbar(lineQueue: number[]) {
   }
 
   new A2(width, height, letterIndex, () => {
+    finishScrollingLine(letterIndex);
     animateNextTravellingCrossbar(lineQueue);
   }).animationFunc();
 }
@@ -2606,6 +2658,7 @@ function startAnimation(lineWidth: number) {
     cancelAnimationFrame(frameId);
   });
   animationFrameIds.clear();
+  animationFrameCallbacks.clear();
 
   stopFlashing = false;
   borderColour = "yellow";
@@ -2635,9 +2688,11 @@ function startAnimation(lineWidth: number) {
   const wordCount = Math.max(-1, ...letterWordIndexes) + 1;
 
   unfinishedLettersByWord = Array.from({ length: wordCount }, () => 0);
+  unfinishedLettersByLine = wrappedLines.map(() => 0);
   letters.forEach((letter, index) => {
     if (animatableLetters.includes(letter)) {
       unfinishedLettersByWord[letterWordIndexes[index]] += 1;
+      unfinishedLettersByLine[letterLayouts[index].lineIndex] += 1;
     }
   });
   unfinishedLetters = unfinishedLettersByWord.reduce(
@@ -2667,6 +2722,9 @@ function startWordAnimation(wordIndex: number) {
     }
 
     const onComplete = () => {
+      if (selectedFont === "dashed" || !isTravellingCrossbarMarker(letter)) {
+        finishScrollingLine(index);
+      }
       finishLetter(wordIndex);
     };
 
