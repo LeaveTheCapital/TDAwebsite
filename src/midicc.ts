@@ -1,7 +1,7 @@
 import "../midicc.css";
 import { JsonStorageSocket } from "./storage/json-storage-socket";
 import { LocalStorageAdapter } from "./storage/local-storage-adapter";
-import { songsByProgram } from "./songs";
+import { songsByProgram, type Song } from "./songs";
 import { loadSetlist, saveSetlist } from "./setlist";
 
 type ControlMode = "cc" | "sysex" | "lfo" | "note";
@@ -85,6 +85,7 @@ const tonverkTracks = [
 
 const setlistPrograms = loadSetlist();
 let draggedSetlistProgram: number | undefined;
+let expandedSetlistProgram: number | undefined;
 
 renderSetlist();
 
@@ -114,9 +115,36 @@ function renderSetlist(): void {
     const name = document.createElement("strong");
     name.textContent = song.name;
 
-    const controls = document.createElement("span");
-    controls.className = "setlist-move-controls";
-    controls.append(
+    const actions = document.createElement("div");
+    actions.className = "setlist-actions";
+
+    const configId = `song-config-${program}`;
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.className = "setlist-edit-button";
+    editButton.textContent = "Edit";
+    editButton.setAttribute("aria-controls", configId);
+    editButton.setAttribute(
+      "aria-expanded",
+      String(expandedSetlistProgram === program),
+    );
+    editButton.setAttribute("aria-label", `Edit ${song.name}`);
+    editButton.addEventListener("click", () => {
+      const isOpening = expandedSetlistProgram !== program;
+      expandedSetlistProgram = isOpening ? program : undefined;
+      renderSetlist();
+      if (isOpening) {
+        document.getElementById(configId)?.focus();
+      } else {
+        setlist
+          .querySelector<HTMLButtonElement>(`[aria-controls="${configId}"]`)
+          ?.focus();
+      }
+    });
+
+    const moveControls = document.createElement("span");
+    moveControls.className = "setlist-move-controls";
+    moveControls.append(
       createSetlistMoveButton(program, -1, "Move up", index === 0),
       createSetlistMoveButton(
         program,
@@ -125,14 +153,79 @@ function renderSetlist(): void {
         index === setlistPrograms.length - 1,
       ),
     );
+    actions.append(editButton, moveControls);
 
-    item.append(handle, position, name, controls);
+    item.append(handle, position, name, actions);
+    if (expandedSetlistProgram === program) {
+      item.append(createSongConfig(program, song, configId));
+    }
     item.addEventListener("dragstart", handleSetlistDragStart);
     item.addEventListener("dragover", handleSetlistDragOver);
     item.addEventListener("drop", handleSetlistDrop);
     item.addEventListener("dragend", clearSetlistDragState);
     setlist.append(item);
   });
+}
+
+function createSongConfig(
+  program: number,
+  song: Song,
+  id: string,
+): HTMLElement {
+  const config = document.createElement("section");
+  config.id = id;
+  config.className = "song-config";
+  config.tabIndex = -1;
+  config.setAttribute("aria-label", `${song.name} config`);
+
+  const heading = document.createElement("div");
+  heading.className = "song-config-heading";
+  const title = document.createElement("h3");
+  title.textContent = "Song config";
+  const readOnly = document.createElement("span");
+  readOnly.textContent = "Read only";
+  heading.append(title, readOnly);
+
+  const summary = document.createElement("dl");
+  summary.className = "song-config-summary";
+  appendConfigValue(summary, "Program", String(program));
+  appendConfigValue(summary, "Name", song.name);
+  appendConfigValue(summary, "Sections", String(song.sections.length));
+
+  const sections = document.createElement("ol");
+  sections.className = "song-config-sections";
+  song.sections.forEach((section, index) => {
+    const item = document.createElement("li");
+    const sectionTitle = document.createElement("h4");
+    sectionTitle.textContent = `${String(index + 1).padStart(2, "0")} · ${section.id}`;
+    const values = document.createElement("dl");
+    appendConfigValue(values, "Bars", String(section.bars));
+    appendConfigValue(values, "Beats", String(section.beats));
+    appendConfigValue(values, "Lyrics", section.lyrics ?? "—", "song-config-lyrics");
+    appendConfigValue(values, "Notes", section.notes ?? "—");
+    appendConfigValue(values, "Tonverk", section.tonverk ?? "—");
+    item.append(sectionTitle, values);
+    sections.append(item);
+  });
+
+  config.append(heading, summary, sections);
+  return config;
+}
+
+function appendConfigValue(
+  list: HTMLDListElement,
+  label: string,
+  value: string,
+  valueClass?: string,
+): void {
+  const term = document.createElement("dt");
+  term.textContent = label;
+  const description = document.createElement("dd");
+  description.textContent = value;
+  if (valueClass !== undefined) {
+    description.className = valueClass;
+  }
+  list.append(term, description);
 }
 
 function createSetlistMoveButton(

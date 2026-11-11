@@ -102,13 +102,15 @@ main,
   text-transform: uppercase;
 }
 
+.setlist-actions,
 .setlist-move-controls {
   display: flex;
+  align-items: center;
   gap: 0.35rem;
 }
 
+.setlist-edit-button,
 .setlist-move-button {
-  width: 2.25rem;
   height: 2.25rem;
   border: 1px solid #46524e;
   border-radius: 0.35rem;
@@ -117,14 +119,150 @@ main,
   cursor: pointer;
 }
 
+.setlist-edit-button {
+  padding: 0 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.setlist-move-button {
+  width: 2.25rem;
+}
+
 .setlist-move-button:disabled {
   color: #46524e;
   cursor: default;
 }
 
+.setlist-edit-button:hover {
+  border-color: #58f5b5;
+  background: #1a2421;
+}
+
+.setlist-edit-button:focus-visible,
 .setlist-move-button:focus-visible {
   outline: 3px solid #f4a950;
   outline-offset: 2px;
+}
+
+.song-config {
+  grid-column: 2 / -1;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: clamp(0.9rem, 2.5vw, 1.4rem);
+  border: 1px solid #38433f;
+  border-radius: 0.55rem;
+  background: #090c0d;
+  cursor: default;
+}
+
+.song-config:focus-visible {
+  outline: 2px solid #58f5b5;
+  outline-offset: 2px;
+}
+
+.song-config-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.song-config-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.song-config-heading span {
+  color: #f4a950;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.song-config-summary,
+.song-config-sections dl {
+  display: grid;
+  grid-template-columns: minmax(4rem, auto) minmax(0, 1fr);
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+}
+
+.song-config-summary {
+  grid-template-columns: repeat(3, auto minmax(0, 1fr));
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #27302d;
+}
+
+.song-config dt {
+  color: #7b8984;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.song-config dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #d9e0dd;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.song-config-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.song-config-sections > li {
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid #27302d;
+  border-radius: 0.45rem;
+  background: #101415;
+}
+
+.song-config-sections h4 {
+  margin: 0 0 0.75rem;
+  color: #58f5b5;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+}
+
+.song-config-lyrics {
+  white-space: pre-line;
+}
+
+@media (max-width: 640px) {
+  .setlist-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .setlist-song {
+    grid-template-columns: auto 2rem minmax(0, 1fr);
+  }
+
+  .setlist-actions {
+    grid-column: 2 / -1;
+    justify-content: space-between;
+  }
+
+  .song-config {
+    grid-column: 1 / -1;
+  }
+
+  .song-config-summary {
+    grid-template-columns: minmax(4rem, auto) minmax(0, 1fr);
+  }
 }
 
 .page-header {
