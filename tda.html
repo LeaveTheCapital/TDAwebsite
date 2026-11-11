@@ -34,6 +34,12 @@
         </div>
     </div>
     <div class="transport-status" role="status" aria-label="MIDI clock status">
+        <div class="live-set-control">
+            <button id="live-set-button" class="live-set-button" type="button" aria-pressed="false">
+                <span>LIVE SET</span>
+            </button>
+            <output id="live-set-status" aria-live="polite">Live set off</output>
+        </div>
         <output id="transport-position">Bar – · Beat –</output>
         <output id="clock-bpm">– BPM</output>
         <span class="song-status">

@@ -95,6 +95,7 @@ import {
   type LyricCue,
   type Song,
 } from "./songs.ts";
+import { loadSetlist } from "./setlist.ts";
 
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
@@ -122,6 +123,8 @@ const midiDevice = getOutput("#midi-device");
 const midiInputSelect = getSelect("#midi-input");
 const developerControls = getElement("#developer-controls");
 const developerSectionDetails = getElement("#developer-section-details");
+const liveSetButton = getButton("#live-set-button");
+const liveSetStatus = getOutput("#live-set-status");
 
 let backgroundHue: number | undefined;
 let lightShowHue: number | undefined;
@@ -147,9 +150,14 @@ let midiClockTimestamps: number[] = [];
 let isUsingSpeechText = false;
 let textBeforeSpeech = "";
 let isDeveloperModeEnabled = true;
+let isLiveSetMode = false;
+let liveSetPrograms: number[] = [];
+let liveSetIndex = -1;
+let hasLiveSetSongStarted = false;
 
 startFakeMidiButton.addEventListener("click", startFakeMidiTimer);
 stopFakeMidiButton.addEventListener("click", stopFakeMidiTimer);
+liveSetButton.addEventListener("click", toggleLiveSetMode);
 midiInputSelect.addEventListener("change", () => {
   connectToMidiInput(midiInputSelect.value);
 });
@@ -211,11 +219,15 @@ function handleMidiProgramChange(event: MessageEvent) {
   selectSong(event.value);
 }
 
-function selectSong(program: number) {
+function selectSong(program: number, fromLiveSet = false) {
   const song = songsByProgram.get(program);
 
   if (!song) {
     return;
+  }
+
+  if (isLiveSetMode && !fromLiveSet) {
+    leaveLiveSetMode("Live set off");
   }
 
   resetTransportForSelection();
@@ -228,6 +240,9 @@ function selectSong(program: number) {
 }
 
 function selectIntro() {
+  if (isLiveSetMode) {
+    leaveLiveSetMode("Live set off");
+  }
   resetTransportForSelection();
   selectedSongProgram = undefined;
   songName.value = "Song: –";
@@ -509,8 +524,15 @@ function handleMidiStart() {
   if (isStartingFromReset) {
     midiClockPulseCount = 0;
     updateTransportPosition();
+    canvas.dataset.displayMode = "song";
     startSelectedSong();
+    if (isLiveSetMode && !hasLiveSetSongStarted) {
+      sendLiveSetTransition(undefined, getLiveSetSong());
+      hasLiveSetSongStarted = true;
+    }
   }
+
+  updateLiveSetStatus();
 
   drawDrumAnimation();
 }
@@ -581,9 +603,113 @@ function handleMidiClock(event?: MessageEvent) {
   midiClockPulseCount += 1;
   updateTransportPosition();
   advanceSongSections();
+  if (advanceLiveSet()) {
+    drawDrumAnimation();
+    return;
+  }
   advanceLyricCues();
   advanceScheduledWords();
   drawDrumAnimation();
+}
+
+function toggleLiveSetMode(): void {
+  if (isLiveSetMode) {
+    leaveLiveSetMode("Live set off");
+    return;
+  }
+
+  liveSetPrograms = loadSetlist();
+  if (liveSetPrograms.length === 0) {
+    liveSetStatus.value = "No songs in setlist";
+    return;
+  }
+
+  isLiveSetMode = true;
+  liveSetIndex = 0;
+  hasLiveSetSongStarted = false;
+  liveSetButton.setAttribute("aria-pressed", "true");
+  document.body.dataset.liveSetMode = "true";
+  selectSong(liveSetPrograms[liveSetIndex], true);
+  canvas.dataset.displayMode = "intro";
+  if (!isUsingSpeechText) {
+    setAnimatedText(TDA);
+  }
+  updateLiveSetStatus();
+}
+
+function leaveLiveSetMode(status: string): void {
+  isLiveSetMode = false;
+  liveSetPrograms = [];
+  liveSetIndex = -1;
+  hasLiveSetSongStarted = false;
+  liveSetButton.setAttribute("aria-pressed", "false");
+  delete document.body.dataset.liveSetMode;
+  liveSetStatus.value = status;
+}
+
+function advanceLiveSet(): boolean {
+  if (
+    !isLiveSetMode ||
+    !activeSong ||
+    activeSectionIndex !== activeSong.sections.length - 1 ||
+    midiClockPulseCount < activeSectionEndPulse
+  ) {
+    return false;
+  }
+
+  const endingSong = activeSong;
+  const nextProgram = liveSetPrograms.at(liveSetIndex + 1);
+  const startingSong = nextProgram === undefined
+    ? undefined
+    : songsByProgram.get(nextProgram);
+  sendLiveSetTransition(endingSong, startingSong);
+
+  if (startingSong === undefined) {
+    isFollowingMidiClock = false;
+    midiTransportState = "stopped";
+    transportPosition.dataset.transport = midiTransportState;
+    scrollingLyrics.reset();
+    if (!isUsingSpeechText) {
+      clearAnimatedText(true);
+    }
+    leaveLiveSetMode("Live set complete");
+    return true;
+  }
+
+  liveSetIndex += 1;
+  selectedSongProgram = nextProgram;
+  songName.value = `Song: ${startingSong.name}`;
+  canvas.dataset.displayMode = "song";
+  updateSelectionButtonStates();
+  midiClockPulseCount = 0;
+  updateTransportPosition();
+  startSelectedSong();
+  updateLiveSetStatus();
+  return true;
+}
+
+function getLiveSetSong(): Song | undefined {
+  const program = liveSetPrograms.at(liveSetIndex);
+  return program === undefined ? undefined : songsByProgram.get(program);
+}
+
+function updateLiveSetStatus(): void {
+  if (!isLiveSetMode) {
+    return;
+  }
+
+  const song = getLiveSetSong();
+  const state = midiTransportState === "running" ? "Playing" : "Ready";
+  liveSetStatus.value = `${state} ${liveSetIndex + 1}/${liveSetPrograms.length}: ${song?.name ?? "–"}`;
+}
+
+function sendLiveSetTransition(
+  endingSong: Song | undefined,
+  startingSong: Song | undefined,
+): void {
+  console.log(
+    `[Live Set MIDI] ending: ${endingSong?.name ?? "none"}; starting: ${startingSong?.name ?? "none"}`,
+  );
 }
 
 function updateClockBpm(timestamp: number) {
