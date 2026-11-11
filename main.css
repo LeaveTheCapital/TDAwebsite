@@ -256,6 +256,72 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
+.live-set-control {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  width: 9rem;
+  margin: 0.25rem 1rem 0.5rem;
+}
+
+.live-set-button {
+  position: relative;
+  width: 7.5rem;
+  height: 7.5rem;
+  border: 0.55rem solid #153d18;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 28%, #baff9f 0 4%, #36dc2d 24%, #087a10 68%, #034008 100%);
+  box-shadow:
+    inset 0 0.45rem 0.65rem rgb(255 255 255 / 32%),
+    inset 0 -0.75rem 0.9rem rgb(0 0 0 / 48%),
+    0 0.45rem 0 #071f09,
+    0 0.8rem 1.25rem rgb(0 0 0 / 70%);
+  color: white;
+  font: 900 0.92rem/1 sans-serif;
+  letter-spacing: 0.08em;
+  text-shadow: 0 2px 2px rgb(0 0 0 / 70%);
+  cursor: pointer;
+}
+
+.live-set-button::after {
+  position: absolute;
+  inset: -0.85rem;
+  z-index: -1;
+  border: 0.3rem solid #4d5550;
+  border-radius: 50%;
+  background: #161b18;
+  box-shadow: inset 0 0 0 0.2rem #090c0a;
+  content: "";
+}
+
+.live-set-button:hover {
+  filter: brightness(1.12);
+}
+
+.live-set-button:active,
+.live-set-button[aria-pressed="true"] {
+  transform: translateY(0.25rem);
+  box-shadow:
+    inset 0 0.45rem 0.65rem rgb(255 255 255 / 24%),
+    inset 0 -0.45rem 0.7rem rgb(0 0 0 / 44%),
+    0 0.2rem 0 #071f09,
+    0 0.45rem 0.8rem rgb(0 0 0 / 65%),
+    0 0 1.8rem rgb(57 255 20 / 65%);
+}
+
+.live-set-button:focus-visible {
+  outline: 0.25rem solid white;
+  outline-offset: 0.4rem;
+}
+
+#live-set-status {
+  color: #39ff14;
+  font-size: 0.75rem;
+  text-align: center;
+  white-space: normal;
+}
+
 .transport-status output {
   white-space: nowrap;
 }

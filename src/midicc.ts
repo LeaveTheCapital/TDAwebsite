@@ -1,6 +1,8 @@
 import "../midicc.css";
 import { JsonStorageSocket } from "./storage/json-storage-socket";
 import { LocalStorageAdapter } from "./storage/local-storage-adapter";
+import { songsByProgram } from "./songs";
+import { loadSetlist, saveSetlist } from "./setlist";
 
 type ControlMode = "cc" | "sysex" | "lfo" | "note";
 
@@ -54,6 +56,8 @@ const tonverkAudioGrid = getElement("tonverk-audio-grid") as HTMLDivElement;
 const tonverkRoutingGrid = getElement("tonverk-routing-grid") as HTMLDivElement;
 const zonaControls = getElement("zona-controls") as HTMLDivElement;
 const notes = getElement("config-notes") as HTMLTextAreaElement;
+const setlist = getElement("setlist") as HTMLOListElement;
+const setlistStatus = getElement("setlist-status") as HTMLOutputElement;
 const oxiTemplate = getElement("oxi-control-template") as HTMLTemplateElement;
 const monolitTemplate = getElement(
   "monolit-control-template",
@@ -78,6 +82,142 @@ const tonverkTracks = [
   })),
   { label: "Mix 16", kind: "Mix" },
 ];
+
+const setlistPrograms = loadSetlist();
+let draggedSetlistProgram: number | undefined;
+
+renderSetlist();
+
+function renderSetlist(): void {
+  setlist.replaceChildren();
+
+  setlistPrograms.forEach((program, index) => {
+    const song = songsByProgram.get(program);
+    if (song === undefined) {
+      return;
+    }
+
+    const item = document.createElement("li");
+    item.className = "setlist-song";
+    item.draggable = true;
+    item.dataset.program = String(program);
+
+    const handle = document.createElement("span");
+    handle.className = "setlist-drag-handle";
+    handle.ariaHidden = "true";
+    handle.textContent = "⠿";
+
+    const position = document.createElement("span");
+    position.className = "setlist-position";
+    position.textContent = String(index + 1).padStart(2, "0");
+
+    const name = document.createElement("strong");
+    name.textContent = song.name;
+
+    const controls = document.createElement("span");
+    controls.className = "setlist-move-controls";
+    controls.append(
+      createSetlistMoveButton(program, -1, "Move up", index === 0),
+      createSetlistMoveButton(
+        program,
+        1,
+        "Move down",
+        index === setlistPrograms.length - 1,
+      ),
+    );
+
+    item.append(handle, position, name, controls);
+    item.addEventListener("dragstart", handleSetlistDragStart);
+    item.addEventListener("dragover", handleSetlistDragOver);
+    item.addEventListener("drop", handleSetlistDrop);
+    item.addEventListener("dragend", clearSetlistDragState);
+    setlist.append(item);
+  });
+}
+
+function createSetlistMoveButton(
+  program: number,
+  direction: -1 | 1,
+  label: string,
+  disabled: boolean,
+): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "setlist-move-button";
+  button.textContent = direction === -1 ? "↑" : "↓";
+  button.setAttribute("aria-label", `${label} ${songsByProgram.get(program)?.name ?? "song"}`);
+  button.disabled = disabled;
+  button.addEventListener("click", () => {
+    moveSetlistSong(program, direction);
+  });
+  return button;
+}
+
+function handleSetlistDragStart(event: DragEvent): void {
+  const item = event.currentTarget as HTMLLIElement;
+  draggedSetlistProgram = Number(item.dataset.program);
+  item.classList.add("is-dragging");
+  event.dataTransfer?.setData("text/plain", String(draggedSetlistProgram));
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "move";
+  }
+}
+
+function handleSetlistDragOver(event: DragEvent): void {
+  event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = "move";
+  }
+}
+
+function handleSetlistDrop(event: DragEvent): void {
+  event.preventDefault();
+  const target = event.currentTarget as HTMLLIElement;
+  const targetProgram = Number(target.dataset.program);
+  const sourceProgram = draggedSetlistProgram ?? Number(event.dataTransfer?.getData("text/plain"));
+
+  if (!Number.isInteger(sourceProgram) || sourceProgram === targetProgram) {
+    clearSetlistDragState();
+    return;
+  }
+
+  const fromIndex = setlistPrograms.indexOf(sourceProgram);
+  const toIndex = setlistPrograms.indexOf(targetProgram);
+  if (fromIndex < 0 || toIndex < 0) {
+    clearSetlistDragState();
+    return;
+  }
+
+  setlistPrograms.splice(fromIndex, 1);
+  setlistPrograms.splice(toIndex, 0, sourceProgram);
+  commitSetlist();
+}
+
+function moveSetlistSong(program: number, direction: -1 | 1): void {
+  const fromIndex = setlistPrograms.indexOf(program);
+  const toIndex = fromIndex + direction;
+  if (fromIndex < 0 || toIndex < 0 || toIndex >= setlistPrograms.length) {
+    return;
+  }
+
+  [setlistPrograms[fromIndex], setlistPrograms[toIndex]] =
+    [setlistPrograms[toIndex], setlistPrograms[fromIndex]];
+  commitSetlist();
+}
+
+function commitSetlist(): void {
+  saveSetlist(setlistPrograms);
+  setlistStatus.value = "Setlist saved locally";
+  renderSetlist();
+  clearSetlistDragState();
+}
+
+function clearSetlistDragState(): void {
+  draggedSetlistProgram = undefined;
+  setlist.querySelectorAll(".is-dragging").forEach((item) => {
+    item.classList.remove("is-dragging");
+  });
+}
 
 for (let index = 1; index <= 16; index += 1) {
   const card = cloneTemplate(oxiTemplate, ".encoder-card");

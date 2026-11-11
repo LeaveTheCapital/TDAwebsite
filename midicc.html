@@ -11,6 +11,17 @@
     <title>TDA Midi CC Config</title>
   </head>
   <body>
+    <section class="setlist-panel" aria-labelledby="setlist-title">
+      <div class="setlist-heading">
+        <div>
+          <p class="eyebrow">Performance order</p>
+          <h2 id="setlist-title">Setlist</h2>
+        </div>
+        <output id="setlist-status" aria-live="polite">Saved locally</output>
+      </div>
+      <p class="setlist-help">Drag the songs into the order you want them played in Live Set Mode.</p>
+      <ol id="setlist" class="setlist" aria-label="Song order"></ol>
+    </section>
     <header class="page-header">
       <div>
         <p class="eyebrow">Live rig utility</p>
