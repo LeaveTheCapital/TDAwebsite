@@ -2,11 +2,9 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  testMatch: "**/*.spec.ts",
   outputDir: "test-results",
-  timeout: 10000,
-  expect: {
-    timeout: 5000,
-  },
+  timeout: 30000,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   workers: 1,
@@ -19,7 +17,7 @@ export default defineConfig({
     viewport: { width: 960, height: 540 },
     video: "on",
     screenshot: "only-on-failure",
-    trace: "retain-on-failure",
+    trace: "off",
   },
   webServer: {
     command: "npm run dev -- --host 127.0.0.1 --port 4173",

@@ -38,13 +38,14 @@ jobs:
       - name: Record browser evidence
         run: npm run test:evidence
 
-      - name: Upload browser evidence
+      - name: Upload review videos
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: browser-evidence-${{ github.event.pull_request.number }}-${{ github.sha }}
+          name: review-videos-${{ github.event.pull_request.number }}-${{ github.sha }}
           path: |
             playwright-report/
-            test-results/
+            test-results/**/video.webm
+            test-results/**/*.png
           if-no-files-found: ignore
           retention-days: 14
