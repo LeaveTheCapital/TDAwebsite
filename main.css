@@ -326,6 +326,22 @@ canvas {
   white-space: nowrap;
 }
 
+.transport-readout {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 0.25rem;
+}
+
+.transport-metrics {
+  display: flex;
+  gap: 0.75rem;
+}
+
+#queued-song {
+  color: turquoise;
+}
+
 .song-status {
   display: inline-flex;
   align-items: center;

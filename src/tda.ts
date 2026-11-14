@@ -98,7 +98,7 @@ import {
   type LyricCue,
   type Song,
 } from "./songs.ts";
-import { loadSetlist } from "./setlist.ts";
+import { getSetlistIndexForMidiNote, loadSetlist } from "./setlist.ts";
 
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
@@ -117,6 +117,7 @@ const textInput = getTextInput("#text-input");
 const songButtons = getElement("#song-buttons");
 const transportPosition = getOutput("#transport-position");
 const clockBpm = getOutput("#clock-bpm");
+const queuedSongOutput = getOutput("#queued-song");
 const songName = getOutput("#song-name");
 const useSpeechTextButton = getButton("#use-speech-text");
 const captions = getElement("#captions");
@@ -157,6 +158,7 @@ let isDeveloperModeEnabled = true;
 let isLiveSetMode = false;
 let liveSetPrograms: number[] = [];
 let liveSetIndex = -1;
+let queuedLiveSetIndex: number | undefined;
 let hasLiveSetSongStarted = false;
 
 startFakeMidiButton.addEventListener("click", startFakeMidiTimer);
@@ -191,6 +193,7 @@ function setDeveloperModeEnabled(enabled: boolean) {
   isDeveloperModeEnabled = enabled;
   developerControls.hidden = !enabled;
   developerSectionDetails.hidden = !enabled;
+  queuedSongOutput.hidden = !enabled;
   document.body.dataset.developerMode = String(enabled);
 }
 
@@ -224,6 +227,16 @@ function handleMidiDrumNoteOn(event: MessageEvent) {
 
   lastMidiDrumHits[instrument] = midiClockPulseCount;
   drawDrumAnimation();
+}
+
+function handleMidiLiveSetNoteOn(event: MessageEvent) {
+  if (!isLiveSetMode) return;
+
+  const index = getSetlistIndexForMidiNote(event.data[1], liveSetPrograms);
+  if (index === undefined) return;
+
+  queuedLiveSetIndex = index;
+  updateLiveSetStatus();
 }
 
 function handleMidiProgramChange(event: MessageEvent) {
@@ -623,6 +636,11 @@ function drawDrumAnimation() {
 }
 
 function handleMidiStart() {
+  if (isLiveSetMode && midiTransportState === "stopped") {
+    const program = liveSetPrograms.at(liveSetIndex);
+    if (program !== undefined) selectSong(program, true);
+  }
+
   if (selectedSongProgram === undefined) {
     return;
   }
@@ -669,6 +687,15 @@ function pauseMidiTransport() {
 }
 
 function handleMidiStop() {
+  if (isLiveSetMode) {
+    if (queuedLiveSetIndex !== undefined) {
+      liveSetIndex = queuedLiveSetIndex;
+      queuedLiveSetIndex = undefined;
+    }
+    showLiveSetIntro();
+    return;
+  }
+
   isFollowingMidiClock = false;
   midiTransportState = "stopped";
   transportPosition.dataset.transport = midiTransportState;
@@ -750,13 +777,21 @@ function toggleLiveSetMode(): void {
   isLiveSetMode = true;
   liveSetIndex = 0;
   hasLiveSetSongStarted = false;
+  queuedLiveSetIndex = undefined;
   liveSetButton.setAttribute("aria-pressed", "true");
   document.body.dataset.liveSetMode = "true";
-  selectSong(liveSetPrograms[liveSetIndex], true);
+  showLiveSetIntro();
+}
+
+function showLiveSetIntro(): void {
+  resetTransportForSelection();
+  selectedSongProgram = undefined;
+  songName.value = "Song: –";
   canvas.dataset.displayMode = "intro";
-  if (!isUsingSpeechText) {
-    setAnimatedText(TDA);
-  }
+  updateSelectionButtonStates();
+  updateFakeMidiButtonStates();
+  drawDrumFrame();
+  setAnimatedText(TDA);
   updateLiveSetStatus();
 }
 
@@ -764,6 +799,8 @@ function leaveLiveSetMode(status: string): void {
   isLiveSetMode = false;
   liveSetPrograms = [];
   liveSetIndex = -1;
+  queuedLiveSetIndex = undefined;
+  queuedSongOutput.value = "Queued song: –";
   hasLiveSetSongStarted = false;
   liveSetButton.setAttribute("aria-pressed", "false");
   delete document.body.dataset.liveSetMode;
@@ -773,6 +810,7 @@ function leaveLiveSetMode(status: string): void {
 function advanceLiveSet(): boolean {
   if (
     !isLiveSetMode ||
+    queuedLiveSetIndex !== undefined ||
     !activeSong ||
     activeSectionIndex !== activeSong.sections.length - 1 ||
     midiClockPulseCount < activeSectionEndPulse
@@ -827,7 +865,13 @@ function updateLiveSetStatus(): void {
 
   const song = getLiveSetSong();
   const state = midiTransportState === "running" ? "Playing" : "Ready";
-  liveSetStatus.value = `${state} ${liveSetIndex + 1}/${liveSetPrograms.length}: ${song?.name ?? "–"}`;
+  const queuedProgram = queuedLiveSetIndex === undefined
+    ? undefined
+    : liveSetPrograms[queuedLiveSetIndex];
+  const queuedSong = queuedProgram === undefined ? undefined : songsByProgram.get(queuedProgram);
+  queuedSongOutput.value = `Queued song: ${queuedSong?.name ?? "–"}`;
+  liveSetStatus.value = `${state} ${liveSetIndex + 1}/${liveSetPrograms.length}: ${song?.name ?? "–"}` +
+    (queuedSong ? ` · Next: ${queuedSong.name}` : "");
 }
 
 function sendLiveSetTransition(
@@ -1006,7 +1050,8 @@ function updateTransportPosition() {
 }
 
 function startFakeMidiTimer() {
-  if (fakeMidiTimer !== undefined || selectedSongProgram === undefined) {
+  if (fakeMidiTimer !== undefined ||
+    (selectedSongProgram === undefined && !isLiveSetMode)) {
     return;
   }
 
@@ -1036,7 +1081,8 @@ function stopFakeMidiTimer() {
 
 function updateFakeMidiButtonStates() {
   const isRunning = fakeMidiTimer !== undefined;
-  startFakeMidiButton.disabled = isRunning || selectedSongProgram === undefined;
+  startFakeMidiButton.disabled = isRunning ||
+    (selectedSongProgram === undefined && !isLiveSetMode);
   stopFakeMidiButton.disabled = !isRunning;
 }
 
@@ -1086,6 +1132,7 @@ function disconnectActiveMidiInput() {
   activeMidiInput.removeListener("clock", handleMidiClock);
   activeMidiInput.channels[1].removeListener("noteon", handleMidiNoteOn);
   activeMidiInput.channels[10].removeListener("noteon", handleMidiDrumNoteOn);
+  activeMidiInput.channels[10].removeListener("noteon", handleMidiLiveSetNoteOn);
   activeMidiInput.channels[10].removeListener(
     "programchange",
     handleMidiProgramChange,
@@ -1124,6 +1171,7 @@ function connectToMidiInput(inputId: string) {
   activeMidiInput.addListener("clock", handleMidiClock);
   activeMidiInput.channels[1].addListener("noteon", handleMidiNoteOn);
   activeMidiInput.channels[10].addListener("noteon", handleMidiDrumNoteOn);
+  activeMidiInput.channels[10].addListener("noteon", handleMidiLiveSetNoteOn);
   activeMidiInput.channels[10].addListener(
     "programchange",
     handleMidiProgramChange,

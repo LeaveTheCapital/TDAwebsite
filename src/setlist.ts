@@ -1,9 +1,15 @@
-import { songsByProgram } from "./songs";
+import { songsByProgram } from "./songs.ts";
 
 export const setlistStorageKey = "tda-setlist-v1";
 
 export function getDefaultSetlist(): number[] {
   return [...songsByProgram.keys()];
+}
+
+export function getSetlistIndexForMidiNote(note: number, programs: number[]): number | undefined {
+  return Number.isInteger(note) && note >= 0 && note <= 12 && note < programs.length
+    ? note
+    : undefined;
 }
 
 export function loadSetlist(storage: Storage = localStorage): number[] {

@@ -117,8 +117,8 @@ Like extra-curricular activities`,
           bars: 4,
           beats: 0,
           lyrics: "{2}looking in my notebook to find some ideas {2}it's a mug's game.",
-          tonverk: 'last section of pattern A-11 Mugs Game Section A',
-          notes: 'main bassline'
+          notes: 'main bassline',
+          tonverk: 'last section of pattern A-11 Mugs Game A',
         },
         {
           id: "Chorus With Backing",
@@ -126,6 +126,8 @@ Like extra-curricular activities`,
           beats: 0,
           lyrics:
           "{2}I wonder what it would be like to live in South Africa.",
+          notes: 'bassline with extra notes',
+          tonverk: 'first section of pattern A-12 Mugs Game B'
         },
         {
           id: "Verse 3",

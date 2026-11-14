@@ -40,8 +40,13 @@
             </button>
             <output id="live-set-status" aria-live="polite">Live set off</output>
         </div>
-        <output id="transport-position">Bar – · Beat –</output>
-        <output id="clock-bpm">– BPM</output>
+        <div class="transport-readout">
+            <div class="transport-metrics">
+                <output id="transport-position">Bar – · Beat –</output>
+                <output id="clock-bpm">– BPM</output>
+            </div>
+            <output id="queued-song" hidden>Queued song: –</output>
+        </div>
         <span class="song-status">
             <button id="use-speech-text" type="button" aria-pressed="false">Use speech text</button>
         </span>
