@@ -11,10 +11,10 @@ each hit. Silent sections show the resting pose and ignore drum notes.
 | --- | ---: | ---: | --- |
 | Bass drum | 10 | 36 | Bass drum |
 | Snare drum | 10 | 38 | Snare |
-| Low tom | 10 | 43 | Snare |
-| Hand clap | 10 | 39 | Snare |
-| Closed hi-hat | 10 | 42 | Hi-hat |
-| Open hi-hat | 10 | 46 | Hi-hat |
+| Low tom | 10 | 43 | Tall floor tom |
+| Hand clap | 10 | 39 | Clapping hands |
+| Closed hi-hat | 10 | 42 | Closing hi-hat |
+| Open hi-hat | 10 | 46 | Opening hi-hat |
 
 Other note numbers are ignored. Notes are heard visually as soon as they
 arrive, including between clocks. Their animations decay over the next six
@@ -53,14 +53,12 @@ The visibility windows within one bar are therefore:
   because no clock pulses precede that start message. For each later beat 1,
   it begins moving right at pulse 90 of the preceding bar, reaches its furthest
   angle at pulse 93, and returns to the head at pulse 0 of the next bar. Each
-  half of the swing takes three clocks. After its first hit, the drum and
-  beater stay visible for the rest of the song.
+  half of the swing takes three clocks.
 - Snare stick: touches the head on pulses 24 and 72, then rises during the
-  following five pulses. After its first hit, the drum and stick remain visible
-  between hits.
+  following five pulses.
 - Hi-hat: the cymbals touch on pulses 0, 12, 24, 36, 48, 60, 72, and 84.
   They move apart over the following six pulses and remain open until the
-  next hit. After its first hit, the stand and both cymbals stay visible.
+  next hit.
 
 ## Visual design
 
@@ -68,8 +66,11 @@ The visibility windows within one bar are therefore:
 - The bass drum is centred in the left zone at 12.5%. Its white front head has
   a one-pixel black outer outline and a smaller inner ring. The blue shell
   extends left from the tall oval head, following the supplied side view.
-- The middle-left zone at 37.5% remains empty. The snare is an angled drum
-  illustration centred vertically in the middle-right zone at 62.5%.
+- The snare is an angled drum illustration centred vertically in the
+  middle-right zone at 62.5%.
+- MIDI drum-note songs also show a taller floor tom to the left of the bass
+  drum and a pair of clapping hands farther left. The fixed clock pattern does
+  not trigger them, so they remain grey during songs without MIDI drum notes.
 - The hi-hat is centred in the right zone at 87.5%. A vertical grey stand runs
   through an orange, shallow bell-shaped upper cymbal and an identical lower
   cymbal reflected beneath it. Both cymbals have black outlines. They move
@@ -78,26 +79,32 @@ The visibility windows within one bar are therefore:
   close, the top of the stand retracts downward by the same distance that
   each cymbal travels; the lower end of the stand stays fixed.
 - The snare and hi-hat have two-pixel black outlines.
+- Closed and open hi-hat notes share one stand and pair of cymbals. Note 42
+  closes them; note 46 spreads them wider before they settle to the resting
+  gap over six clocks. If both arrive on the same pulse, the closed hit wins.
 
 The dice sits directly below the drum overlay inside the same black canvas
 area, separated by a half-rem top gap.
 
-Each song starts with an empty drum overlay. An instrument appears in its
-existing position when it is first hit, then remains visible until the song
-is stopped, reset, or changed. Simultaneous first hits reveal their instruments
-together. Incoming clock pulses do not reveal drums until playback starts.
-Pause and silent sections retain only the instruments already revealed, in
-their resting poses: the bass beater touching the centre of its head, the
-snare stick raised, and the hi-hat open. Stop clears all instruments.
+Selecting a song shows every instrument in its resting pose and in shades of
+grey. An instrument gains its normal colours as soon as its first hit starts,
+then stays coloured for the rest of that song. The closed and open hi-hat notes
+share one colour state. Pause and silent sections keep all instruments visible
+in their resting poses, preserving which ones have played. Stop and song
+changes reset all instruments to grey. The intro without a selected song has
+an empty overlay.
 
 The overlay exposes `data-bass-drum-visible`, `data-bass-drum-hit-visible`,
-`data-snare-visible`, and `data-hi-hat-visible` for browser integration checks.
+`data-snare-visible`, `data-low-tom-visible`, `data-hand-clap-visible`, and
+`data-hi-hat-visible` for browser integration checks. Their corresponding
+`data-*-played` flags track whether each instrument has gained colour.
 `data-snare-side` stays `right` because the single snare is always in the
 middle-right zone. `data-hi-hat-closure` runs from `1` when the cymbals touch
 to `0` when they are fully open. `data-bass-beater-progress` runs from `1`
 when the beater touches the head to `0` when it is angled away. The
 `data-bass-drum-hit-visible` flag tracks the first six pulses after the hit;
 the return motion does not set it.
+`data-hi-hat-opening` runs from `1` at an open hat hit to `0` at rest.
 
 ### Bass drum drawing
 
@@ -142,12 +149,12 @@ the fixed pattern and incoming drum notes. Keep musical timing out of the
 canvas renderer.
 
 `src/tda.ts` owns transport handling and drawing. It tracks which instruments
-have been hit during the current song and draws only those instruments. After
+have been hit during the current song and colours those instruments. After
 MIDI Start it passes the current pulse to the pure timing function and redraws
 the drums with their current hit states. MIDI Start resets the transport to
-pulse 0. MIDI Stop clears the overlay. Pause shows revealed instruments at
-rest, with the bass beater at contact, the snare stick raised, and the hi-hat
-open. Resuming continues from
+pulse 0. MIDI Stop resets the colours. Pause shows every instrument at rest,
+with the bass beater at contact, the snare stick raised, and the hi-hat open.
+Resuming continues from
 the same pulse position. The first beat after MIDI Start has no bass beater
 lead-in; subsequent bars use the previous bar's final six pulses.
 

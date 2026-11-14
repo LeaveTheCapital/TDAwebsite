@@ -13,16 +13,16 @@ export const drumNoteNumbers = {
   openHiHat: 46,
 } as const;
 
-export type DrumInstrument = "bass" | "snare" | "hiHat";
+export type DrumInstrument = "bass" | "snare" | "lowTom" | "handClap" | "closedHiHat" | "openHiHat";
 
 export function getDrumInstrument(noteNumber: number): DrumInstrument | undefined {
   switch (noteNumber) {
     case drumNoteNumbers.bass: return "bass";
-    case drumNoteNumbers.snare:
-    case drumNoteNumbers.lowTom:
-    case drumNoteNumbers.handClap: return "snare";
-    case drumNoteNumbers.closedHiHat:
-    case drumNoteNumbers.openHiHat: return "hiHat";
+    case drumNoteNumbers.snare: return "snare";
+    case drumNoteNumbers.lowTom: return "lowTom";
+    case drumNoteNumbers.handClap: return "handClap";
+    case drumNoteNumbers.closedHiHat: return "closedHiHat";
+    case drumNoteNumbers.openHiHat: return "openHiHat";
     default: return undefined;
   }
 }
@@ -35,7 +35,12 @@ export function getMidiDrumState(
     lastHits[instrument] === undefined ? Infinity : Math.max(0, pulse - lastHits[instrument]);
   const bassAge = age("bass");
   const snareAge = age("snare");
-  const hiHatAge = age("hiHat");
+  const lowTomAge = age("lowTom");
+  const handClapAge = age("handClap");
+  const closedHiHatAge = age("closedHiHat");
+  const openHiHatAge = age("openHiHat");
+  const closedHiHatHasPriority = closedHiHatAge <= openHiHatAge;
+  const hiHatAge = Math.min(closedHiHatAge, openHiHatAge);
   const progress = (hitAge: number) => hitAge < drumHitVisiblePulses
     ? 1 - hitAge / drumHitVisiblePulses : 0;
 
@@ -46,9 +51,14 @@ export function getMidiDrumState(
     snareDrumHit: snareAge === 0,
     snareDrumVisible: snareAge < drumHitVisiblePulses,
     snareStrikeProgress: progress(snareAge),
+    lowTomHit: lowTomAge === 0,
+    lowTomStrikeProgress: progress(lowTomAge),
+    handClapHit: handClapAge === 0,
+    handClapProgress: progress(handClapAge),
     hiHatHit: hiHatAge === 0,
     hiHatVisible: true,
-    hiHatClosure: progress(hiHatAge),
+    hiHatClosure: closedHiHatHasPriority ? progress(closedHiHatAge) : 0,
+    hiHatOpening: closedHiHatHasPriority ? 0 : progress(openHiHatAge),
   };
 }
 
@@ -59,9 +69,14 @@ export interface DrumPatternState {
   snareDrumHit: boolean;
   snareDrumVisible: boolean;
   snareStrikeProgress: number;
+  lowTomHit: boolean;
+  lowTomStrikeProgress: number;
+  handClapHit: boolean;
+  handClapProgress: number;
   hiHatHit: boolean;
   hiHatVisible: boolean;
   hiHatClosure: number;
+  hiHatOpening: number;
 }
 
 export function getDrumPatternState(pulse: number): DrumPatternState {
@@ -94,11 +109,16 @@ export function getDrumPatternState(pulse: number): DrumPatternState {
     snareStrikeProgress: snareDrumVisible
       ? 1 - pulseInBeat / drumHitVisiblePulses
       : 0,
+    lowTomHit: false,
+    lowTomStrikeProgress: 0,
+    handClapHit: false,
+    handClapProgress: 0,
     hiHatHit,
     hiHatVisible: true,
     hiHatClosure: pulseInEighth < drumHitVisiblePulses
       ? 1 - pulseInEighth / drumHitVisiblePulses
       : 0,
+    hiHatOpening: 0,
   };
 }
 

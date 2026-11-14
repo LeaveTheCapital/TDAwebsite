@@ -140,7 +140,7 @@ const fakeMidiClockIntervalMs =
 const preferredMidiInputName = "tonverk";
 let isFollowingMidiClock = false;
 let lastMidiDrumHits: Partial<Record<DrumInstrument, number>> = {};
-const revealedDrums = new Set<DrumInstrument>();
+const playedDrums = new Set<DrumInstrument>();
 let midiTransportState: "stopped" | "running" | "paused" = "stopped";
 let midiClockPulseCount: number = 0;
 let selectedSongProgram: number | undefined;
@@ -255,6 +255,7 @@ function selectSong(program: number, fromLiveSet = false) {
   if (!isUsingSpeechText) clearAnimatedText();
   updateSelectionButtonStates();
   updateFakeMidiButtonStates();
+  drawDrumFrame();
 }
 
 function selectIntro() {
@@ -263,6 +264,7 @@ function selectIntro() {
   }
   resetTransportForSelection();
   selectedSongProgram = undefined;
+  drawDrumFrame();
   songName.value = "Song: –";
   canvas.dataset.displayMode = "intro";
   updateSelectionButtonStates();
@@ -310,23 +312,44 @@ function drawDrumFrame(
   bassBeaterProgress = 1,
   hiHatClosure = 0,
   bassHitVisible = false,
+  lowTomStrike = 0,
+  handClapProgress = 0,
+  hiHatOpening = 0,
 ) {
   midiOverlayContext.clearRect(0, 0, width, midiOverlayHeight);
-  if (revealedDrums.has("bass")) drawBassDrum(bassBeaterProgress);
-  midiOverlay.dataset.bassDrumVisible = String(revealedDrums.has("bass"));
+  const hasSong = selectedSongProgram !== undefined;
+  const bassPlayed = playedDrums.has("bass");
+  const snarePlayed = playedDrums.has("snare");
+  const lowTomPlayed = playedDrums.has("lowTom");
+  const handClapPlayed = playedDrums.has("handClap");
+  const hiHatPlayed = playedDrums.has("closedHiHat") || playedDrums.has("openHiHat");
+  if (hasSong) drawBassDrum(bassBeaterProgress, bassPlayed);
+  midiOverlay.dataset.bassDrumVisible = String(hasSong);
+  midiOverlay.dataset.bassDrumPlayed = String(bassPlayed);
   midiOverlay.dataset.bassDrumHitVisible = String(bassHitVisible);
   midiOverlay.dataset.bassBeaterProgress = String(bassBeaterProgress);
-  if (revealedDrums.has("snare")) {
-    drawSnareDrum(width * 0.625, midiOverlayHeight / 2, strike);
+  if (hasSong) {
+    drawSnareDrum(width * 0.625, midiOverlayHeight / 2, strike, 1, snarePlayed);
   }
-  midiOverlay.dataset.snareVisible = String(revealedDrums.has("snare"));
+  midiOverlay.dataset.snareVisible = String(hasSong);
+  midiOverlay.dataset.snarePlayed = String(snarePlayed);
   midiOverlay.dataset.snareSide = "right";
-  if (revealedDrums.has("hiHat")) drawHiHat(hiHatClosure);
-  midiOverlay.dataset.hiHatVisible = String(revealedDrums.has("hiHat"));
+  if (hasSong) {
+    drawSnareDrum(width * 0.36, midiOverlayHeight / 2, lowTomStrike, 1.7, lowTomPlayed);
+  }
+  midiOverlay.dataset.lowTomVisible = String(hasSong);
+  midiOverlay.dataset.lowTomPlayed = String(lowTomPlayed);
+  if (hasSong) drawClappingHands(handClapProgress, handClapPlayed);
+  midiOverlay.dataset.handClapVisible = String(hasSong);
+  midiOverlay.dataset.handClapPlayed = String(handClapPlayed);
+  if (hasSong) drawHiHat(hiHatClosure, hiHatOpening, hiHatPlayed);
+  midiOverlay.dataset.hiHatVisible = String(hasSong);
+  midiOverlay.dataset.hiHatPlayed = String(hiHatPlayed);
   midiOverlay.dataset.hiHatClosure = String(hiHatClosure);
+  midiOverlay.dataset.hiHatOpening = String(hiHatOpening);
 }
 
-function drawBassDrum(beaterProgress: number) {
+function drawBassDrum(beaterProgress: number, coloured: boolean) {
   const x = width * 0.5;
   const y = midiOverlayHeight / 2;
   const radius = Math.min(width / 32, midiOverlayHeight / 4);
@@ -336,7 +359,7 @@ function drawBassDrum(beaterProgress: number) {
   const backX = x - radius * 0.65;
   const backRadiusX = faceRadiusX * 0.8;
 
-  midiOverlayContext.fillStyle = "#397bb8";
+  midiOverlayContext.fillStyle = coloured ? "#397bb8" : "#777777";
   midiOverlayContext.strokeStyle = "black";
   midiOverlayContext.lineWidth = 1;
   midiOverlayContext.beginPath();
@@ -354,7 +377,7 @@ function drawBassDrum(beaterProgress: number) {
 
   midiOverlayContext.beginPath();
   midiOverlayContext.ellipse(faceX, y, faceRadiusX, faceRadiusY, 0, 0, Math.PI * 2);
-  midiOverlayContext.fillStyle = "white";
+  midiOverlayContext.fillStyle = coloured ? "white" : "#d0d0d0";
   midiOverlayContext.fill();
   midiOverlayContext.stroke();
 
@@ -385,14 +408,14 @@ function drawBassDrum(beaterProgress: number) {
   midiOverlayContext.stroke();
 }
 
-function drawHiHat(closure: number) {
+function drawHiHat(closure: number, opening: number, coloured: boolean) {
   const x = width * 0.735;
   const y = midiOverlayHeight / 2;
   const radiusX = Math.min(width / 32, midiOverlayHeight * 0.3);
   const domeHeight = radiusX * 0.42;
   const openGap = radiusX * 0.175;
-  const gap = openGap * (1 - closure);
-  const standTop = y - radiusX * 1.35 + openGap * closure;
+  const gap = openGap * (1 - closure + opening * 1.8);
+  const standTop = y - radiusX * 1.35 + openGap * closure - openGap * opening * 1.8;
 
   midiOverlayContext.strokeStyle = "#b8b8b8";
   midiOverlayContext.lineWidth = 3;
@@ -419,7 +442,7 @@ function drawHiHat(closure: number) {
       0, gap + domeHeight,
     );
     midiOverlayContext.closePath();
-    midiOverlayContext.fillStyle = "#ff8c00";
+    midiOverlayContext.fillStyle = coloured ? "#ff8c00" : "#999999";
     midiOverlayContext.strokeStyle = "black";
     midiOverlayContext.lineWidth = 2;
     midiOverlayContext.fill();
@@ -428,11 +451,68 @@ function drawHiHat(closure: number) {
   }
 }
 
-function drawSnareDrum(x: number, centreY: number, strike = 0) {
+function drawClappingHands(progress: number, coloured: boolean) {
+  const x = width * 0.18;
+  const y = midiOverlayHeight / 2;
+  const size = Math.min(width / 32, midiOverlayHeight * 0.25);
+  const spread = size * (1.05 - progress * 0.55);
+  const handColour = coloured ? "#d5a36a" : "#999999";
+
+  for (const side of [-1, 1]) {
+    midiOverlayContext.save();
+    midiOverlayContext.translate(x + side * spread, y);
+    midiOverlayContext.scale(side, 1);
+    midiOverlayContext.fillStyle = handColour;
+    midiOverlayContext.strokeStyle = "black";
+    midiOverlayContext.lineWidth = 2;
+    midiOverlayContext.lineCap = "round";
+
+    midiOverlayContext.beginPath();
+    midiOverlayContext.moveTo(size * 0.1, size * 0.45);
+    midiOverlayContext.lineTo(size * 0.55, size * 1.15);
+    midiOverlayContext.lineWidth = size * 0.38;
+    midiOverlayContext.stroke();
+    midiOverlayContext.strokeStyle = handColour;
+    midiOverlayContext.lineWidth = size * 0.3;
+    midiOverlayContext.stroke();
+
+    midiOverlayContext.strokeStyle = "black";
+    midiOverlayContext.lineWidth = size * 0.22;
+    for (let finger = -1; finger <= 1; finger += 1) {
+      const fingerX = finger * size * 0.24;
+      midiOverlayContext.beginPath();
+      midiOverlayContext.moveTo(fingerX, -size * 0.05);
+      midiOverlayContext.lineTo(fingerX, -size * (0.75 + (finger === 0 ? 0.12 : 0)));
+      midiOverlayContext.stroke();
+      midiOverlayContext.strokeStyle = handColour;
+      midiOverlayContext.lineWidth = size * 0.15;
+      midiOverlayContext.stroke();
+      midiOverlayContext.strokeStyle = "black";
+      midiOverlayContext.lineWidth = size * 0.22;
+    }
+
+    midiOverlayContext.beginPath();
+    midiOverlayContext.ellipse(0, size * 0.12, size * 0.48, size * 0.58, 0, 0, Math.PI * 2);
+    midiOverlayContext.fill();
+    midiOverlayContext.lineWidth = 2;
+    midiOverlayContext.stroke();
+    midiOverlayContext.beginPath();
+    midiOverlayContext.moveTo(-size * 0.3, size * 0.12);
+    midiOverlayContext.lineTo(-size * 0.62, -size * 0.25);
+    midiOverlayContext.lineWidth = size * 0.19;
+    midiOverlayContext.stroke();
+    midiOverlayContext.strokeStyle = handColour;
+    midiOverlayContext.lineWidth = size * 0.12;
+    midiOverlayContext.stroke();
+    midiOverlayContext.restore();
+  }
+}
+
+function drawSnareDrum(x: number, centreY: number, strike = 0, shellHeight = 1, coloured = true) {
   const radiusX = Math.min(width / 18, midiOverlayHeight * 0.36);
   const radiusY = radiusX * 0.28;
-  const topY = centreY - radiusX * 0.46;
-  const bottomY = centreY + radiusX * 0.44;
+  const topY = centreY - radiusX * (shellHeight === 1 ? 0.46 : 0.72);
+  const bottomY = topY + radiusX * 0.9 * shellHeight;
   const rimHeight = radiusX * 0.12;
   const frontCurve = radiusY * 0.72;
 
@@ -449,7 +529,7 @@ function drawSnareDrum(x: number, centreY: number, strike = 0) {
   );
   midiOverlayContext.lineTo(x + radiusX, topY);
   midiOverlayContext.closePath();
-  midiOverlayContext.fillStyle = "#c9362b";
+  midiOverlayContext.fillStyle = coloured ? "#c9362b" : "#777777";
   midiOverlayContext.fill();
   midiOverlayContext.stroke();
 
@@ -467,13 +547,13 @@ function drawSnareDrum(x: number, centreY: number, strike = 0) {
     x - radiusX, bottomY + rimHeight,
   );
   midiOverlayContext.closePath();
-  midiOverlayContext.fillStyle = "#397bb8";
+  midiOverlayContext.fillStyle = coloured ? "#397bb8" : "#999999";
   midiOverlayContext.fill();
   midiOverlayContext.stroke();
 
   midiOverlayContext.beginPath();
   midiOverlayContext.ellipse(x, topY, radiusX, radiusY, 0, 0, Math.PI * 2);
-  midiOverlayContext.fillStyle = "#397bb8";
+  midiOverlayContext.fillStyle = coloured ? "#397bb8" : "#999999";
   midiOverlayContext.fill();
   midiOverlayContext.stroke();
 
@@ -481,12 +561,12 @@ function drawSnareDrum(x: number, centreY: number, strike = 0) {
   midiOverlayContext.ellipse(
     x, topY, radiusX - 4, radiusY - 4, 0, 0, Math.PI * 2,
   );
-  midiOverlayContext.fillStyle = "white";
+  midiOverlayContext.fillStyle = coloured ? "white" : "#d0d0d0";
   midiOverlayContext.fill();
   midiOverlayContext.stroke();
 
   const handleX = x + radiusX * 1.02;
-  const handleY = topY - radiusX * 1.15;
+  const handleY = topY - radiusX * (shellHeight === 1 ? 1.15 : 0.6);
   const tipX = x + radiusX * (0.12 - strike * 0.1);
   const tipY = topY - radiusX * 0.48 + strike * radiusX * 0.48;
   const length = Math.hypot(tipX - handleX, tipY - handleY);
@@ -506,7 +586,7 @@ function drawSnareDrum(x: number, centreY: number, strike = 0) {
   );
   midiOverlayContext.lineTo(handleX - normalX * handleHalfWidth, handleY - normalY * handleHalfWidth);
   midiOverlayContext.closePath();
-  midiOverlayContext.fillStyle = "#d5a36a";
+  midiOverlayContext.fillStyle = coloured ? "#d5a36a" : "#999999";
   midiOverlayContext.fill();
   midiOverlayContext.stroke();
 }
@@ -522,14 +602,23 @@ function drawDrumAnimation() {
   const pattern = activeSong?.hasMidiDrumNotes === true
     ? getMidiDrumState(midiClockPulseCount, lastMidiDrumHits)
     : getDrumPatternState(midiClockPulseCount);
-  if (pattern.bassDrumHit) revealedDrums.add("bass");
-  if (pattern.snareDrumHit) revealedDrums.add("snare");
-  if (pattern.hiHatHit) revealedDrums.add("hiHat");
+  if (pattern.bassDrumHit) playedDrums.add("bass");
+  if (pattern.snareDrumHit) playedDrums.add("snare");
+  if (pattern.lowTomHit) playedDrums.add("lowTom");
+  if (pattern.handClapHit) playedDrums.add("handClap");
+  if (pattern.hiHatHit) {
+    const closedHiHatHit = activeSong?.hasMidiDrumNotes !== true ||
+      pattern.hiHatClosure > 0;
+    playedDrums.add(closedHiHatHit ? "closedHiHat" : "openHiHat");
+  }
   drawDrumFrame(
     pattern.snareStrikeProgress,
     pattern.bassBeaterProgress,
     pattern.hiHatClosure,
     pattern.bassDrumHitVisible,
+    pattern.lowTomStrikeProgress,
+    pattern.handClapProgress,
+    pattern.hiHatOpening,
   );
 }
 
@@ -554,7 +643,7 @@ function handleMidiStart() {
 
   if (isStartingFromReset) {
     lastMidiDrumHits = {};
-    revealedDrums.clear();
+    playedDrums.clear();
     midiClockPulseCount = 0;
     updateTransportPosition();
     canvas.dataset.displayMode = "song";
@@ -585,7 +674,7 @@ function handleMidiStop() {
   transportPosition.dataset.transport = midiTransportState;
   midiClockPulseCount = 0;
   lastMidiDrumHits = {};
-  revealedDrums.clear();
+  playedDrums.clear();
   midiClockTimestamps = [];
   setClockBpm(undefined);
   drawDrumFrame();
@@ -606,7 +695,7 @@ function resetTransportForSelection() {
   transportPosition.dataset.transport = midiTransportState;
   midiClockPulseCount = 0;
   lastMidiDrumHits = {};
-  revealedDrums.clear();
+  playedDrums.clear();
   midiClockTimestamps = [];
   activeSong = undefined;
   activeSectionIndex = -1;
@@ -702,7 +791,7 @@ function advanceLiveSet(): boolean {
     isFollowingMidiClock = false;
     midiTransportState = "stopped";
     transportPosition.dataset.transport = midiTransportState;
-    revealedDrums.clear();
+    playedDrums.clear();
     drawDrumFrame();
     scrollingLyrics.reset();
     if (!isUsingSpeechText) {
@@ -719,7 +808,7 @@ function advanceLiveSet(): boolean {
   updateSelectionButtonStates();
   midiClockPulseCount = 0;
   lastMidiDrumHits = {};
-  revealedDrums.clear();
+  playedDrums.clear();
   updateTransportPosition();
   startSelectedSong();
   updateLiveSetStatus();

@@ -12,18 +12,33 @@ import {
 void describe("MIDI drum notes", () => {
   void it("routes all six channel 10 note numbers to the displayed instruments", () => {
     assert.equal(getDrumInstrument(36), "bass");
-    for (const note of [38, 43, 39]) assert.equal(getDrumInstrument(note), "snare");
-    for (const note of [42, 46]) assert.equal(getDrumInstrument(note), "hiHat");
+    assert.equal(getDrumInstrument(38), "snare");
+    assert.equal(getDrumInstrument(43), "lowTom");
+    assert.equal(getDrumInstrument(39), "handClap");
+    assert.equal(getDrumInstrument(42), "closedHiHat");
+    assert.equal(getDrumInstrument(46), "openHiHat");
     assert.equal(getDrumInstrument(37), undefined);
   });
 
   void it("keeps independent hits active for six clocks", () => {
-    const hits = { bass: 10, snare: 12, hiHat: 14 };
+    const hits = { bass: 10, snare: 12, lowTom: 11, handClap: 13, closedHiHat: 14 };
     assert.equal(getMidiDrumState(14, hits).hiHatClosure, 1);
     assert.ok(Math.abs(getMidiDrumState(14, hits).snareStrikeProgress - 2 / 3) < 1e-10);
     assert.equal(getMidiDrumState(15, hits).bassDrumHitVisible, true);
     assert.equal(getMidiDrumState(16, hits).bassDrumHitVisible, false);
     assert.equal(getMidiDrumState(20, hits).hiHatClosure, 0);
+    assert.equal(getMidiDrumState(13, hits).handClapProgress, 1);
+    assert.equal(getMidiDrumState(17, hits).lowTomStrikeProgress, 0);
+  });
+
+  void it("opens the shared hi-hat for note 46 and gives a simultaneous closed hit priority", () => {
+    const openHit = { openHiHat: 10 };
+    assert.equal(getMidiDrumState(10, openHit).hiHatOpening, 1);
+    assert.equal(getMidiDrumState(13, openHit).hiHatOpening, 0.5);
+    assert.equal(getMidiDrumState(16, openHit).hiHatOpening, 0);
+    const simultaneousHits = { openHiHat: 10, closedHiHat: 10 };
+    assert.equal(getMidiDrumState(10, simultaneousHits).hiHatClosure, 1);
+    assert.equal(getMidiDrumState(10, simultaneousHits).hiHatOpening, 0);
   });
 });
 
