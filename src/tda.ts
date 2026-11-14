@@ -468,57 +468,70 @@ function drawClappingHands(progress: number, coloured: boolean) {
   const x = width * 0.18;
   const y = midiOverlayHeight / 2;
   const size = Math.min(width / 32, midiOverlayHeight * 0.25);
-  const spread = size * (1.05 - progress * 0.55);
-  const handColour = coloured ? "#d5a36a" : "#999999";
+  const context = midiOverlayContext;
+  context.save();
+  context.translate(x, y);
+  context.scale(size, size);
+  context.strokeStyle = coloured ? "#f5eee4" : "#a9a9a9";
+  context.lineWidth = 0.09;
+  context.lineJoin = "round";
+  context.lineCap = "round";
 
-  for (const side of [-1, 1]) {
-    midiOverlayContext.save();
-    midiOverlayContext.translate(x + side * spread, y);
-    midiOverlayContext.scale(side, 1);
-    midiOverlayContext.fillStyle = handColour;
-    midiOverlayContext.strokeStyle = "black";
-    midiOverlayContext.lineWidth = 2;
-    midiOverlayContext.lineCap = "round";
-
-    midiOverlayContext.beginPath();
-    midiOverlayContext.moveTo(size * 0.1, size * 0.45);
-    midiOverlayContext.lineTo(size * 0.55, size * 1.15);
-    midiOverlayContext.lineWidth = size * 0.38;
-    midiOverlayContext.stroke();
-    midiOverlayContext.strokeStyle = handColour;
-    midiOverlayContext.lineWidth = size * 0.3;
-    midiOverlayContext.stroke();
-
-    midiOverlayContext.strokeStyle = "black";
-    midiOverlayContext.lineWidth = size * 0.22;
-    for (let finger = -1; finger <= 1; finger += 1) {
-      const fingerX = finger * size * 0.24;
-      midiOverlayContext.beginPath();
-      midiOverlayContext.moveTo(fingerX, -size * 0.05);
-      midiOverlayContext.lineTo(fingerX, -size * (0.75 + (finger === 0 ? 0.12 : 0)));
-      midiOverlayContext.stroke();
-      midiOverlayContext.strokeStyle = handColour;
-      midiOverlayContext.lineWidth = size * 0.15;
-      midiOverlayContext.stroke();
-      midiOverlayContext.strokeStyle = "black";
-      midiOverlayContext.lineWidth = size * 0.22;
+  function drawHand(offsetX: number, offsetY: number, inFront: boolean) {
+    context.save();
+    context.translate(offsetX, offsetY);
+    context.beginPath();
+    context.moveTo(0.1, 1.05);
+    context.lineTo(0.1, 0.67);
+    context.quadraticCurveTo(-0.26, 0.56, -0.3, 0.19);
+    context.lineTo(-0.3, -0.25);
+    context.quadraticCurveTo(-0.3, -0.42, -0.15, -0.42);
+    context.quadraticCurveTo(0, -0.42, 0, -0.25);
+    context.lineTo(0, 0.01);
+    context.lineTo(0.07, 0.01);
+    context.lineTo(0.07, -0.69);
+    context.quadraticCurveTo(0.07, -0.86, 0.22, -0.86);
+    context.quadraticCurveTo(0.37, -0.86, 0.37, -0.69);
+    context.lineTo(0.37, -0.1);
+    context.lineTo(0.43, -0.1);
+    context.lineTo(0.43, -0.91);
+    context.quadraticCurveTo(0.43, -1.08, 0.58, -1.08);
+    context.quadraticCurveTo(0.73, -1.08, 0.73, -0.91);
+    context.lineTo(0.73, -0.1);
+    context.lineTo(0.79, -0.1);
+    context.lineTo(0.79, -0.78);
+    context.quadraticCurveTo(0.79, -0.95, 0.94, -0.95);
+    context.quadraticCurveTo(1.09, -0.95, 1.09, -0.78);
+    context.lineTo(1.09, -0.1);
+    context.lineTo(1.15, -0.1);
+    context.lineTo(1.15, -0.62);
+    context.quadraticCurveTo(1.15, -0.79, 1.3, -0.79);
+    context.quadraticCurveTo(1.45, -0.79, 1.45, -0.62);
+    context.lineTo(1.45, 0.41);
+    context.quadraticCurveTo(1.44, 0.57, 1.26, 0.68);
+    context.lineTo(1.26, 1.05);
+    if (coloured || inFront) {
+      context.fillStyle = coloured ? "#d5a36a" : "black";
+      context.fill();
     }
-
-    midiOverlayContext.beginPath();
-    midiOverlayContext.ellipse(0, size * 0.12, size * 0.48, size * 0.58, 0, 0, Math.PI * 2);
-    midiOverlayContext.fill();
-    midiOverlayContext.lineWidth = 2;
-    midiOverlayContext.stroke();
-    midiOverlayContext.beginPath();
-    midiOverlayContext.moveTo(-size * 0.3, size * 0.12);
-    midiOverlayContext.lineTo(-size * 0.62, -size * 0.25);
-    midiOverlayContext.lineWidth = size * 0.19;
-    midiOverlayContext.stroke();
-    midiOverlayContext.strokeStyle = handColour;
-    midiOverlayContext.lineWidth = size * 0.12;
-    midiOverlayContext.stroke();
-    midiOverlayContext.restore();
+    context.stroke();
+    context.restore();
   }
+
+  drawHand(-0.72, 0.18, false);
+  drawHand(0.05 - progress * 0.2, -0.12, true);
+
+  context.globalAlpha = 0.55 + progress * 0.45;
+  context.lineWidth = 0.12;
+  context.beginPath();
+  context.moveTo(-1.7, -0.5);
+  context.lineTo(-1.2, -0.28);
+  context.moveTo(-1.77, -0.04);
+  context.lineTo(-1.25, -0.04);
+  context.moveTo(-1.7, 0.42);
+  context.lineTo(-1.2, 0.2);
+  context.stroke();
+  context.restore();
 }
 
 function drawSnareDrum(x: number, centreY: number, strike = 0, shellHeight = 1, coloured = true) {
