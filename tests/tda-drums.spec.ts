@@ -60,6 +60,9 @@ test("silent song sections keep the drums in their resting pose", async ({ page 
 
   const overlay = page.locator("#midi-overlay");
   await expect(page.locator("#transport-position")).toHaveAttribute("data-section", "Intro");
+  await expect(overlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(overlay).toHaveAttribute("data-snare-visible", "false");
+  await expect(overlay).toHaveAttribute("data-hi-hat-visible", "false");
 
   await page.evaluate(() => {
     const probe = (
@@ -90,4 +93,44 @@ test("silent song sections keep the drums in their resting pose", async ({ page 
   });
   await expect(overlay).toHaveAttribute("data-bass-drum-hit-visible", "true");
   await expect(overlay).toHaveAttribute("data-hi-hat-closure", "1");
+  await expect(overlay).toHaveAttribute("data-bass-drum-visible", "true");
+  await expect(overlay).toHaveAttribute("data-snare-visible", "false");
+  await expect(overlay).toHaveAttribute("data-hi-hat-visible", "true");
+});
+
+test("each drum appears on its first note and a new song starts empty", async ({ page }) => {
+  await page.goto("/tda.html");
+  await page.waitForFunction(() => (
+    globalThis as typeof globalThis & { midiProbe?: { isReady(): boolean } }
+  ).midiProbe?.isReady());
+
+  const overlay = page.locator("#midi-overlay");
+  await page.getByRole("button", { name: "mugs game" }).click();
+  await expect(overlay).toHaveAttribute("data-hi-hat-visible", "false");
+
+  await page.evaluate(() => {
+    const probe = (
+      globalThis as typeof globalThis & { midiProbe: { emit(...data: number[]): void } }
+    ).midiProbe;
+    probe.emit(0xfa);
+    for (let pulse = 0; pulse < 192; pulse += 1) probe.emit(0xf8);
+    probe.emit(0x99, 42, 100);
+  });
+  await expect(overlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(overlay).toHaveAttribute("data-snare-visible", "false");
+  await expect(overlay).toHaveAttribute("data-hi-hat-visible", "true");
+
+  await page.evaluate(() => {
+    const probe = (
+      globalThis as typeof globalThis & { midiProbe: { emit(...data: number[]): void } }
+    ).midiProbe;
+    probe.emit(0xf8);
+    probe.emit(0x99, 38, 100);
+  });
+  await expect(overlay).toHaveAttribute("data-snare-visible", "true");
+
+  await page.getByRole("button", { name: "gcses" }).click();
+  await expect(overlay).toHaveAttribute("data-bass-drum-visible", "false");
+  await expect(overlay).toHaveAttribute("data-snare-visible", "false");
+  await expect(overlay).toHaveAttribute("data-hi-hat-visible", "false");
 });

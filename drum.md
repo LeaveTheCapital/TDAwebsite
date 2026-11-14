@@ -53,12 +53,14 @@ The visibility windows within one bar are therefore:
   because no clock pulses precede that start message. For each later beat 1,
   it begins moving right at pulse 90 of the preceding bar, reaches its furthest
   angle at pulse 93, and returns to the head at pulse 0 of the next bar. Each
-  half of the swing takes three clocks. The drum and beater stay visible.
+  half of the swing takes three clocks. After its first hit, the drum and
+  beater stay visible for the rest of the song.
 - Snare stick: touches the head on pulses 24 and 72, then rises during the
-  following five pulses. The drum and stick remain visible between hits.
+  following five pulses. After its first hit, the drum and stick remain visible
+  between hits.
 - Hi-hat: the cymbals touch on pulses 0, 12, 24, 36, 48, 60, 72, and 84.
   They move apart over the following six pulses and remain open until the
-  next hit. The stand and both cymbals stay visible throughout.
+  next hit. After its first hit, the stand and both cymbals stay visible.
 
 ## Visual design
 
@@ -80,11 +82,13 @@ The visibility windows within one bar are therefore:
 The dice sits directly below the drum overlay inside the same black canvas
 area, separated by a half-rem top gap.
 
-Before the first MIDI or fake MIDI start, the overlay shows a static preview:
-the bass drum, snare, and hi-hat are all visible. Incoming
-clock pulses do not change this preview until playback starts. Playback then
-uses the pulse pattern above. The preview, pause, and stop show the bass beater
-touching the centre of its head, the snare stick raised, and the hi-hat open.
+Each song starts with an empty drum overlay. An instrument appears in its
+existing position when it is first hit, then remains visible until the song
+is stopped, reset, or changed. Simultaneous first hits reveal their instruments
+together. Incoming clock pulses do not reveal drums until playback starts.
+Pause and silent sections retain only the instruments already revealed, in
+their resting poses: the bass beater touching the centre of its head, the
+snare stick raised, and the hi-hat open. Stop clears all instruments.
 
 The overlay exposes `data-bass-drum-visible`, `data-bass-drum-hit-visible`,
 `data-snare-visible`, and `data-hi-hat-visible` for browser integration checks.
@@ -137,11 +141,13 @@ current zero-based MIDI pulse into hit-onset and visibility state for both
 the fixed pattern and incoming drum notes. Keep musical timing out of the
 canvas renderer.
 
-`src/tda.ts` owns transport handling and drawing. It draws the static preview
-until the first start, then passes the current pulse to the pure timing
-function and redraws the drums with their current hit states. MIDI Start
-resets the transport to pulse 0. MIDI Stop and pause show the bass beater at
-contact, with the snare stick raised and hi-hat open. Resuming continues from
+`src/tda.ts` owns transport handling and drawing. It tracks which instruments
+have been hit during the current song and draws only those instruments. After
+MIDI Start it passes the current pulse to the pure timing function and redraws
+the drums with their current hit states. MIDI Start resets the transport to
+pulse 0. MIDI Stop clears the overlay. Pause shows revealed instruments at
+rest, with the bass beater at contact, the snare stick raised, and the hi-hat
+open. Resuming continues from
 the same pulse position. The first beat after MIDI Start has no bass beater
 lead-in; subsequent bars use the previous bar's final six pulses.
 

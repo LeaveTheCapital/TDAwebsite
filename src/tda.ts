@@ -139,8 +139,8 @@ const fakeMidiClockIntervalMs =
   60_000 / (fakeMidiBeatsPerMinute * midiClocksPerQuarterNote);
 const preferredMidiInputName = "tonverk";
 let isFollowingMidiClock = false;
-let hasDrumPlaybackStarted = false;
 let lastMidiDrumHits: Partial<Record<DrumInstrument, number>> = {};
+const revealedDrums = new Set<DrumInstrument>();
 let midiTransportState: "stopped" | "running" | "paused" = "stopped";
 let midiClockPulseCount: number = 0;
 let selectedSongProgram: number | undefined;
@@ -312,15 +312,17 @@ function drawDrumFrame(
   bassHitVisible = false,
 ) {
   midiOverlayContext.clearRect(0, 0, width, midiOverlayHeight);
-  drawBassDrum(bassBeaterProgress);
-  midiOverlay.dataset.bassDrumVisible = "true";
+  if (revealedDrums.has("bass")) drawBassDrum(bassBeaterProgress);
+  midiOverlay.dataset.bassDrumVisible = String(revealedDrums.has("bass"));
   midiOverlay.dataset.bassDrumHitVisible = String(bassHitVisible);
   midiOverlay.dataset.bassBeaterProgress = String(bassBeaterProgress);
-  drawSnareDrum(width * 0.625, midiOverlayHeight / 2, strike);
-  midiOverlay.dataset.snareVisible = "true";
+  if (revealedDrums.has("snare")) {
+    drawSnareDrum(width * 0.625, midiOverlayHeight / 2, strike);
+  }
+  midiOverlay.dataset.snareVisible = String(revealedDrums.has("snare"));
   midiOverlay.dataset.snareSide = "right";
-  drawHiHat(hiHatClosure);
-  midiOverlay.dataset.hiHatVisible = "true";
+  if (revealedDrums.has("hiHat")) drawHiHat(hiHatClosure);
+  midiOverlay.dataset.hiHatVisible = String(revealedDrums.has("hiHat"));
   midiOverlay.dataset.hiHatClosure = String(hiHatClosure);
 }
 
@@ -509,10 +511,10 @@ function drawSnareDrum(x: number, centreY: number, strike = 0) {
   midiOverlayContext.stroke();
 }
 
-function drawDrumAnimation(preview = false) {
+function drawDrumAnimation() {
   const activeSection = activeSong?.sections[activeSectionIndex];
 
-  if (preview || activeSection?.silent === true) {
+  if (!isFollowingMidiClock || activeSection?.silent === true) {
     drawDrumFrame();
     return;
   }
@@ -520,6 +522,9 @@ function drawDrumAnimation(preview = false) {
   const pattern = activeSong?.hasMidiDrumNotes === true
     ? getMidiDrumState(midiClockPulseCount, lastMidiDrumHits)
     : getDrumPatternState(midiClockPulseCount);
+  if (pattern.bassDrumHit) revealedDrums.add("bass");
+  if (pattern.snareDrumHit) revealedDrums.add("snare");
+  if (pattern.hiHatHit) revealedDrums.add("hiHat");
   drawDrumFrame(
     pattern.snareStrikeProgress,
     pattern.bassBeaterProgress,
@@ -541,7 +546,6 @@ function handleMidiStart() {
   const isStartingFromReset = midiTransportState === "stopped";
 
   isFollowingMidiClock = true;
-  hasDrumPlaybackStarted = true;
   midiTransportState = "running";
   transportPosition.dataset.transport = midiTransportState;
   midiClockTimestamps = [];
@@ -550,6 +554,7 @@ function handleMidiStart() {
 
   if (isStartingFromReset) {
     lastMidiDrumHits = {};
+    revealedDrums.clear();
     midiClockPulseCount = 0;
     updateTransportPosition();
     canvas.dataset.displayMode = "song";
@@ -580,6 +585,7 @@ function handleMidiStop() {
   transportPosition.dataset.transport = midiTransportState;
   midiClockPulseCount = 0;
   lastMidiDrumHits = {};
+  revealedDrums.clear();
   midiClockTimestamps = [];
   setClockBpm(undefined);
   drawDrumFrame();
@@ -600,6 +606,7 @@ function resetTransportForSelection() {
   transportPosition.dataset.transport = midiTransportState;
   midiClockPulseCount = 0;
   lastMidiDrumHits = {};
+  revealedDrums.clear();
   midiClockTimestamps = [];
   activeSong = undefined;
   activeSectionIndex = -1;
@@ -617,9 +624,6 @@ function resetTransportForSelection() {
   }
   drawDrumFrame();
   updateTransportPosition();
-  if (!hasDrumPlaybackStarted) {
-    drawDrumAnimation(true);
-  }
 }
 
 function handleMidiClock(event?: MessageEvent) {
@@ -698,6 +702,8 @@ function advanceLiveSet(): boolean {
     isFollowingMidiClock = false;
     midiTransportState = "stopped";
     transportPosition.dataset.transport = midiTransportState;
+    revealedDrums.clear();
+    drawDrumFrame();
     scrollingLyrics.reset();
     if (!isUsingSpeechText) {
       clearAnimatedText(true);
@@ -713,6 +719,7 @@ function advanceLiveSet(): boolean {
   updateSelectionButtonStates();
   midiClockPulseCount = 0;
   lastMidiDrumHits = {};
+  revealedDrums.clear();
   updateTransportPosition();
   startSelectedSong();
   updateLiveSetStatus();
@@ -1504,11 +1511,7 @@ function updateTextLayout(text: string) {
 
   canvas.dataset.text = requestedText;
   canvas.dataset.lineCount = String(wrappedLines.length);
-  if (hasDrumPlaybackStarted) {
-    drawDrumFrame();
-  } else {
-    drawDrumAnimation(true);
-  }
+  drawDrumAnimation();
   letterHeight = letterWidth;
   tYEndPoint = letterWidth * (13 / 45);
   aBottomLineWidth = letterWidth * 0.25;
@@ -3428,4 +3431,4 @@ function getCanvasContext(
 }
 
 startAnimation(requestedLineWidth);
-drawDrumAnimation(true);
+drawDrumAnimation();
