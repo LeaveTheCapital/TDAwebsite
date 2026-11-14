@@ -1,5 +1,13 @@
 # Repository instructions
 
+## Use of tests
+
+Playwright tests are really only here as means of creating a visual snapshot/video which can be uploaded
+as an artifact on CI runs and for visual verification by Henry. We don't use them to actually verify pixel 
+accurate behaviour and such, because this is an art project and we don't want to be bogged down by that.
+Unit tests are there to verify as much as they can of behaviour but should only be used for 
+
+
 ## Font and glyph work
 
 Before creating, changing, or reviewing any letter or number glyph, read

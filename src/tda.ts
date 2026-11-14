@@ -492,12 +492,19 @@ function drawSnareDrum(x: number, centreY: number, strike = 0) {
 }
 
 function drawDrumAnimation(preview = false) {
+  const activeSection = activeSong?.sections[activeSectionIndex];
+
+  if (preview || activeSection?.silent === true) {
+    drawDrumFrame();
+    return;
+  }
+
   const pattern = getDrumPatternState(midiClockPulseCount);
   drawDrumFrame(
-    preview ? 0 : pattern.snareStrikeProgress,
-    preview ? 1 : pattern.bassBeaterProgress,
-    preview ? 0 : pattern.hiHatClosure,
-    !preview && pattern.bassDrumHitVisible,
+    pattern.snareStrikeProgress,
+    pattern.bassBeaterProgress,
+    pattern.hiHatClosure,
+    pattern.bassDrumHitVisible,
   );
 }
 

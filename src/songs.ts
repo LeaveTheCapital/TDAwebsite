@@ -5,6 +5,7 @@ export interface SongSection {
   lyrics: string | null;
   notes?: string;
   tonverk?: string;
+  silent?: boolean;
 }
 
 export interface Song {
@@ -106,25 +107,64 @@ Like extra-curricular activities`,
     {
       name: "mugs game",
       sections: [
-        { id: "Intro", bars: 2, beats: 0, lyrics: null },
+        { id: "Intro", bars: 1, beats: 0, lyrics: null, silent: true },
+        { id: "Intro", bars: 1, beats: 0, lyrics: null },
+        { id: "Bass Intro", bars: 8, beats: 0, lyrics: null },
         {
           id: "Verse 1",
-          bars: 2,
+          bars: 4,
           beats: 0,
-          lyrics: "looking in my notebook to find some ideas it's a mugs game.",
+          lyrics: "{2}looking in my notebook to find some ideas {2}it's a mug's game.",
+          tonverk: 'last section of pattern A-11 Mugs Game Section A'
         },
         {
-          id: "Instrumental",
+          id: "Chorus With Backing",
           bars: 4,
+          beats: 0,
+          lyrics:
+          "{2}I wonder what it would be like to live in South Africa.",
+        },
+        {
+          id: "Verse 3",
+          bars: 4,
+          beats: 0,
+          lyrics: "{2}I'd be in the Serengheti every day.",
+        },
+        {
+          id: "Verse 4",
+          bars: 4,
+          beats: 0,
+          lyrics: "{2}I think it's time to retract your nib {2}it's a mug's game",
+          notes: 'la la la la la la la la backing vocals - needs animation'
+        },
+        {
+          id: "Chorus With Backing",
+          bars: 4,
+          beats: 0,
+          lyrics: null,
+          notes: 'instrumental chorus with chords etc',
+          tonverk: 'last section of pattern A-11 Mugs Game Section A'
+        },
+        {
+          id: "Outro vox",
+          bars: 4,
+          beats: 0,
+          lyrics:
+          "{2}Nobody says to me 'you're not making any sense' {2}That's because this is all going on in the privacy inside my own mind",
+        },
+        {
+          id: "Outro Instrumental",
+          bars: 2,
           beats: 0,
           lyrics: null,
         },
         {
-          id: "Verse 2",
-          bars: 2,
+          id: "Outro Instrumental bass",
+          bars: 1,
           beats: 0,
-          lyrics:
-            "I wonder what it would be like to live in South Africa. I'd be in the Serengheti every day. This is all going on in the privacy inside my own mind",
+          lyrics: null,
+          notes: 'last bar is short and only bass, no drums',
+          silent: true
         },
       ],
     },
