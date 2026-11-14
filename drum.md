@@ -1,5 +1,25 @@
 # MIDI drum visualisation guide
 
+## MIDI drum notes
+
+Songs with `hasMidiDrumNotes: true` use Note On messages on MIDI channel 10
+to trigger the drum animation. Other songs use the clock pattern below.
+MIDI clock still advances song sections and controls the six-pulse decay of
+each hit. Silent sections show the resting pose and ignore drum notes.
+
+| Sound | Channel | Note | Visual |
+| --- | ---: | ---: | --- |
+| Bass drum | 10 | 36 | Bass drum |
+| Snare drum | 10 | 38 | Snare |
+| Low tom | 10 | 43 | Snare |
+| Hand clap | 10 | 39 | Snare |
+| Closed hi-hat | 10 | 42 | Hi-hat |
+| Open hi-hat | 10 | 46 | Hi-hat |
+
+Other note numbers are ignored. Notes are heard visually as soon as they
+arrive, including between clocks. Their animations decay over the next six
+clock pulses. Start, stop, and song changes clear previous hits.
+
 ## Musical pattern
 
 The drum visualisation is a fixed 4/4 reference pattern driven by MIDI Timing
@@ -113,8 +133,9 @@ to its resting angle over six MIDI pulses.
 ## Implementation
 
 The pure timing calculation lives in `src/drum-pattern.ts`. It converts the
-current zero-based MIDI pulse into hit-onset and visibility state. Keep musical
-timing out of the canvas renderer.
+current zero-based MIDI pulse into hit-onset and visibility state for both
+the fixed pattern and incoming drum notes. Keep musical timing out of the
+canvas renderer.
 
 `src/tda.ts` owns transport handling and drawing. It draws the static preview
 until the first start, then passes the current pulse to the pure timing

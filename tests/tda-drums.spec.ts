@@ -35,8 +35,8 @@ test.beforeEach(async ({ page }) => {
     Object.assign(globalThis, {
       midiProbe: {
         isReady: () => typeof input.onmidimessage === "function",
-        emit: (status: number) => input.onmidimessage?.({
-          data: new Uint8Array([status]),
+        emit: (...data: number[]) => input.onmidimessage?.({
+          data: new Uint8Array(data),
           receivedTime: performance.now(),
           timeStamp: performance.now(),
         }),
@@ -78,6 +78,16 @@ test("silent song sections keep the drums in their resting pose", async ({ page 
     for (let pulse = 1; pulse < 192; pulse += 1) probe.emit(0xf8);
   });
   await expect(page.locator("#transport-position")).toHaveAttribute("data-section", "Bass Intro");
+  await expect(overlay).toHaveAttribute("data-bass-drum-hit-visible", "false");
+  await expect(overlay).toHaveAttribute("data-hi-hat-closure", "0");
+
+  await page.evaluate(() => {
+    const probe = (
+      globalThis as typeof globalThis & { midiProbe: { emit(...data: number[]): void } }
+    ).midiProbe;
+    probe.emit(0x99, 36, 100);
+    probe.emit(0x99, 42, 100);
+  });
   await expect(overlay).toHaveAttribute("data-bass-drum-hit-visible", "true");
   await expect(overlay).toHaveAttribute("data-hi-hat-closure", "1");
 });

@@ -19,8 +19,11 @@ import "./dice.ts";
 import { getCanvasImageData, putCanvasImageData, setCanvasResolution } from "./canvas-resolution.ts";
 import {
   beatsPerBar,
+  getDrumInstrument,
+  getMidiDrumState,
   getDrumPatternState,
   midiClocksPerQuarterNote,
+  type DrumInstrument,
 } from "./drum-pattern.ts";
 import {
   aDefinition,
@@ -137,8 +140,9 @@ const fakeMidiClockIntervalMs =
 const preferredMidiInputName = "tonverk";
 let isFollowingMidiClock = false;
 let hasDrumPlaybackStarted = false;
+let lastMidiDrumHits: Partial<Record<DrumInstrument, number>> = {};
 let midiTransportState: "stopped" | "running" | "paused" = "stopped";
-let midiClockPulseCount = 0;
+let midiClockPulseCount: number = 0;
 let selectedSongProgram: number | undefined;
 let activeSong: Song | undefined;
 let activeSectionIndex = -1;
@@ -206,6 +210,20 @@ function handleMidiNoteOn() {
 
   document.body.style.backgroundColor = `hsl(${backgroundHue}, 70%, 25%)`;
   lightShowColour = `hsl(${lightShowHue}, 100%, 50%)`;
+}
+
+function handleMidiDrumNoteOn(event: MessageEvent) {
+  if (
+    !isFollowingMidiClock ||
+    activeSong?.hasMidiDrumNotes !== true ||
+    activeSong.sections[activeSectionIndex]?.silent === true
+  ) return;
+
+  const instrument = getDrumInstrument(event.data[1]);
+  if (instrument === undefined) return;
+
+  lastMidiDrumHits[instrument] = midiClockPulseCount;
+  drawDrumAnimation();
 }
 
 function handleMidiProgramChange(event: MessageEvent) {
@@ -499,7 +517,9 @@ function drawDrumAnimation(preview = false) {
     return;
   }
 
-  const pattern = getDrumPatternState(midiClockPulseCount);
+  const pattern = activeSong?.hasMidiDrumNotes === true
+    ? getMidiDrumState(midiClockPulseCount, lastMidiDrumHits)
+    : getDrumPatternState(midiClockPulseCount);
   drawDrumFrame(
     pattern.snareStrikeProgress,
     pattern.bassBeaterProgress,
@@ -529,6 +549,7 @@ function handleMidiStart() {
   drawDrumFrame();
 
   if (isStartingFromReset) {
+    lastMidiDrumHits = {};
     midiClockPulseCount = 0;
     updateTransportPosition();
     canvas.dataset.displayMode = "song";
@@ -558,6 +579,7 @@ function handleMidiStop() {
   midiTransportState = "stopped";
   transportPosition.dataset.transport = midiTransportState;
   midiClockPulseCount = 0;
+  lastMidiDrumHits = {};
   midiClockTimestamps = [];
   setClockBpm(undefined);
   drawDrumFrame();
@@ -577,6 +599,7 @@ function resetTransportForSelection() {
   midiTransportState = "stopped";
   transportPosition.dataset.transport = midiTransportState;
   midiClockPulseCount = 0;
+  lastMidiDrumHits = {};
   midiClockTimestamps = [];
   activeSong = undefined;
   activeSectionIndex = -1;
@@ -689,6 +712,7 @@ function advanceLiveSet(): boolean {
   canvas.dataset.displayMode = "song";
   updateSelectionButtonStates();
   midiClockPulseCount = 0;
+  lastMidiDrumHits = {};
   updateTransportPosition();
   startSelectedSong();
   updateLiveSetStatus();
@@ -965,6 +989,7 @@ function disconnectActiveMidiInput() {
   activeMidiInput.removeListener("stop", handleMidiStop);
   activeMidiInput.removeListener("clock", handleMidiClock);
   activeMidiInput.channels[1].removeListener("noteon", handleMidiNoteOn);
+  activeMidiInput.channels[10].removeListener("noteon", handleMidiDrumNoteOn);
   activeMidiInput.channels[10].removeListener(
     "programchange",
     handleMidiProgramChange,
@@ -1002,6 +1027,7 @@ function connectToMidiInput(inputId: string) {
   activeMidiInput.addListener("stop", handleMidiStop);
   activeMidiInput.addListener("clock", handleMidiClock);
   activeMidiInput.channels[1].addListener("noteon", handleMidiNoteOn);
+  activeMidiInput.channels[10].addListener("noteon", handleMidiDrumNoteOn);
   activeMidiInput.channels[10].addListener(
     "programchange",
     handleMidiProgramChange,

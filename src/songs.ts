@@ -10,6 +10,7 @@ export interface SongSection {
 
 export interface Song {
   name: string;
+  hasMidiDrumNotes?: boolean;
   sections: SongSection[];
 }
 
@@ -106,6 +107,7 @@ Like extra-curricular activities`,
     1,
     {
       name: "mugs game",
+      hasMidiDrumNotes: true,
       sections: [
         { id: "Intro", bars: 1, beats: 0, lyrics: null, silent: true },
         { id: "Intro", bars: 1, beats: 0, lyrics: null },
@@ -143,7 +145,7 @@ Like extra-curricular activities`,
           beats: 0,
           lyrics: null,
           notes: 'instrumental chorus with chords etc',
-          tonverk: 'last section of pattern A-11 Mugs Game Section A'
+          tonverk: 'last section of pattern A-12 Mugs Game Section B'
         },
         {
           id: "Outro vox",
@@ -164,7 +166,8 @@ Like extra-curricular activities`,
           beats: 0,
           lyrics: null,
           notes: 'last bar is short and only bass, no drums',
-          silent: true
+          silent: true,
+          tonverk: 'last section of pattern A-13 Mugs Game Section C'
         },
       ],
     },
