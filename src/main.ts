@@ -17,7 +17,7 @@ const absolutes = document.getElementsByClassName(
 
 const vw = Math.max(
   document.documentElement.clientWidth || 0,
-  window.innerWidth || 0
+  window.innerWidth || 0,
 );
 
 for (let i = 0; i < absolutes.length; i++) {
@@ -78,7 +78,7 @@ function animateBorders(end: number, start = 0, identity = 0) {
         canvasHeight(cvs),
         canvasWidth(cvs),
         k,
-        dun
+        dun,
       );
     }
   }
@@ -141,7 +141,7 @@ function animateBorders(end: number, start = 0, identity = 0) {
           iteratorSide,
           iteratorBottom,
           i,
-          done
+          done,
         );
       }
     }
@@ -182,11 +182,11 @@ function drawBorderLines(
     if (iteratorSide === canvasHeight(canvas)) {
       ctx.lineTo(
         isLeftBorder ? iteratorBottom : canvasWidth(canvas) - iteratorBottom,
-        canvasHeight(canvas)
+        canvasHeight(canvas),
       );
       ctx.lineTo(
         isLeftBorder ? iteratorBottom : canvasWidth(canvas) - iteratorBottom,
-        canvasHeight(canvas)
+        canvasHeight(canvas),
       );
     }
     if (iteratorBottom === canvasWidth(canvas)) {
@@ -200,7 +200,7 @@ function drawBorderLines(
     canvasWidth(canvas) / 2,
     0,
     (canvasWidth(canvas) * 3) / 6,
-    canvasHeight(canvas)
+    canvasHeight(canvas),
   );
   grad.addColorStop(0, getColour(20));
   grad.addColorStop(1, getColour(90));

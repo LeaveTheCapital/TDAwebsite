@@ -127,7 +127,7 @@ Like extra-curricular activities`,
           lyrics:
           "{2}I wonder what it would be like to live in South Africa.",
           notes: 'bassline with extra notes',
-          tonverk: 'first section of pattern A-12 Mugs Game B'
+          tonverk: 'first section of pattern A-12 Mugs Game B',
         },
         {
           id: "Verse 3",
@@ -140,7 +140,7 @@ Like extra-curricular activities`,
           bars: 4,
           beats: 0,
           lyrics: "{2}I think it's time to retract your nib {2}it's a mug's game",
-          notes: 'la la la la la la la la backing vocals - needs animation'
+          notes: 'la la la la la la la la backing vocals - needs animation',
         },
         {
           id: "Chorus With Backing",
@@ -148,7 +148,7 @@ Like extra-curricular activities`,
           beats: 0,
           lyrics: null,
           notes: 'instrumental chorus with chords etc',
-          tonverk: 'last section of pattern A-12 Mugs Game Section B'
+          tonverk: 'last section of pattern A-12 Mugs Game Section B',
         },
         {
           id: "Outro vox",
@@ -170,7 +170,7 @@ Like extra-curricular activities`,
           lyrics: null,
           notes: 'last bar is short and only bass, no drums',
           silent: true,
-          tonverk: 'last section of pattern A-13 Mugs Game Section C'
+          tonverk: 'last section of pattern A-13 Mugs Game Section C',
         },
       ],
     },
@@ -187,7 +187,7 @@ Like extra-curricular activities`,
         { id: 'verse-shadow', bars: 16, beats: 0, lyrics:"{2}This stuff casts a long shadow{2}The shadow has already been cast{2}On an island in the sun{2}There's no magic f'ing spell here mate{2}This stuff casts a long shadow{2}You'll be Playing and having fun{2}Casting Aspersions{2}Casting aspesions"},
         { id: 'break', bars: 4, beats: 0, lyrics: null },
         { id: 'outro', bars: 36, beats: 0, lyrics: "I'm sick and tired of you" },
-      ]
-    }
-  ]
+      ],
+    },
+  ],
 ]);

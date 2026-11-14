@@ -320,7 +320,7 @@ async function refreshAudioInputs() {
 
 function preferredAudioInput() {
   return devices.find((device) =>
-    device.label.toLowerCase().includes(preferredInputName)
+    device.label.toLowerCase().includes(preferredInputName),
   );
 }
 

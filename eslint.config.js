@@ -124,4 +124,10 @@ export default defineConfig([
     },
   },
   eslintConfigPrettier,
+  {
+    files: ["**/*.{js,mjs,ts}"],
+    rules: {
+      "comma-dangle": ["error", "always-multiline"],
+    },
+  },
 ]);

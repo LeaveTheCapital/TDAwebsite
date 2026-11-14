@@ -1098,7 +1098,7 @@ function getConnectedMidiInputs() {
 
 function getPreferredMidiInput() {
   return getConnectedMidiInputs().find((input) =>
-    input.name.toLocaleLowerCase().includes(preferredMidiInputName)
+    input.name.toLocaleLowerCase().includes(preferredMidiInputName),
   );
 }
 
@@ -1973,7 +1973,7 @@ class T1 extends Letter {
       () => this.xEnd < this.letterWidth,
       () => {
         new T2(width, height, letterIndex, onComplete).animationFunc();
-      }
+      },
     );
     this.xEnd = 0;
     this.yEnd = 0;
@@ -2030,7 +2030,7 @@ class T2 extends Letter {
       () => this.xEnd < this.tXEndPoint2,
       () => {
         new T3(width, height, letterIndex, onComplete).animationFunc();
-      }
+      },
     );
     this.xEnd = 0;
     this.yEnd = 0;
@@ -2086,7 +2086,7 @@ class T3 extends Letter {
       () => this.xEnd < this.tXEndPoint3,
       () => {
         new T4(width, height, letterIndex, onComplete).animationFunc();
-      }
+      },
     );
     this.xEnd = 0;
     this.yEnd = 0;
@@ -2150,7 +2150,7 @@ class T4 extends Letter {
       () => this.yEnd < this.tYEndPoint4,
       () => {
         onComplete();
-      }
+      },
     );
     this.xEnd = 0;
     this.yEnd = 0;
@@ -2210,7 +2210,7 @@ class D1 extends Letter {
       () => this.dYEnd < this.dYEndPoint,
       () => {
         new D2(width, height, letterIndex, onComplete).animationFunc();
-      }
+      },
     );
 
     this.dYEnd = 0;
@@ -2290,7 +2290,7 @@ class D2 extends Letter {
       () => this.dYEnd < this.dYEndPoint2,
       () => {
         onComplete();
-      }
+      },
     );
 
     this.dYEnd = 0;
@@ -2561,7 +2561,7 @@ class A1 extends Letter {
       () => this.aXEnd < this.aOuterLineRun,
       () => {
         onComplete();
-      }
+      },
     );
 
     this.aStartCoords = [this.startX, this.startY];
@@ -2613,18 +2613,18 @@ class A1 extends Letter {
       this.aStartCoords,
       this.aEndCoords,
       outerLineDistance,
-      this.aColour
+      this.aColour,
     );
     drawLineYDiagonal(
       this.aStartCoords2,
       this.aEndCoords2,
       -outerLineDistance,
-      this.aColour
+      this.aColour,
     );
 
     const bottomLineLength = Math.min(
       this.aBottomLineWidth,
-      (outerLineDistance / this.aOuterLineRun) * this.aBottomLineWidth
+      (outerLineDistance / this.aOuterLineRun) * this.aBottomLineWidth,
     );
 
     drawLineXForwards({
@@ -2682,7 +2682,7 @@ class A2 extends Letter {
       () => this.aXEndFinal < this.aXEndPointFinal + this.aXStep,
       () => {
         onComplete();
-      }
+      },
     );
     this.aXEndFinal = 0;
     this.aXStep = 7 * letterAnimationStepScale;
@@ -2762,7 +2762,7 @@ class A2 extends Letter {
     putCanvasImageData(ctx, this.rowImage, 0, this.rowTop);
     const animationDistance = Math.min(
       this.aXEndFinal,
-      this.aXEndPointFinal
+      this.aXEndPointFinal,
     );
     const animationProgress = animationDistance / this.aXEndPointFinal;
     const topShapeOffsetX =
@@ -3315,7 +3315,7 @@ function drawLineTowards({
   ctx.moveTo(initialCoords[0], initialCoords[1]);
   ctx.lineTo(
     initialCoords[0] + (endCoords[0] - initialCoords[0]) * progress,
-    initialCoords[1] + (endCoords[1] - initialCoords[1]) * progress
+    initialCoords[1] + (endCoords[1] - initialCoords[1]) * progress,
   );
   ctx.strokeStyle = colour;
   ctx.stroke();
@@ -3426,7 +3426,7 @@ function lightShow() {
     letterWidth / 4,
     0,
     2 * Math.PI,
-    0
+    0,
   );
   ctx.moveTo(0, height);
   ctx.lineTo(x2, y2);
@@ -3437,7 +3437,7 @@ function lightShow() {
     letterWidth / 4,
     0,
     2 * Math.PI,
-    0
+    0,
   );
 
   ctx.globalAlpha = 0.5;
@@ -3449,7 +3449,7 @@ function lightShow() {
   ctx.moveTo(width, height);
   ctx.lineTo(
     lightShowStartCoords2[0] - 0.7 * xEndLightShow - letterWidth / 4,
-    height / 2 - 0.7 * yEndLightShow
+    height / 2 - 0.7 * yEndLightShow,
   );
   ctx.ellipse(
     lightShowStartCoords2[0] - 0.7 * xEndLightShow,
@@ -3458,12 +3458,12 @@ function lightShow() {
     letterWidth / 4,
     0,
     2 * Math.PI,
-    0
+    0,
   );
   ctx.moveTo(width, height);
   ctx.lineTo(
     lightShowStartCoords2[0] - 0.7 * xEndLightShow + letterWidth / 4,
-    height / 2 - 0.7 * yEndLightShow
+    height / 2 - 0.7 * yEndLightShow,
   );
   ctx.strokeStyle = "yellow";
   ctx.fillStyle = "yellow";
