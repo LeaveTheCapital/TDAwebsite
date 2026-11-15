@@ -128,6 +128,7 @@ export default defineConfig([
     files: ["**/*.{js,mjs,ts}"],
     rules: {
       "comma-dangle": ["error", "always-multiline"],
+      quotes: ["error", "double"],
     },
   },
 ]);
