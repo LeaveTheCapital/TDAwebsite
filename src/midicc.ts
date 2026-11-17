@@ -24,11 +24,16 @@ interface PurposeControl {
   description: string;
 }
 
+interface EzeptocoreConfig {
+  banks: string[][];
+}
+
 interface MidiConfig {
   oxiE16: MidiControl[];
   lightreftMonolit: MidiControl[];
   intechZona: Record<"x" | "y" | "z", AxisControl>;
   elektronTonverk?: PurposeControl[];
+  ezeptocore?: EzeptocoreConfig;
   notes: string;
 }
 
@@ -56,6 +61,16 @@ const tonverkAudioGrid = getElement("tonverk-audio-grid") as HTMLDivElement;
 const tonverkRoutingGrid = getElement("tonverk-routing-grid") as HTMLDivElement;
 const zonaControls = getElement("zona-controls") as HTMLDivElement;
 const notes = getElement("config-notes") as HTMLTextAreaElement;
+const ezeptocoreBankCount = 16;
+const ezeptocoreSlotCount = 16;
+const ezeptocoreBankSelect = getElement("ezeptocore-bank") as HTMLSelectElement;
+const ezeptocoreSlots = getElement("ezeptocore-slots") as HTMLDivElement;
+const ezeptocoreLedRing = getElement("ezeptocore-leds") as HTMLDivElement;
+const ezeptocoreBankLamp = getElement("ezeptocore-bank-lamp");
+const ezeptocoreSlotInputs: HTMLInputElement[] = [];
+const ezeptocoreLedButtons: HTMLButtonElement[] = [];
+let ezeptocoreBanks = emptyEzeptocoreBanks();
+let ezeptocoreBankIndex = 0;
 const setlist = getElement("setlist") as HTMLOListElement;
 const setlistStatus = getElement("setlist-status") as HTMLOutputElement;
 const oxiTemplate = getElement("oxi-control-template") as HTMLTemplateElement;
@@ -364,6 +379,7 @@ for (const axis of ["x", "y", "z"] as const) {
   zonaControls.append(card);
 }
 
+mountEzeptocoreEditor();
 restoreConfig();
 resizeNotes();
 updateModeFields();
@@ -374,6 +390,7 @@ form.addEventListener("input", () => {
   resizeNotes();
   updateModeFields();
   updateSummaries();
+  updateEzeptocoreLeds();
   saveConfig();
 });
 
@@ -458,6 +475,7 @@ function readConfig(): MidiConfig {
       z: readAxis("z"),
     },
     elektronTonverk: readPurposeControls("elektronTonverk", 16),
+    ezeptocore: readEzeptocore(),
     notes: notes.value,
   };
 }
@@ -491,6 +509,13 @@ function readPurposeControls(controller: string, count: number): PurposeControl[
       "description",
     ).value,
   }));
+}
+
+function readEzeptocore(): EzeptocoreConfig {
+  syncActiveEzeptocoreBank();
+  return {
+    banks: ezeptocoreBanks.map((bank) => [...bank]),
+  };
 }
 
 function saveConfig(): void {
@@ -529,6 +554,7 @@ function restoreConfig(): void {
       ).value = control.description;
     });
     notes.value = normalizedConfig.notes;
+    applyEzeptocoreConfig(normalizedConfig.ezeptocore);
     localStorage.setItem(storageKey, JSON.stringify(normalizedConfig));
     setStatus("Local config restored");
   } catch {
@@ -617,20 +643,172 @@ function restoreDialogCard(): void {
 
 function normalizeMidiConfig(value: unknown): MidiConfig | null {
   if (isMidiConfig(value)) {
-    return value;
+    return withNormalizedEzeptocore(value, value);
   }
   if (isLegacyMidiConfig(value)) {
-    return {
-      oxiE16: value.oxiE16,
-      lightreftMonolit: value.lightreftMonolit,
-      intechZona: value.intechZoya,
-      ...(value.elektronTonverk === undefined
-        ? {}
-        : { elektronTonverk: value.elektronTonverk }),
-      notes: value.notes ?? "",
-    };
+    return withNormalizedEzeptocore(
+      {
+        oxiE16: value.oxiE16,
+        lightreftMonolit: value.lightreftMonolit,
+        intechZona: value.intechZoya,
+        ...(value.elektronTonverk === undefined
+          ? {}
+          : { elektronTonverk: value.elektronTonverk }),
+        notes: value.notes ?? "",
+      },
+      value,
+    );
   }
   return null;
+}
+
+function withNormalizedEzeptocore(
+  config: MidiConfig,
+  source: unknown,
+): MidiConfig {
+  const normalized = readStoredEzeptocore(source);
+  if (normalized === undefined) {
+    return hasOwnEzeptocore(config) ? omitEzeptocore(config) : config;
+  }
+  return { ...config, ezeptocore: normalized };
+}
+
+function readStoredEzeptocore(source: unknown): EzeptocoreConfig | undefined {
+  if (typeof source !== "object" || source === null || !hasOwnEzeptocore(source)) {
+    return undefined;
+  }
+  return coerceEzeptocore((source as { ezeptocore: unknown }).ezeptocore);
+}
+
+function hasOwnEzeptocore(value: object): boolean {
+  return Object.prototype.hasOwnProperty.call(value, "ezeptocore");
+}
+
+function omitEzeptocore(config: MidiConfig): MidiConfig {
+  const clone: MidiConfig = { ...config };
+  delete clone.ezeptocore;
+  return clone;
+}
+
+function coerceEzeptocore(value: unknown): EzeptocoreConfig | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  const banks = (value as { banks?: unknown }).banks;
+  if (!Array.isArray(banks)) {
+    return undefined;
+  }
+  return {
+    banks: Array.from({ length: ezeptocoreBankCount }, (_, bankIndex) => {
+      const bank: unknown = banks[bankIndex];
+      const slots = Array.isArray(bank) ? bank : [];
+      return Array.from({ length: ezeptocoreSlotCount }, (_, slotIndex) => {
+        const slot: unknown = slots[slotIndex];
+        return typeof slot === "string" ? slot : "";
+      });
+    }),
+  };
+}
+
+function emptyEzeptocoreBanks(): string[][] {
+  return Array.from({ length: ezeptocoreBankCount }, () =>
+    Array.from({ length: ezeptocoreSlotCount }, () => ""),
+  );
+}
+
+function mountEzeptocoreEditor(): void {
+  for (let index = 0; index < ezeptocoreSlotCount; index += 1) {
+    const number = String(index + 1).padStart(2, "0");
+    const slot = document.createElement("label");
+    slot.className = "ezeptocore-slot";
+    const slotNumber = document.createElement("span");
+    slotNumber.textContent = number;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Sample name";
+    input.autocomplete = "off";
+    input.dataset.ezeptocoreSlot = String(index);
+    input.setAttribute("aria-label", `Sample ${number}`);
+    slot.append(slotNumber, input);
+    ezeptocoreSlots.append(slot);
+    ezeptocoreSlotInputs.push(input);
+
+    const led = document.createElement("button");
+    led.type = "button";
+    led.className = "amen-led";
+    led.tabIndex = -1;
+    led.setAttribute("aria-hidden", "true");
+    led.textContent = String(index + 1);
+    led.style.setProperty(
+      "--angle",
+      `${(index / ezeptocoreSlotCount) * 360}deg`,
+    );
+    led.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+    });
+    led.addEventListener("click", () => {
+      input.focus();
+    });
+    ezeptocoreLedRing.append(led);
+    ezeptocoreLedButtons.push(led);
+  }
+
+  ezeptocoreBankSelect.addEventListener("change", () => {
+    const nextIndex = Number(ezeptocoreBankSelect.value) - 1;
+    if (
+      !Number.isInteger(nextIndex) ||
+      nextIndex < 0 ||
+      nextIndex >= ezeptocoreBankCount
+    ) {
+      ezeptocoreBankSelect.value = String(ezeptocoreBankIndex + 1);
+      return;
+    }
+    if (nextIndex === ezeptocoreBankIndex) {
+      return;
+    }
+    syncActiveEzeptocoreBank();
+    ezeptocoreBankIndex = nextIndex;
+    renderActiveEzeptocoreBank();
+  });
+
+  ezeptocoreSlots.addEventListener("focusin", updateEzeptocoreLeds);
+  ezeptocoreSlots.addEventListener("focusout", updateEzeptocoreLeds);
+  renderActiveEzeptocoreBank();
+}
+
+function renderActiveEzeptocoreBank(): void {
+  const bank = ezeptocoreBanks[ezeptocoreBankIndex];
+  ezeptocoreSlotInputs.forEach((input, index) => {
+    input.value = bank[index] ?? "";
+    input.name = `ezeptocore.${ezeptocoreBankIndex}.sample.${index}`;
+  });
+  ezeptocoreBankLamp.textContent = `Bank ${ezeptocoreBankIndex + 1}`;
+  updateEzeptocoreLeds();
+}
+
+function syncActiveEzeptocoreBank(): void {
+  const bank = ezeptocoreBanks[ezeptocoreBankIndex];
+  ezeptocoreSlotInputs.forEach((input, index) => {
+    bank[index] = input.value;
+  });
+}
+
+function updateEzeptocoreLeds(): void {
+  ezeptocoreSlotInputs.forEach((input, index) => {
+    const led = ezeptocoreLedButtons[index];
+    led.classList.toggle("is-named", input.value.trim() !== "");
+    led.classList.toggle("is-active", document.activeElement === input);
+  });
+}
+
+function applyEzeptocoreConfig(config: EzeptocoreConfig | undefined): void {
+  ezeptocoreBanks =
+    config === undefined
+      ? emptyEzeptocoreBanks()
+      : config.banks.map((bank) => [...bank]);
+  ezeptocoreBankIndex = 0;
+  ezeptocoreBankSelect.value = "1";
+  renderActiveEzeptocoreBank();
 }
 
 function isMidiConfig(value: unknown): value is MidiConfig {
