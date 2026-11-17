@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A private list of books, films, TV series, and video games."
+    />
+    <link rel="icon" href="/favicon.ico" />
+    <title>Books &amp; Literature</title>
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Site">
+      <a href="index.html">Home</a>
+      <a href="midicc.html">Midi CC</a>
+      <a href="books.html" aria-current="page">Books &amp; Literature</a>
+    </nav>
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Library</p>
+        <h1>Books &amp; Literature</h1>
+        <p class="intro">
+          Keep track of books, films, TV series, and games. Changes are saved
+          automatically in this browser.
+        </p>
+      </div>
+      <div class="header-actions">
+        <output id="save-status" aria-live="polite">Ready</output>
+        <button id="download-library" class="action-button" type="button">
+          Download JSON
+        </button>
+        <button
+          id="upload-library"
+          class="action-button"
+          type="button"
+          aria-describedby="upload-status"
+        >
+          Upload to cloud
+        </button>
+        <output id="upload-status" aria-live="polite">
+          Demo: uploads stay in this browser.
+        </output>
+      </div>
+    </header>
+    <main id="library"></main>
+    <script type="module" src="/src/books.ts"></script>
+  </body>
+</html>

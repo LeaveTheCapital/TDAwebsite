@@ -7,6 +7,7 @@ export default defineConfig({
         home: "index.html",
         midicc: "midicc.html",
         tda: "tda.html",
+        books: "books.html",
       },
     },
   },
