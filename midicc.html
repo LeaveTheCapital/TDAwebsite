@@ -110,6 +110,94 @@
           </div>
         </section>
 
+        <section class="controller-section" aria-labelledby="ezeptocore-title">
+          <div class="section-heading">
+            <h2 id="ezeptocore-title" class="controller-brand">Ezeptocore</h2>
+          </div>
+          <div class="device device--ezeptocore">
+            <div class="ezeptocore-panel">
+              <p class="ezeptocore-wordmark" aria-hidden="true">Ezeptocore</p>
+              <div class="amen-stage">
+                <div id="ezeptocore-leds" class="amen-leds"></div>
+                <div class="amen-knob" aria-hidden="true">
+                  <span class="amen-pointer"></span>
+                  <span class="amen-caption">Amen</span>
+                </div>
+              </div>
+              <div class="ezeptocore-mid" aria-hidden="true">
+                <div class="mini-knob mini-knob--break">
+                  <span class="mini-knob-cap"><span></span></span>
+                  <span>Break</span>
+                </div>
+                <div class="effect-column">
+                  <span>Effects</span>
+                  <span>VI</span>
+                  <span>VII</span>
+                  <span>VIII</span>
+                </div>
+                <div class="mini-knob mini-knob--tunnel">
+                  <span class="mini-knob-cap"><span></span></span>
+                  <span>Tunnel</span>
+                </div>
+              </div>
+              <div class="ezeptocore-keys" aria-hidden="true">
+                <span id="ezeptocore-bank-lamp" class="panel-key">Bank 1</span>
+                <span class="panel-key panel-key--round">Jump</span>
+                <span class="panel-key">Tap</span>
+              </div>
+              <div class="ezeptocore-bottom">
+                <div class="ezeptocore-jacks" aria-hidden="true">
+                  <span class="jack"><span class="jack-hole"></span>Amen</span>
+                  <span class="jack"><span class="jack-hole"></span>Clk</span>
+                  <span class="jack"><span class="jack-hole"></span>Break</span>
+                  <span class="jack"><span class="jack-hole"></span>Tunnel</span>
+                  <span class="jack"><span class="jack-hole"></span>Slice</span>
+                  <span class="jack"><span class="jack-hole"></span>Out</span>
+                </div>
+                <p class="ezeptocore-credit" aria-hidden="true">
+                  Infinite Digits × Maneco Labs
+                </p>
+              </div>
+            </div>
+            <div class="ezeptocore-editor">
+              <div class="bank-heading">
+                <h3 id="ezeptocore-samples-title">Sample names</h3>
+                <p>8 HP · 16 banks of 16</p>
+              </div>
+              <p class="ezeptocore-help">
+                Name the sixteen samples in the selected bank. Lit positions on the Amen
+                ring match slots that have a name.
+              </p>
+              <label class="ezeptocore-bank-label" for="ezeptocore-bank">
+                Bank
+                <select id="ezeptocore-bank" name="ezeptocore.bank">
+                  <option value="1">Bank 1</option>
+                  <option value="2">Bank 2</option>
+                  <option value="3">Bank 3</option>
+                  <option value="4">Bank 4</option>
+                  <option value="5">Bank 5</option>
+                  <option value="6">Bank 6</option>
+                  <option value="7">Bank 7</option>
+                  <option value="8">Bank 8</option>
+                  <option value="9">Bank 9</option>
+                  <option value="10">Bank 10</option>
+                  <option value="11">Bank 11</option>
+                  <option value="12">Bank 12</option>
+                  <option value="13">Bank 13</option>
+                  <option value="14">Bank 14</option>
+                  <option value="15">Bank 15</option>
+                  <option value="16">Bank 16</option>
+                </select>
+              </label>
+              <div
+                id="ezeptocore-slots"
+                class="ezeptocore-slots"
+                aria-labelledby="ezeptocore-samples-title"
+              ></div>
+            </div>
+          </div>
+        </section>
+
         <section class="notes-section" aria-labelledby="notes-title">
           <label id="notes-title" for="config-notes">Notes</label>
           <textarea
