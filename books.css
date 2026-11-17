@@ -1,9 +1,10 @@
+@import "./tokens.css";
+
 :root {
   color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  background: #07090b;
-  color: #f4f7f5;
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-text);
   font-synthesis: none;
 }
 
@@ -15,8 +16,8 @@ body {
   min-width: 320px;
   margin: 0;
   background:
-    radial-gradient(circle at 10% 0%, rgb(39 251 171 / 10%), transparent 24rem),
-    #07090b;
+    radial-gradient(circle at 10% 0%, var(--color-glow), transparent 24rem),
+    var(--color-background);
 }
 
 button,
@@ -41,19 +42,18 @@ main {
 }
 
 .site-nav a {
-  color: #f4f7f5;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
-    sans-serif;
+  color: var(--color-link);
+  font-family: var(--font-nav);
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
 
 .site-nav a[aria-current="page"] {
-  color: #58f5b5;
+  color: var(--color-link-current);
 }
 
 .site-nav a:hover {
-  color: orange;
+  color: var(--color-link-hover);
 }
 
 .page-header {
@@ -62,12 +62,12 @@ main {
   justify-content: space-between;
   gap: 2rem;
   padding: clamp(2rem, 6vw, 4.5rem) 0 2rem;
-  border-bottom: 1px solid #27302d;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .eyebrow {
   margin: 0 0 0.45rem;
-  color: #58f5b5;
+  color: var(--color-subheading);
   font-size: 0.73rem;
   font-weight: 800;
   letter-spacing: 0.18em;
@@ -82,6 +82,13 @@ p {
   margin-top: 0;
 }
 
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-heading);
+}
+
 h1 {
   max-width: 12ch;
   margin-bottom: 0.8rem;
@@ -94,7 +101,7 @@ h1 {
 .intro {
   max-width: 38rem;
   margin-bottom: 0;
-  color: #9ca9a4;
+  color: var(--color-muted);
   font-size: clamp(1rem, 2vw, 1.15rem);
   line-height: 1.55;
 }
@@ -111,7 +118,7 @@ h1 {
 
 #save-status,
 #upload-status {
-  color: #9ca9a4;
+  color: var(--color-muted);
   font-size: 0.8rem;
 }
 
@@ -123,19 +130,19 @@ h1 {
 .action-button,
 .ghost-button {
   padding: 0.7rem 0.95rem;
-  border-radius: 0.4rem;
+  border-radius: var(--radius-md);
   font-weight: 800;
   cursor: pointer;
 }
 
 .action-button {
-  border: 1px solid #58f5b5;
-  background: #58f5b5;
-  color: #07130e;
+  border: 1px solid var(--color-button-border);
+  background: var(--color-button-bg);
+  color: var(--color-button-text);
 }
 
 .action-button:hover {
-  background: #9af8d1;
+  background: var(--color-button-hover);
 }
 
 .action-button:disabled {
@@ -144,25 +151,25 @@ h1 {
 }
 
 .ghost-button {
-  border: 1px solid #46524e;
-  background: #151a1b;
-  color: #f4f7f5;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
   font-weight: 700;
 }
 
 .ghost-button:hover {
-  border-color: #58f5b5;
-  background: #1a2421;
+  border-color: var(--color-button-border);
+  background: var(--color-surface-hover);
 }
 
 .danger-button {
-  border-color: #6a3b36;
-  color: #ffb4a8;
+  border-color: var(--color-danger-border);
+  color: var(--color-danger);
 }
 
 .danger-button:hover {
-  border-color: #ffb4a8;
-  background: #241615;
+  border-color: var(--color-danger);
+  background: var(--color-danger-surface);
 }
 
 .site-nav a:focus-visible,
@@ -171,13 +178,13 @@ h1 {
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid #f4a950;
+  outline: 3px solid var(--color-focus);
   outline-offset: 3px;
 }
 
 .library-section {
   padding: 1.6rem 0 2rem;
-  border-bottom: 1px solid #27302d;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .library-section h2 {
@@ -188,7 +195,7 @@ textarea:focus-visible {
 
 .section-help,
 .empty-state {
-  color: #9ca9a4;
+  color: var(--color-muted);
 }
 
 .section-help {
@@ -203,9 +210,9 @@ textarea:focus-visible {
 .entry-form,
 .entry-card,
 .platform-card {
-  border: 1px solid #38433f;
-  border-radius: 0.7rem;
-  background: #101415;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
 }
 
 .entry-form,
@@ -229,7 +236,7 @@ textarea:focus-visible {
 .platform-form label {
   display: grid;
   gap: 0.35rem;
-  color: #9ca9a4;
+  color: var(--color-muted);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -240,10 +247,10 @@ textarea:focus-visible {
 .platform-form input {
   width: 100%;
   padding: 0.55rem 0.65rem;
-  border: 1px solid #46524e;
-  border-radius: 0.4rem;
-  background: #090c0d;
-  color: #f4f7f5;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
 }
 
 .entry-form textarea {
@@ -291,7 +298,7 @@ textarea:focus-visible {
 .entry-rating {
   flex-shrink: 0;
   margin: 0;
-  color: #58f5b5;
+  color: var(--color-primary);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -300,7 +307,7 @@ textarea:focus-visible {
 .entry-notes,
 .entry-meta {
   margin: 0.45rem 0 0;
-  color: #d5deda;
+  color: var(--color-text-secondary);
   overflow-wrap: anywhere;
 }
 
@@ -320,7 +327,7 @@ textarea:focus-visible {
 }
 
 .entry-meta dt {
-  color: #9ca9a4;
+  color: var(--color-muted);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -356,7 +363,7 @@ textarea:focus-visible {
   gap: 0.85rem;
   margin-top: 1rem;
   padding: 1rem;
-  background: #0c1011;
+  background: var(--color-surface-platform);
 }
 
 .platform-heading h3 {
