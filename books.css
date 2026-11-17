@@ -215,7 +215,7 @@ textarea:focus-visible {
 }
 
 .entry-form {
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 7.5rem;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(11rem, 0.9fr);
   margin-bottom: 0.9rem;
   padding: 0.9rem;
 }
@@ -297,7 +297,8 @@ textarea:focus-visible {
 }
 
 .entry-creator,
-.entry-notes {
+.entry-notes,
+.entry-meta {
   margin: 0.45rem 0 0;
   color: #d5deda;
   overflow-wrap: anywhere;
@@ -305,6 +306,31 @@ textarea:focus-visible {
 
 .entry-notes {
   white-space: pre-wrap;
+}
+
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+}
+
+.entry-meta div {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.entry-meta dt {
+  color: #9ca9a4;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.entry-meta dd {
+  margin: 0;
+}
+
+.entry-form input[type="date"] {
+  min-width: 0;
 }
 
 .entry-actions {

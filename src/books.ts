@@ -2,12 +2,116 @@ import "../books.css";
 import { JsonStorageSocket } from "./storage/json-storage-socket";
 import { LocalStorageAdapter } from "./storage/local-storage-adapter";
 
+enum BookGenre {
+  Fantasy = "Fantasy",
+  ScienceFiction = "Science fiction",
+  Mystery = "Mystery",
+  Thriller = "Thriller",
+  Horror = "Horror",
+  Romance = "Romance",
+  HistoricalFiction = "Historical fiction",
+  LiteraryFiction = "Literary fiction",
+  Classic = "Classic",
+  Crime = "Crime",
+  Adventure = "Adventure",
+  YoungAdult = "Young adult",
+  Children = "Children's",
+  GraphicNovel = "Graphic novel",
+  Poetry = "Poetry",
+  Drama = "Drama",
+  ShortStories = "Short stories",
+  Biography = "Biography",
+  Memoir = "Memoir",
+  History = "History",
+  Science = "Science",
+  Philosophy = "Philosophy",
+  Essays = "Essays",
+  Nonfiction = "Nonfiction",
+}
+
+enum FilmGenre {
+  Action = "Action",
+  Adventure = "Adventure",
+  Animation = "Animation",
+  Comedy = "Comedy",
+  Crime = "Crime",
+  Documentary = "Documentary",
+  Drama = "Drama",
+  Family = "Family",
+  Fantasy = "Fantasy",
+  Historical = "Historical",
+  Horror = "Horror",
+  Musical = "Musical",
+  Mystery = "Mystery",
+  Romance = "Romance",
+  ScienceFiction = "Science fiction",
+  Thriller = "Thriller",
+  War = "War",
+  Western = "Western",
+}
+
+enum SeriesGenre {
+  Action = "Action",
+  Adventure = "Adventure",
+  Animation = "Animation",
+  Anthology = "Anthology",
+  Comedy = "Comedy",
+  Crime = "Crime",
+  Documentary = "Documentary",
+  Drama = "Drama",
+  Fantasy = "Fantasy",
+  Historical = "Historical",
+  Horror = "Horror",
+  Mystery = "Mystery",
+  Reality = "Reality",
+  Romance = "Romance",
+  ScienceFiction = "Science fiction",
+  Sitcom = "Sitcom",
+  Soap = "Soap",
+  Thriller = "Thriller",
+  Western = "Western",
+}
+
+enum GameGenre {
+  Action = "Action",
+  Adventure = "Adventure",
+  RolePlaying = "Role-playing",
+  Strategy = "Strategy",
+  Simulation = "Simulation",
+  Sports = "Sports",
+  Racing = "Racing",
+  Puzzle = "Puzzle",
+  Platformer = "Platformer",
+  Fighting = "Fighting",
+  Shooter = "Shooter",
+  Horror = "Horror",
+  Survival = "Survival",
+  Sandbox = "Sandbox",
+  Stealth = "Stealth",
+  Rhythm = "Rhythm",
+  VisualNovel = "Visual novel",
+  Roguelike = "Roguelike",
+  Metroidvania = "Metroidvania",
+  PointAndClick = "Point and click",
+}
+
+type LibraryGenre = BookGenre | FilmGenre | SeriesGenre | GameGenre;
+
+const entryFilterFields = ["genre", "dateWatched", "dateMade", "rating"] as const;
+
+type EntryFilterField = (typeof entryFilterFields)[number];
+
+type EntryDetailField = Exclude<EntryFilterField, "rating">;
+
 interface CatalogEntry {
   id: string;
   title: string;
   creator: string;
   rating: number;
   notes: string;
+  genre?: LibraryGenre;
+  dateWatched?: string;
+  dateMade?: string;
 }
 
 interface EntryDraft {
@@ -15,6 +119,9 @@ interface EntryDraft {
   creator: string;
   rating: number;
   notes: string;
+  genre?: LibraryGenre;
+  dateWatched?: string;
+  dateMade?: string;
 }
 
 interface GamePlatform {
@@ -38,6 +145,10 @@ interface ListDefinition {
   creatorLabel: string;
   addLabel: string;
   emptyLabel: string;
+  genres: readonly LibraryGenre[];
+  dateWatchedLabel: string;
+  dateMadeLabel: string;
+  filterFields: readonly EntryFilterField[];
 }
 
 type SimpleListKey = keyof SimpleLists;
@@ -49,7 +160,13 @@ type ActiveEditor =
   | { type: "game"; platformId: string; id: string }
   | { type: "platform"; platformId: string };
 
-interface EntryFormOptions {
+interface EntryFieldOptions {
+  genres: readonly LibraryGenre[];
+  dateWatchedLabel: string;
+  dateMadeLabel: string;
+}
+
+interface EntryFormOptions extends EntryFieldOptions {
   form: EntryFormKind;
   creatorLabel: string;
   submitLabel: string;
@@ -60,7 +177,7 @@ interface EntryFormOptions {
   id: string | null;
 }
 
-interface EntryListContext {
+interface EntryListContext extends EntryFieldOptions {
   creatorLabel: string;
   emptyLabel: string;
   headingLevel: "h3" | "h4";
@@ -75,26 +192,38 @@ const storageKey = "tda-books-library-v1";
 const uploadStorageKey = "tda-books-library-cloud-demo-v1";
 const uploadStorage = new JsonStorageSocket(new LocalStorageAdapter(() => localStorage));
 
-const simpleListDefinitions: Record<SimpleListKey, ListDefinition> = {
+const simpleListDefinitions = {
   books: {
     title: "Books & Literature",
     creatorLabel: "Author",
     addLabel: "Add book",
     emptyLabel: "No books yet.",
+    genres: enumValues(BookGenre),
+    dateWatchedLabel: "Date read",
+    dateMadeLabel: "Published",
+    filterFields: entryFilterFields,
   },
   films: {
     title: "Films",
     creatorLabel: "Director",
     addLabel: "Add film",
     emptyLabel: "No films yet.",
+    genres: enumValues(FilmGenre),
+    dateWatchedLabel: "Date watched",
+    dateMadeLabel: "Released",
+    filterFields: entryFilterFields,
   },
   series: {
     title: "TV Series",
     creatorLabel: "Creator",
     addLabel: "Add series",
     emptyLabel: "No TV series yet.",
+    genres: enumValues(SeriesGenre),
+    dateWatchedLabel: "Date watched",
+    dateMadeLabel: "First aired",
+    filterFields: entryFilterFields,
   },
-};
+} satisfies Record<SimpleListKey, ListDefinition>;
 
 const gameListDefinition = {
   title: "Video games",
@@ -103,6 +232,13 @@ const gameListDefinition = {
   emptyLabel: "No games on this platform yet.",
   platformEmptyLabel: "No platforms yet.",
   help: "Add a platform for each computer or console, then keep a separate list of games for it.",
+  genres: enumValues(GameGenre),
+  dateWatchedLabel: "Date played",
+  dateMadeLabel: "Released",
+  filterFields: entryFilterFields,
+} satisfies ListDefinition & {
+  platformEmptyLabel: string;
+  help: string;
 };
 
 const libraryRoot = getElement("library");
@@ -260,6 +396,74 @@ function normalizeRating(value: unknown): number | null {
   return numeric;
 }
 
+function enumValues<T extends Record<string, string>>(enumObject: T): Array<T[keyof T]> {
+  return Object.values(enumObject) as Array<T[keyof T]>;
+}
+
+function isDetailField(field: EntryFilterField): field is EntryDetailField {
+  return field !== "rating";
+}
+
+function readOptionalDate(value: unknown): string | undefined {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return undefined;
+  }
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return undefined;
+  }
+  return value;
+}
+
+function readGenre(value: unknown, genres: readonly LibraryGenre[]): LibraryGenre | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  for (const genre of genres) {
+    const stored: string = genre;
+    if (stored === value) {
+      return genre;
+    }
+  }
+  return undefined;
+}
+
+function formatStoredDate(iso: string): string {
+  const year = Number(iso.slice(0, 4));
+  const month = Number(iso.slice(5, 7));
+  const day = Number(iso.slice(8, 10));
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(year, month - 1, day));
+}
+
+function withOptionalEntryFields(
+  genre: LibraryGenre | undefined,
+  dateWatched: string | undefined,
+  dateMade: string | undefined,
+): Pick<CatalogEntry, "genre" | "dateWatched" | "dateMade"> {
+  const fields: Pick<CatalogEntry, "genre" | "dateWatched" | "dateMade"> = {};
+  if (genre !== undefined) {
+    fields.genre = genre;
+  }
+  if (dateWatched !== undefined) {
+    fields.dateWatched = dateWatched;
+  }
+  if (dateMade !== undefined) {
+    fields.dateMade = dateMade;
+  }
+  return fields;
+}
+
 function claimId(preferred: string, used: Set<string>): string {
   let id = preferred;
   if (id === "" || used.has(id)) {
@@ -272,7 +476,11 @@ function claimId(preferred: string, used: Set<string>): string {
   return id;
 }
 
-function normalizeEntry(value: unknown, used: Set<string>): CatalogEntry | null {
+function normalizeEntry(
+  value: unknown,
+  used: Set<string>,
+  genres: readonly LibraryGenre[],
+): CatalogEntry | null {
   if (!isPlainObject(value)) {
     return null;
   }
@@ -285,7 +493,18 @@ function normalizeEntry(value: unknown, used: Set<string>): CatalogEntry | null 
   ]);
   const notes = readString(value.notes);
   const rating = normalizeRating(value.rating);
-  if (title === "" && creator === "" && notes === "" && rating === null) {
+  const genre = readGenre(value.genre, genres);
+  const dateWatched = readOptionalDate(value.dateWatched);
+  const dateMade = readOptionalDate(value.dateMade);
+  if (
+    title === "" &&
+    creator === "" &&
+    notes === "" &&
+    rating === null &&
+    genre === undefined &&
+    dateWatched === undefined &&
+    dateMade === undefined
+  ) {
     return null;
   }
   return {
@@ -294,16 +513,21 @@ function normalizeEntry(value: unknown, used: Set<string>): CatalogEntry | null 
     creator,
     rating: rating ?? 3,
     notes,
+    ...withOptionalEntryFields(genre, dateWatched, dateMade),
   };
 }
 
-function normalizeEntries(value: unknown, used: Set<string>): CatalogEntry[] {
+function normalizeEntries(
+  value: unknown,
+  used: Set<string>,
+  genres: readonly LibraryGenre[],
+): CatalogEntry[] {
   if (!Array.isArray(value)) {
     return [];
   }
   const entries: CatalogEntry[] = [];
   for (const item of value) {
-    const entry = normalizeEntry(item, used);
+    const entry = normalizeEntry(item, used, genres);
     if (entry !== null) {
       entries.push(entry);
     }
@@ -321,7 +545,7 @@ function normalizePlatforms(value: unknown, used: Set<string>): GamePlatform[] {
       continue;
     }
     const name = readString(item.name);
-    const games = normalizeEntries(item.games, used);
+    const games = normalizeEntries(item.games, used, gameListDefinition.genres);
     if (name === "" && games.length === 0) {
       continue;
     }
@@ -349,7 +573,7 @@ function normalizeLibrary(value: unknown): MediaLibrary | null {
   const used = new Set<string>();
   const next = emptyLibrary();
   for (const key of simpleListKeys()) {
-    next[key] = normalizeEntries(value[key], used);
+    next[key] = normalizeEntries(value[key], used, simpleListDefinitions[key].genres);
   }
   next.platforms = normalizePlatforms(value.platforms, used);
   return next;
@@ -387,7 +611,23 @@ function cloneEntry(entry: CatalogEntry): CatalogEntry {
     creator: entry.creator,
     rating: entry.rating,
     notes: entry.notes,
+    ...withOptionalEntryFields(entry.genre, entry.dateWatched, entry.dateMade),
   };
+}
+
+function clearOptionalField(
+  entry: CatalogEntry,
+  key: "genre" | "dateWatched" | "dateMade",
+): void {
+  if (key === "genre") {
+    delete entry.genre;
+    return;
+  }
+  if (key === "dateWatched") {
+    delete entry.dateWatched;
+    return;
+  }
+  delete entry.dateMade;
 }
 
 function assignEntry(entry: CatalogEntry, draft: EntryDraft): void {
@@ -395,6 +635,21 @@ function assignEntry(entry: CatalogEntry, draft: EntryDraft): void {
   entry.creator = draft.creator;
   entry.rating = draft.rating;
   entry.notes = draft.notes;
+  if (draft.genre === undefined) {
+    clearOptionalField(entry, "genre");
+  } else {
+    entry.genre = draft.genre;
+  }
+  if (draft.dateWatched === undefined) {
+    clearOptionalField(entry, "dateWatched");
+  } else {
+    entry.dateWatched = draft.dateWatched;
+  }
+  if (draft.dateMade === undefined) {
+    clearOptionalField(entry, "dateMade");
+  } else {
+    entry.dateMade = draft.dateMade;
+  }
 }
 
 function findSimpleEntry(list: SimpleListKey, id: string): CatalogEntry | undefined {
@@ -489,7 +744,10 @@ function stringField(data: FormData, name: string): string {
   return typeof value === "string" ? value : "";
 }
 
-function readEntryDraft(form: HTMLFormElement): EntryDraft | null {
+function readEntryDraft(
+  form: HTMLFormElement,
+  genres: readonly LibraryGenre[],
+): EntryDraft | null {
   const data = new FormData(form);
   const title = stringField(data, "title").trim();
   const creator = stringField(data, "creator").trim();
@@ -498,7 +756,17 @@ function readEntryDraft(form: HTMLFormElement): EntryDraft | null {
   if (title === "" || rating === null) {
     return null;
   }
-  return { title, creator, rating, notes };
+  return {
+    title,
+    creator,
+    rating,
+    notes,
+    ...withOptionalEntryFields(
+      readGenre(stringField(data, "genre"), genres),
+      readOptionalDate(stringField(data, "dateWatched")),
+      readOptionalDate(stringField(data, "dateMade")),
+    ),
+  };
 }
 
 function readPlatformName(form: HTMLFormElement): string | null {
@@ -518,7 +786,7 @@ function applyEditForm(form: HTMLFormElement): boolean {
       return false;
     }
     const entry = findSimpleEntry(list, id);
-    const draft = readEntryDraft(form);
+    const draft = readEntryDraft(form, simpleListDefinitions[list].genres);
     if (entry === undefined || draft === null) {
       return false;
     }
@@ -527,7 +795,7 @@ function applyEditForm(form: HTMLFormElement): boolean {
   }
   if (kind === "edit-game") {
     const game = findGame(form.dataset.platform, form.dataset.id);
-    const draft = readEntryDraft(form);
+    const draft = readEntryDraft(form, gameListDefinition.genres);
     if (game === undefined || draft === null) {
       return false;
     }
@@ -757,7 +1025,7 @@ function addSimpleEntry(form: HTMLFormElement): void {
   if (!form.reportValidity()) {
     return;
   }
-  const draft = readEntryDraft(form);
+  const draft = readEntryDraft(form, simpleListDefinitions[list].genres);
   if (draft === null) {
     setStatus("Add a title and a rating from 1 to 5.");
     return;
@@ -779,7 +1047,7 @@ function addGame(form: HTMLFormElement): void {
   if (!form.reportValidity()) {
     return;
   }
-  const draft = readEntryDraft(form);
+  const draft = readEntryDraft(form, gameListDefinition.genres);
   if (draft === null) {
     setStatus("Add a title and a rating from 1 to 5.");
     return;
@@ -858,6 +1126,9 @@ function renderSimpleSection(key: SimpleListKey): HTMLElement {
       list: key,
       platformId: null,
       id: null,
+      genres: definition.genres,
+      dateWatchedLabel: definition.dateWatchedLabel,
+      dateMadeLabel: definition.dateMadeLabel,
     }),
   );
   section.append(
@@ -870,6 +1141,9 @@ function renderSimpleSection(key: SimpleListKey): HTMLElement {
       form: "edit-entry",
       list: key,
       platformId: null,
+      genres: definition.genres,
+      dateWatchedLabel: definition.dateWatchedLabel,
+      dateMadeLabel: definition.dateMadeLabel,
     }),
   );
   return section;
@@ -960,6 +1234,9 @@ function renderPlatformCard(platform: GamePlatform): HTMLElement {
       list: null,
       platformId: platform.id,
       id: null,
+      genres: gameListDefinition.genres,
+      dateWatchedLabel: gameListDefinition.dateWatchedLabel,
+      dateMadeLabel: gameListDefinition.dateMadeLabel,
     }),
   );
   card.append(
@@ -972,6 +1249,9 @@ function renderPlatformCard(platform: GamePlatform): HTMLElement {
       form: "edit-game",
       list: null,
       platformId: platform.id,
+      genres: gameListDefinition.genres,
+      dateWatchedLabel: gameListDefinition.dateWatchedLabel,
+      dateMadeLabel: gameListDefinition.dateMadeLabel,
     }),
   );
   return card;
@@ -1024,6 +1304,9 @@ function renderEntries(entries: CatalogEntry[], context: EntryListContext): HTML
           list: context.list,
           platformId: context.platformId,
           id: entry.id,
+          genres: context.genres,
+          dateWatchedLabel: context.dateWatchedLabel,
+          dateMadeLabel: context.dateMadeLabel,
         }),
       );
     } else {
@@ -1061,6 +1344,10 @@ function renderEntryCard(entry: CatalogEntry, context: EntryListContext): HTMLEl
     creator.className = "entry-creator";
     creator.textContent = entry.creator;
     card.append(creator);
+  }
+  const meta = renderEntryMeta(entry, context);
+  if (meta !== null) {
+    card.append(meta);
   }
   if (entry.notes !== "") {
     const notes = document.createElement("p");
@@ -1128,6 +1415,13 @@ function renderEntryForm(options: EntryFormOptions): HTMLFormElement {
       className: null,
     }),
     renderRatingField(options.value?.rating ?? null),
+    renderGenreField(options.genres, options.value?.genre ?? null),
+    renderDateField(
+      "dateWatched",
+      options.dateWatchedLabel,
+      options.value?.dateWatched ?? "",
+    ),
+    renderDateField("dateMade", options.dateMadeLabel, options.value?.dateMade ?? ""),
     renderLabeledControl("notes", "Notes", {
       value: options.value?.notes ?? "",
       required: false,
@@ -1197,6 +1491,7 @@ function renderRatingField(selected: number | null): HTMLLabelElement {
   const select = document.createElement("select");
   select.name = "rating";
   select.required = true;
+  select.dataset.entryField = "rating";
   const placeholder = document.createElement("option");
   placeholder.value = "";
   placeholder.textContent = "1–5";
@@ -1212,6 +1507,93 @@ function renderRatingField(selected: number | null): HTMLLabelElement {
   }
   label.append(caption, select);
   return label;
+}
+
+function renderGenreField(genres: readonly LibraryGenre[], selected: LibraryGenre | null): HTMLLabelElement {
+  const label = document.createElement("label");
+  label.className = "genre-field";
+  const caption = document.createElement("span");
+  caption.textContent = "Genre";
+  const select = document.createElement("select");
+  select.name = "genre";
+  select.dataset.entryField = "genre";
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "None";
+  none.selected = selected === null;
+  select.append(none);
+  for (const genre of genres) {
+    const option = document.createElement("option");
+    option.value = genre;
+    option.textContent = genre;
+    option.selected = selected === genre;
+    select.append(option);
+  }
+  label.append(caption, select);
+  return label;
+}
+
+function renderDateField(
+  name: "dateWatched" | "dateMade",
+  labelText: string,
+  value: string,
+): HTMLLabelElement {
+  const label = document.createElement("label");
+  label.className = "date-field";
+  const caption = document.createElement("span");
+  caption.textContent = labelText;
+  const input = document.createElement("input");
+  input.type = "date";
+  input.name = name;
+  input.value = value;
+  input.dataset.entryField = name;
+  label.append(caption, input);
+  return label;
+}
+
+function renderEntryMeta(entry: CatalogEntry, context: EntryListContext): HTMLDListElement | null {
+  const list = document.createElement("dl");
+  list.className = "entry-meta";
+  for (const field of entryFilterFields.filter(isDetailField)) {
+    const value = detailValue(entry, field);
+    if (value === undefined) {
+      continue;
+    }
+    const row = document.createElement("div");
+    row.dataset.entryField = field;
+    row.dataset.entryValue = field === "genre" ? value : (entry[field] ?? "");
+    const term = document.createElement("dt");
+    term.textContent = detailLabel(field, context);
+    const description = document.createElement("dd");
+    description.textContent = value;
+    row.append(term, description);
+    list.append(row);
+  }
+  if (list.childElementCount === 0) {
+    return null;
+  }
+  return list;
+}
+
+function detailLabel(field: EntryDetailField, context: EntryListContext): string {
+  if (field === "genre") {
+    return "Genre";
+  }
+  if (field === "dateWatched") {
+    return context.dateWatchedLabel;
+  }
+  return context.dateMadeLabel;
+}
+
+function detailValue(entry: CatalogEntry, field: EntryDetailField): string | undefined {
+  if (field === "genre") {
+    return entry.genre;
+  }
+  const stored = entry[field];
+  if (stored === undefined) {
+    return undefined;
+  }
+  return formatStoredDate(stored);
 }
 
 function renderActions(submitLabel: string, includeCancel: boolean): HTMLDivElement {
