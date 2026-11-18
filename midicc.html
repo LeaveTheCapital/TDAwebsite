@@ -28,7 +28,8 @@
         <h1>TDA Midi CC Config</h1>
         <p class="intro">
           Map the controls for the TDA live set. Changes are saved automatically
-          in this browser.
+          in this browser. Upload stores a separate copy you can load on another
+          device.
         </p>
       </div>
       <div class="header-actions">
@@ -46,10 +47,17 @@
         <button id="download-config" class="action-button" type="button">
           Download JSON
         </button>
+        <button id="cloud-sign-in" class="action-button" type="button" hidden>
+          Sign in with Google
+        </button>
+        <button id="load-config" class="action-button" type="button" aria-describedby="upload-status">
+          Load from cloud
+        </button>
         <button id="upload-config" class="action-button" type="button" aria-describedby="upload-status">
           Upload to cloud
         </button>
-        <output id="upload-status" aria-live="polite">Demo: uploads stay in this browser.</output>
+        <output id="cloud-account" aria-live="polite" hidden></output>
+        <output id="upload-status" aria-live="polite">Cloud storage is not configured. Uploads stay in this browser.</output>
       </div>
     </header>
 

@@ -319,15 +319,18 @@ h1 {
 
 .header-actions {
   display: flex;
-  flex: 0 0 auto;
+  flex: 1 1 22rem;
   align-items: center;
   flex-wrap: wrap;
   justify-content: end;
   gap: 1rem;
+  min-width: min(100%, 16rem);
+  max-width: 100%;
 }
 
 #save-status,
-#upload-status {
+#upload-status,
+#cloud-account {
   color: var(--color-muted);
   font-size: 0.8rem;
 }
@@ -1058,8 +1061,10 @@ body.is-collapsed #control-dialog .round-button {
   }
 }
 
-#upload-status {
+#upload-status,
+#cloud-account {
   flex-basis: 100%;
+  overflow-wrap: anywhere;
   text-align: right;
 }
 

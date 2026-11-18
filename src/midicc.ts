@@ -1,5 +1,15 @@
 import "../midicc.css";
-import { JsonStorageSocket } from "./storage/json-storage-socket";
+import type { FirebaseCloud } from "./storage/firebase-cloud";
+import {
+  cloudFailureMessage,
+  readFirebaseWebConfig,
+  type CloudAccount,
+  type FirebaseWebConfig,
+} from "./storage/firebase-web-config";
+import {
+  JsonStorageSocket,
+  type JsonStorageAdapter,
+} from "./storage/json-storage-socket";
 import { LocalStorageAdapter } from "./storage/local-storage-adapter";
 import { songsByProgram, type Song } from "./songs";
 import { loadSetlist, saveSetlist } from "./setlist";
@@ -42,10 +52,18 @@ interface LegacyMidiConfig extends Omit<MidiConfig, "intechZona" | "notes"> {
   notes?: string;
 }
 
-const uploadStorage = new JsonStorageSocket(new LocalStorageAdapter(() => localStorage));
-const uploadStorageKey = "tda-midi-cc-config-cloud-demo-v1";
+const browserCloudStorage = new LocalStorageAdapter(() => localStorage);
+const cloudStorageKey = "tda-midi-cc-config";
 const uploadButton = getElement("upload-config") as HTMLButtonElement;
+const loadButton = getElement("load-config") as HTMLButtonElement;
+const signInButton = getElement("cloud-sign-in") as HTMLButtonElement;
 const uploadStatus = getElement("upload-status") as HTMLOutputElement;
+const cloudAccount = getElement("cloud-account") as HTMLOutputElement;
+let remoteCloud: FirebaseCloud | null = null;
+let signedInAccount: CloudAccount | null = null;
+let cloudMode: "local" | "starting" | "remote" = "local";
+let cloudBusy = false;
+let cloudSessionAnnounced = false;
 const storageKey = "tda-midi-cc-config-v1";
 const form = getElement("midi-config-form") as HTMLFormElement;
 const saveStatus = getElement("save-status") as HTMLOutputElement;
@@ -452,16 +470,207 @@ uploadButton.addEventListener("click", () => {
   void uploadConfig();
 });
 
+loadButton.addEventListener("click", () => {
+  void loadCloudConfig();
+});
+
+signInButton.addEventListener("click", () => {
+  void toggleCloudAccount();
+});
+
+bindCloudStorage();
+
 async function uploadConfig(): Promise<void> {
-  uploadButton.disabled = true;
-  uploadStatus.value = "Uploading…";
+  if (!beginCloudAction("Uploading…")) {
+    return;
+  }
   try {
-    await uploadStorage.write(uploadStorageKey, readConfig());
-    uploadStatus.value = "Demo upload saved in this browser.";
-  } catch {
-    uploadStatus.value = "Upload failed. Please try again. Your local config is unchanged.";
+    await cloudSocket().write(cloudStorageKey, readConfig());
+    uploadStatus.value =
+      cloudMode === "remote"
+        ? "Cloud copy saved."
+        : "Saved in this browser. Cloud storage is not configured.";
+  } catch (error: unknown) {
+    uploadStatus.value = cloudFailureMessage(
+      error,
+      "Upload failed. Please try again. Your local config is unchanged.",
+    );
   } finally {
-    uploadButton.disabled = false;
+    setCloudBusy(false);
+  }
+}
+
+async function loadCloudConfig(): Promise<void> {
+  if (!beginCloudAction("Loading cloud copy…")) {
+    return;
+  }
+  try {
+    const stored = await cloudSocket().read(cloudStorageKey);
+    if (stored === null) {
+      uploadStatus.value =
+        cloudMode === "remote"
+          ? "No cloud copy saved yet."
+          : "No copy saved in this browser yet.";
+      return;
+    }
+    const normalizedConfig = normalizeMidiConfig(stored);
+    if (normalizedConfig === null) {
+      uploadStatus.value =
+        "Could not load the cloud copy. The saved config was not recognised. Your local config is unchanged.";
+      return;
+    }
+    applyConfig(normalizedConfig);
+    resizeNotes();
+    updateModeFields();
+    updateSummaries();
+    setStatus("Saved locally");
+    uploadStatus.value =
+      cloudMode === "remote"
+        ? "Cloud copy loaded."
+        : "Loaded the copy saved in this browser.";
+  } catch (error: unknown) {
+    uploadStatus.value = cloudFailureMessage(
+      error,
+      "Could not load the cloud copy. Your local config is unchanged.",
+    );
+  } finally {
+    setCloudBusy(false);
+  }
+}
+
+async function toggleCloudAccount(): Promise<void> {
+  if (cloudBusy || cloudMode !== "remote" || remoteCloud === null) {
+    return;
+  }
+  const signingIn = signedInAccount === null;
+  setCloudBusy(true);
+  uploadStatus.value = signingIn ? "Opening Google sign-in…" : "Signing out…";
+  try {
+    if (signingIn) {
+      await remoteCloud.signIn();
+      uploadStatus.value = "Signed in.";
+    } else {
+      await remoteCloud.signOut();
+      uploadStatus.value = "Signed out.";
+    }
+  } catch (error: unknown) {
+    uploadStatus.value = cloudFailureMessage(
+      error,
+      signingIn
+        ? "Sign-in failed. Please try again."
+        : "Sign-out failed. Please try again.",
+    );
+  } finally {
+    setCloudBusy(false);
+  }
+}
+
+function bindCloudStorage(): void {
+  const config = readFirebaseWebConfig(import.meta.env);
+  if (config === null) {
+    cloudMode = "local";
+    uploadStatus.value = "Cloud storage is not configured. Uploads stay in this browser.";
+    return;
+  }
+  cloudMode = "starting";
+  signInButton.hidden = false;
+  cloudAccount.hidden = false;
+  cloudAccount.value = "Checking Google sign-in…";
+  uploadStatus.value = "Checking cloud storage…";
+  setCloudBusy(true);
+  void connectCloud(config);
+}
+
+async function connectCloud(config: FirebaseWebConfig): Promise<void> {
+  try {
+    const { connectFirebase } = await import("./storage/firebase-cloud");
+    const cloud = connectFirebase(config);
+    remoteCloud = cloud;
+    cloud.onAccount((account, rejection) => {
+      const starting = cloudMode === "starting";
+      if (starting) {
+        cloudMode = "remote";
+      }
+      showCloudAccount(account, rejection);
+      if (starting) {
+        setCloudBusy(false);
+      }
+    });
+  } catch {
+    remoteCloud = null;
+    cloudMode = "local";
+    signInButton.hidden = true;
+    cloudAccount.hidden = true;
+    uploadStatus.value = "Cloud storage could not start. Uploads stay in this browser.";
+    setCloudBusy(false);
+  }
+}
+
+function showCloudAccount(account: CloudAccount | null, rejection: string | null): void {
+  signedInAccount = account;
+  signInButton.textContent = account === null ? "Sign in with Google" : "Sign out";
+  cloudAccount.hidden = false;
+  if (account === null) {
+    cloudAccount.value = "Not signed in";
+  } else if (account.email === null) {
+    cloudAccount.value = "Signed in";
+  } else {
+    cloudAccount.value = `Signed in as ${account.email}`;
+  }
+  if (rejection !== null) {
+    uploadStatus.value = rejection;
+    cloudSessionAnnounced = true;
+    return;
+  }
+  if (!cloudSessionAnnounced) {
+    cloudSessionAnnounced = true;
+    uploadStatus.value =
+      account === null
+        ? "Sign in with Google to upload or load the cloud copy."
+        : "Signed in. Upload saves a cloud copy; load brings it back.";
+  }
+}
+
+function beginCloudAction(pendingMessage: string): boolean {
+  if (cloudBusy || cloudMode === "starting") {
+    if (cloudMode === "starting") {
+      uploadStatus.value = "Cloud storage is still starting. Try again in a moment.";
+    }
+    return false;
+  }
+  if (cloudMode === "remote" && signedInAccount === null) {
+    uploadStatus.value = "Sign in with Google first.";
+    return false;
+  }
+  setCloudBusy(true);
+  uploadStatus.value = pendingMessage;
+  return true;
+}
+
+function setCloudBusy(busy: boolean): void {
+  cloudBusy = busy;
+  uploadButton.disabled = busy;
+  loadButton.disabled = busy;
+  signInButton.disabled = busy;
+}
+
+function cloudSocket(): JsonStorageSocket {
+  if (cloudMode === "remote" && remoteCloud !== null && signedInAccount !== null) {
+    return new JsonStorageSocket(remoteCloud.adapterFor(signedInAccount));
+  }
+  if (cloudMode === "remote") {
+    return new JsonStorageSocket(new SignedOutCloudStorage());
+  }
+  return new JsonStorageSocket(browserCloudStorage);
+}
+
+class SignedOutCloudStorage implements JsonStorageAdapter {
+  write(): Promise<void> {
+    return Promise.reject(new Error("Sign in with Google first."));
+  }
+
+  read(): Promise<string | null> {
+    return Promise.reject(new Error("Sign in with Google first."));
   }
 }
 
@@ -530,36 +739,36 @@ function restoreConfig(): void {
   }
 
   try {
-    const config = JSON.parse(saved) as unknown;
-    const normalizedConfig = normalizeMidiConfig(config);
+    const normalizedConfig = normalizeMidiConfig(JSON.parse(saved) as unknown);
     if (normalizedConfig === null) {
       return;
     }
-    normalizedConfig.oxiE16.forEach((control, index) => {
-      fillMidiControl(getControlCard("oxiE16", String(index)), control);
-    });
-    normalizedConfig.lightreftMonolit.forEach((control, index) => {
-      fillMidiControl(
-        getControlCard("lightreftMonolit", String(index)),
-        control,
-      );
-    });
-    for (const axis of ["x", "y", "z"] as const) {
-      fillAxis(getControlCard("intechZona", axis), normalizedConfig.intechZona[axis]);
-    }
-    normalizedConfig.elektronTonverk?.forEach((control, index) => {
-      getField(
-        getControlCard("elektronTonverk", String(index)),
-        "description",
-      ).value = control.description;
-    });
-    notes.value = normalizedConfig.notes;
-    applyEzeptocoreConfig(normalizedConfig.ezeptocore);
-    localStorage.setItem(storageKey, JSON.stringify(normalizedConfig));
+    applyConfig(normalizedConfig);
     setStatus("Local config restored");
   } catch {
     setStatus("Could not restore local config");
   }
+}
+
+function applyConfig(config: MidiConfig): void {
+  config.oxiE16.forEach((control, index) => {
+    fillMidiControl(getControlCard("oxiE16", String(index)), control);
+  });
+  config.lightreftMonolit.forEach((control, index) => {
+    fillMidiControl(getControlCard("lightreftMonolit", String(index)), control);
+  });
+  for (const axis of ["x", "y", "z"] as const) {
+    fillAxis(getControlCard("intechZona", axis), config.intechZona[axis]);
+  }
+  config.elektronTonverk?.forEach((control, index) => {
+    getField(
+      getControlCard("elektronTonverk", String(index)),
+      "description",
+    ).value = control.description;
+  });
+  notes.value = config.notes;
+  applyEzeptocoreConfig(config.ezeptocore);
+  localStorage.setItem(storageKey, JSON.stringify(config));
 }
 
 function fillMidiControl(card: HTMLElement, control: MidiControl): void {
