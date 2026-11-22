@@ -6,18 +6,27 @@ Automatic edits are still saved in this browser under `tda-midi-cc-config-v1`. T
 
 The upload status line reports pending, success, and failure on its own.
 
-## Socket
+## Shape
 
-`JsonStorageSocket` is the port. It is not a network WebSocket. `write(key, value)` JSON-encodes the value and `read(key)` parses it back to a value, or `null` when nothing is stored. `JsonStorageAdapter` is the destination:
+The MIDI page talks to two app ports and does not choose a backend, read env vars, or know a Firestore path.
+
+- `MidiConfigFile` is the automatic local save.
+- `MidiConfigArchive` is the separate snapshot: its phase (this browser, still starting, signed out, signed in), Google sign-in, save, and load.
+
+`src/midi/midi-config.ts` owns the config value, the legacy `intechZoya` migration, and JSON parse/serialize. The page only turns the form into that value and paints it back.
+
+`openMidiConfigStorage()` in `src/storage/open-midi-config-storage.ts` is the wiring. It reads `VITE_FIREBASE_*`. When they are present it loads the Firebase session adapter. When they are absent, or that adapter fails to start, the archive uses `LocalStorageAdapter`. Auth, Firestore document paths, and env parsing stay under `src/storage/`. Replacing Firebase means replacing that wiring and the Firebase adapter, not the page.
+
+`JsonStorageSocket` is the string storage port underneath the archive. It is not a network WebSocket. `write(key, value)` JSON-encodes the value and `read(key)` parses it back to a value, or `null` when nothing is stored. `JsonStorageAdapter` is the destination:
 
 - `write(key, json)` resolves only after the destination confirms persistence, and rejects on failure.
 - `read(key)` resolves with the stored JSON string, `null` when nothing is stored, and rejects on failure.
 
-`LocalStorageAdapter` implements the same contract for this browser. The books page still uses it for its own demo upload.
+`LocalStorageAdapter` implements that contract for this browser. The books page still uses the socket with that adapter for its own demo upload.
 
 ## Firebase
 
-When every required `VITE_FIREBASE_*` variable is present, the MIDI CC page signs in with Firebase Authentication (Google) and reads and writes Cloud Firestore. The document path is `users/{uid}/configs/{key}` and the fields are `json` and `updatedAt`. `json` is the snapshot string. Reads use a server fetch. Writes resolve when Firestore acknowledges them, and time out if it does not.
+When every required `VITE_FIREBASE_*` variable is present, the storage wiring starts Firebase Authentication (Google) and reads and writes Cloud Firestore. The page only sees the archive phase. The document path is `users/{uid}/configs/{key}` and the fields are `json` and `updatedAt`. `json` is the snapshot string. Reads use a server fetch. Writes resolve when Firestore acknowledges them, and time out if it does not.
 
 The web config is public by design. It is not a secret, and it is supplied at build time with Vite env vars so the repository does not contain a filled-in config. Access control is `firestore.rules`: only the signed-in user can read or write their own `users/{uid}/configs` documents, the document may only contain those two fields, and `allowedEmail()` / `allowedUid()` can pin that user. The sample email in the rules matches nobody.
 
