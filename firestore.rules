@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Own-document access for users/{uid}/configs/{key}.
+    // Replace allowedEmail() with the owner's Google address before deploying,
+    // or leave it empty to allow every signed-in user to use only their own path.
+    // The sample address matches nobody, so a deploy that skips this edit denies everyone.
+    // allowedUid() is optional. An empty string skips that check.
+    // Keep VITE_FIREBASE_ALLOWED_EMAIL and VITE_FIREBASE_ALLOWED_UID in sync with these.
+
+    function allowedEmail() {
+      return "replace-with-your-google-email@example.com";
+    }
+
+    function allowedUid() {
+      return "";
+    }
+
+    function emailAllowed() {
+      return allowedEmail() == ""
+        || (request.auth.token.email_verified == true
+          && request.auth.token.email == allowedEmail());
+    }
+
+    function uidAllowed() {
+      return allowedUid() == "" || request.auth.uid == allowedUid();
+    }
+
+    function signedInOwner(userId) {
+      return request.auth != null
+        && request.auth.uid == userId
+        && emailAllowed()
+        && uidAllowed();
+    }
+
+    function validConfig() {
+      return request.resource.data.keys().hasOnly(["json", "updatedAt"])
+        && request.resource.data.json is string
+        && request.resource.data.updatedAt is string
+        && request.resource.data.json.size() < 900000
+        && request.resource.data.updatedAt.size() < 40;
+    }
+
+    match /users/{userId}/configs/{configId} {
+      allow read: if signedInOwner(userId);
+      allow create, update: if signedInOwner(userId) && validConfig();
+    }
+  }
+}

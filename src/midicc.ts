@@ -1,52 +1,29 @@
 import "../midicc.css";
-import { JsonStorageSocket } from "./storage/json-storage-socket";
-import { LocalStorageAdapter } from "./storage/local-storage-adapter";
+import {
+  emptyEzeptocoreBanks,
+  ezeptocoreBankCount,
+  ezeptocoreSlotCount,
+  type AxisControl,
+  type ControlMode,
+  type EzeptocoreConfig,
+  type MidiConfig,
+  type MidiControl,
+  type PurposeControl,
+} from "./midi/midi-config.ts";
+import type { MidiConfigArchivePhase } from "./midi/midi-config-archive.ts";
+import { openMidiConfigStorage } from "./storage/open-midi-config-storage.ts";
 import { songsByProgram, type Song } from "./songs";
 import { loadSetlist, saveSetlist } from "./setlist";
 
-type ControlMode = "cc" | "sysex" | "lfo" | "note";
-
-interface MidiControl {
-  mode: ControlMode;
-  channel: string;
-  number: string;
-  description: string;
-  button: string;
-}
-
-interface AxisControl {
-  channel: string;
-  number: string;
-  description: string;
-}
-
-interface PurposeControl {
-  description: string;
-}
-
-interface EzeptocoreConfig {
-  banks: string[][];
-}
-
-interface MidiConfig {
-  oxiE16: MidiControl[];
-  lightreftMonolit: MidiControl[];
-  intechZona: Record<"x" | "y" | "z", AxisControl>;
-  elektronTonverk?: PurposeControl[];
-  ezeptocore?: EzeptocoreConfig;
-  notes: string;
-}
-
-interface LegacyMidiConfig extends Omit<MidiConfig, "intechZona" | "notes"> {
-  intechZoya: Record<"x" | "y" | "z", AxisControl>;
-  notes?: string;
-}
-
-const uploadStorage = new JsonStorageSocket(new LocalStorageAdapter(() => localStorage));
-const uploadStorageKey = "tda-midi-cc-config-cloud-demo-v1";
+const { file: configFile, archive } = openMidiConfigStorage();
 const uploadButton = getElement("upload-config") as HTMLButtonElement;
+const loadButton = getElement("load-config") as HTMLButtonElement;
+const signInButton = getElement("cloud-sign-in") as HTMLButtonElement;
 const uploadStatus = getElement("upload-status") as HTMLOutputElement;
-const storageKey = "tda-midi-cc-config-v1";
+const cloudAccount = getElement("cloud-account") as HTMLOutputElement;
+let archivePhase: MidiConfigArchivePhase | null = null;
+let cloudBusy = false;
+let cloudSessionAnnounced = false;
 const form = getElement("midi-config-form") as HTMLFormElement;
 const saveStatus = getElement("save-status") as HTMLOutputElement;
 const downloadButton = getElement("download-config") as HTMLButtonElement;
@@ -61,8 +38,6 @@ const tonverkAudioGrid = getElement("tonverk-audio-grid") as HTMLDivElement;
 const tonverkRoutingGrid = getElement("tonverk-routing-grid") as HTMLDivElement;
 const zonaControls = getElement("zona-controls") as HTMLDivElement;
 const notes = getElement("config-notes") as HTMLTextAreaElement;
-const ezeptocoreBankCount = 16;
-const ezeptocoreSlotCount = 16;
 const ezeptocoreBankSelect = getElement("ezeptocore-bank") as HTMLSelectElement;
 const ezeptocoreSlots = getElement("ezeptocore-slots") as HTMLDivElement;
 const ezeptocoreLedRing = getElement("ezeptocore-leds") as HTMLDivElement;
@@ -452,17 +427,179 @@ uploadButton.addEventListener("click", () => {
   void uploadConfig();
 });
 
+loadButton.addEventListener("click", () => {
+  void loadCloudConfig();
+});
+
+signInButton.addEventListener("click", () => {
+  void toggleCloudAccount();
+});
+
+watchArchive();
+
 async function uploadConfig(): Promise<void> {
-  uploadButton.disabled = true;
+  if (!beginCloudAction()) {
+    return;
+  }
   uploadStatus.value = "Uploading…";
   try {
-    await uploadStorage.write(uploadStorageKey, readConfig());
-    uploadStatus.value = "Demo upload saved in this browser.";
-  } catch {
-    uploadStatus.value = "Upload failed. Please try again. Your local config is unchanged.";
+    const place = await archive.save(readConfig());
+    uploadStatus.value =
+      place === "remote"
+        ? "Cloud copy saved."
+        : "Saved in this browser. Cloud storage is not configured.";
+  } catch (error: unknown) {
+    uploadStatus.value = archive.failureMessage(
+      error,
+      "Upload failed. Please try again. Your local config is unchanged.",
+    );
   } finally {
-    uploadButton.disabled = false;
+    setCloudBusy(false);
   }
+}
+
+async function loadCloudConfig(): Promise<void> {
+  if (!beginCloudAction()) {
+    return;
+  }
+  uploadStatus.value = "Loading cloud copy…";
+  try {
+    const loaded = await archive.load();
+    if ("invalid" in loaded) {
+      uploadStatus.value =
+        "Could not load the cloud copy. The saved config was not recognised. Your local config is unchanged.";
+      return;
+    }
+    if (loaded.config === null) {
+      uploadStatus.value =
+        loaded.place === "remote"
+          ? "No cloud copy saved yet."
+          : "No copy saved in this browser yet.";
+      return;
+    }
+    applyConfig(loaded.config);
+    resizeNotes();
+    updateModeFields();
+    updateSummaries();
+    setStatus("Saved locally");
+    uploadStatus.value =
+      loaded.place === "remote"
+        ? "Cloud copy loaded."
+        : "Loaded the copy saved in this browser.";
+  } catch (error: unknown) {
+    uploadStatus.value = archive.failureMessage(
+      error,
+      "Could not load the cloud copy. Your local config is unchanged.",
+    );
+  } finally {
+    setCloudBusy(false);
+  }
+}
+
+async function toggleCloudAccount(): Promise<void> {
+  const phase = archive.phase();
+  if (cloudBusy || phase.kind !== "remote") {
+    return;
+  }
+  const signingIn = phase.account === null;
+  setCloudBusy(true);
+  uploadStatus.value = signingIn ? "Opening Google sign-in…" : "Signing out…";
+  try {
+    if (signingIn) {
+      await archive.signIn();
+      uploadStatus.value = "Signed in.";
+    } else {
+      await archive.signOut();
+      uploadStatus.value = "Signed out.";
+    }
+  } catch (error: unknown) {
+    uploadStatus.value = archive.failureMessage(
+      error,
+      signingIn
+        ? "Sign-in failed. Please try again."
+        : "Sign-out failed. Please try again.",
+    );
+  } finally {
+    setCloudBusy(false);
+  }
+}
+
+function watchArchive(): void {
+  archive.onPhase((phase) => {
+    const wasStarting = archivePhase?.kind === "starting";
+    archivePhase = phase;
+    paintArchive(phase);
+    if (phase.kind === "starting") {
+      setCloudBusy(true);
+      return;
+    }
+    if (wasStarting) {
+      setCloudBusy(false);
+    }
+  });
+}
+
+function paintArchive(phase: MidiConfigArchivePhase): void {
+  if (phase.kind === "local") {
+    signInButton.hidden = true;
+    cloudAccount.hidden = true;
+    uploadStatus.value =
+      phase.reason === "unavailable"
+        ? "Cloud storage could not start. Uploads stay in this browser."
+        : "Cloud storage is not configured. Uploads stay in this browser.";
+    return;
+  }
+  signInButton.hidden = false;
+  cloudAccount.hidden = false;
+  if (phase.kind === "starting") {
+    cloudAccount.value = "Checking Google sign-in…";
+    uploadStatus.value = "Checking cloud storage…";
+    return;
+  }
+  const account = phase.account;
+  signInButton.textContent = account === null ? "Sign in with Google" : "Sign out";
+  if (account === null) {
+    cloudAccount.value = "Not signed in";
+  } else if (account.email === null) {
+    cloudAccount.value = "Signed in";
+  } else {
+    cloudAccount.value = `Signed in as ${account.email}`;
+  }
+  if (phase.rejection !== null) {
+    uploadStatus.value = phase.rejection;
+    cloudSessionAnnounced = true;
+    return;
+  }
+  if (!cloudSessionAnnounced) {
+    cloudSessionAnnounced = true;
+    uploadStatus.value =
+      account === null
+        ? "Sign in with Google to upload or load the cloud copy."
+        : "Signed in. Upload saves a cloud copy; load brings it back.";
+  }
+}
+
+function beginCloudAction(): boolean {
+  if (cloudBusy || archive.phase().kind === "starting") {
+    if (archive.phase().kind === "starting") {
+      uploadStatus.value = "Cloud storage is still starting. Try again in a moment.";
+    }
+    return false;
+  }
+  const blocked = archive.blockedReason();
+  if (blocked !== null) {
+    uploadStatus.value = blocked;
+    return false;
+  }
+  setCloudBusy(true);
+  return true;
+}
+
+function setCloudBusy(busy: boolean): void {
+  cloudBusy = busy;
+  uploadButton.disabled = busy;
+  loadButton.disabled = busy;
+  signInButton.disabled = busy;
 }
 
 function readConfig(): MidiConfig {
@@ -519,47 +656,42 @@ function readEzeptocore(): EzeptocoreConfig {
 }
 
 function saveConfig(): void {
-  localStorage.setItem(storageKey, JSON.stringify(readConfig()));
+  configFile.save(readConfig());
   setStatus("Saved locally");
 }
 
 function restoreConfig(): void {
-  const saved = localStorage.getItem(storageKey);
-  if (saved === null) {
-    return;
-  }
-
   try {
-    const config = JSON.parse(saved) as unknown;
-    const normalizedConfig = normalizeMidiConfig(config);
-    if (normalizedConfig === null) {
+    const saved = configFile.load();
+    if (saved === null) {
       return;
     }
-    normalizedConfig.oxiE16.forEach((control, index) => {
-      fillMidiControl(getControlCard("oxiE16", String(index)), control);
-    });
-    normalizedConfig.lightreftMonolit.forEach((control, index) => {
-      fillMidiControl(
-        getControlCard("lightreftMonolit", String(index)),
-        control,
-      );
-    });
-    for (const axis of ["x", "y", "z"] as const) {
-      fillAxis(getControlCard("intechZona", axis), normalizedConfig.intechZona[axis]);
-    }
-    normalizedConfig.elektronTonverk?.forEach((control, index) => {
-      getField(
-        getControlCard("elektronTonverk", String(index)),
-        "description",
-      ).value = control.description;
-    });
-    notes.value = normalizedConfig.notes;
-    applyEzeptocoreConfig(normalizedConfig.ezeptocore);
-    localStorage.setItem(storageKey, JSON.stringify(normalizedConfig));
+    applyConfig(saved);
     setStatus("Local config restored");
   } catch {
     setStatus("Could not restore local config");
   }
+}
+
+function applyConfig(config: MidiConfig): void {
+  config.oxiE16.forEach((control, index) => {
+    fillMidiControl(getControlCard("oxiE16", String(index)), control);
+  });
+  config.lightreftMonolit.forEach((control, index) => {
+    fillMidiControl(getControlCard("lightreftMonolit", String(index)), control);
+  });
+  for (const axis of ["x", "y", "z"] as const) {
+    fillAxis(getControlCard("intechZona", axis), config.intechZona[axis]);
+  }
+  config.elektronTonverk?.forEach((control, index) => {
+    getField(
+      getControlCard("elektronTonverk", String(index)),
+      "description",
+    ).value = control.description;
+  });
+  notes.value = config.notes;
+  applyEzeptocoreConfig(config.ezeptocore);
+  configFile.save(config);
 }
 
 function fillMidiControl(card: HTMLElement, control: MidiControl): void {
@@ -639,81 +771,6 @@ function restoreDialogCard(): void {
   summary?.focus();
   dialogReturnParent = null;
   dialogReturnNext = null;
-}
-
-function normalizeMidiConfig(value: unknown): MidiConfig | null {
-  if (isMidiConfig(value)) {
-    return withNormalizedEzeptocore(value, value);
-  }
-  if (isLegacyMidiConfig(value)) {
-    return withNormalizedEzeptocore(
-      {
-        oxiE16: value.oxiE16,
-        lightreftMonolit: value.lightreftMonolit,
-        intechZona: value.intechZoya,
-        ...(value.elektronTonverk === undefined
-          ? {}
-          : { elektronTonverk: value.elektronTonverk }),
-        notes: value.notes ?? "",
-      },
-      value,
-    );
-  }
-  return null;
-}
-
-function withNormalizedEzeptocore(
-  config: MidiConfig,
-  source: unknown,
-): MidiConfig {
-  const normalized = readStoredEzeptocore(source);
-  if (normalized === undefined) {
-    return hasOwnEzeptocore(config) ? omitEzeptocore(config) : config;
-  }
-  return { ...config, ezeptocore: normalized };
-}
-
-function readStoredEzeptocore(source: unknown): EzeptocoreConfig | undefined {
-  if (typeof source !== "object" || source === null || !hasOwnEzeptocore(source)) {
-    return undefined;
-  }
-  return coerceEzeptocore((source as { ezeptocore: unknown }).ezeptocore);
-}
-
-function hasOwnEzeptocore(value: object): boolean {
-  return Object.prototype.hasOwnProperty.call(value, "ezeptocore");
-}
-
-function omitEzeptocore(config: MidiConfig): MidiConfig {
-  const clone: MidiConfig = { ...config };
-  delete clone.ezeptocore;
-  return clone;
-}
-
-function coerceEzeptocore(value: unknown): EzeptocoreConfig | undefined {
-  if (typeof value !== "object" || value === null) {
-    return undefined;
-  }
-  const banks = (value as { banks?: unknown }).banks;
-  if (!Array.isArray(banks)) {
-    return undefined;
-  }
-  return {
-    banks: Array.from({ length: ezeptocoreBankCount }, (_, bankIndex) => {
-      const bank: unknown = banks[bankIndex];
-      const slots = Array.isArray(bank) ? bank : [];
-      return Array.from({ length: ezeptocoreSlotCount }, (_, slotIndex) => {
-        const slot: unknown = slots[slotIndex];
-        return typeof slot === "string" ? slot : "";
-      });
-    }),
-  };
-}
-
-function emptyEzeptocoreBanks(): string[][] {
-  return Array.from({ length: ezeptocoreBankCount }, () =>
-    Array.from({ length: ezeptocoreSlotCount }, () => ""),
-  );
 }
 
 function mountEzeptocoreEditor(): void {
@@ -809,88 +866,6 @@ function applyEzeptocoreConfig(config: EzeptocoreConfig | undefined): void {
   ezeptocoreBankIndex = 0;
   ezeptocoreBankSelect.value = "1";
   renderActiveEzeptocoreBank();
-}
-
-function isMidiConfig(value: unknown): value is MidiConfig {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    Array.isArray(candidate.oxiE16) &&
-    candidate.oxiE16.length === 16 &&
-    candidate.oxiE16.every(isMidiControl) &&
-    Array.isArray(candidate.lightreftMonolit) &&
-    candidate.lightreftMonolit.length === 8 &&
-    candidate.lightreftMonolit.every(isMidiControl) &&
-    isAxisCollection(candidate.intechZona) &&
-    typeof candidate.notes === "string" &&
-    (candidate.elektronTonverk === undefined ||
-      (Array.isArray(candidate.elektronTonverk) &&
-        candidate.elektronTonverk.length === 16 &&
-        candidate.elektronTonverk.every(isPurposeControl)))
-  );
-}
-
-function isLegacyMidiConfig(value: unknown): value is LegacyMidiConfig {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    Array.isArray(candidate.oxiE16) &&
-    candidate.oxiE16.length === 16 &&
-    candidate.oxiE16.every(isMidiControl) &&
-    Array.isArray(candidate.lightreftMonolit) &&
-    candidate.lightreftMonolit.length === 8 &&
-    candidate.lightreftMonolit.every(isMidiControl) &&
-    isAxisCollection(candidate.intechZoya) &&
-    (candidate.notes === undefined || typeof candidate.notes === "string") &&
-    (candidate.elektronTonverk === undefined ||
-      (Array.isArray(candidate.elektronTonverk) &&
-        candidate.elektronTonverk.length === 16 &&
-        candidate.elektronTonverk.every(isPurposeControl)))
-  );
-}
-
-function isPurposeControl(value: unknown): value is PurposeControl {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  return typeof (value as Record<string, unknown>).description === "string";
-}
-
-function isMidiControl(value: unknown): value is MidiControl {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    ["cc", "sysex", "lfo", "note"].includes(String(candidate.mode)) &&
-    ["channel", "number", "description", "button"].every(
-      (key) => typeof candidate[key] === "string",
-    )
-  );
-}
-
-function isAxisCollection(
-  value: unknown,
-): value is Record<"x" | "y" | "z", AxisControl> {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return ["x", "y", "z"].every((axis) => isAxisControl(candidate[axis]));
-}
-
-function isAxisControl(value: unknown): value is AxisControl {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return ["channel", "number", "description"].every(
-    (key) => typeof candidate[key] === "string",
-  );
 }
 
 function getControlCard(controller: string, position: string): HTMLElement {
