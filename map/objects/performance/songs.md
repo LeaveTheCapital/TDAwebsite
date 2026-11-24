@@ -19,7 +19,7 @@ Sections carry bars, beats, lyrics, optional notes and silence, so MIDI clock ca
 
 ## Shape
 
-- `Map<number, Song>` holds the three currently defined songs (`src/songs.ts:42`, `src/songs.ts:195`).
+- `Map<number, Song>` holds song configurations keyed by MIDI program (`src/songs.ts:42`).
 - `{bars}` markers in lyric strings are parsed into cues (`src/songs.ts:24-40`). `hasMidiDrumNotes` chooses note-driven drums (`src/songs.ts:11-15`, `src/tda.ts:627-629`).
 
 ## Connected to

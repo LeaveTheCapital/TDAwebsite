@@ -183,19 +183,19 @@ test("live set notes queue a song until Stop primes it and Start plays it", asyn
 
   await page.getByRole("button", { name: "LIVE SET" }).click();
   await expect(page.locator("#canvas")).toHaveAttribute("data-display-mode", "intro");
-  await expect(liveStatus).toHaveText("Ready 1/3: gcses");
+  await expect(liveStatus).toHaveText("Ready 1/5: gcses");
   await expect(queuedSong).toHaveText("Queued song: –");
   await expect(queuedSong).toBeVisible();
 
   await emit(0xfa);
-  await expect(liveStatus).toHaveText("Playing 1/3: gcses");
+  await expect(liveStatus).toHaveText("Playing 1/5: gcses");
   await expect(transport).toHaveAttribute("data-transport", "running");
 
   await emit(0x99, 2, 100);
   await emit(0x99, 1, 100);
   await emit(0x99, 12, 100);
   await emit(0x90, 2, 100);
-  await expect(liveStatus).toHaveText("Playing 1/3: gcses · Next: mugs game");
+  await expect(liveStatus).toHaveText("Playing 1/5: gcses · Next: mugs game");
   await expect(queuedSong).toHaveText("Queued song: mugs game");
   await expect(page.locator("#song-name")).toHaveText("Song: gcses");
 
@@ -205,7 +205,7 @@ test("live set notes queue a song until Stop primes it and Start plays it", asyn
   await expect(queuedSong).toBeVisible();
 
   await emit(0xfc);
-  await expect(liveStatus).toHaveText("Ready 2/3: mugs game");
+  await expect(liveStatus).toHaveText("Ready 2/5: mugs game");
   await expect(queuedSong).toHaveText("Queued song: –");
   await expect(transport).toHaveAttribute("data-transport", "stopped");
   await expect(page.locator("#canvas")).toHaveAttribute("data-display-mode", "intro");
@@ -213,19 +213,19 @@ test("live set notes queue a song until Stop primes it and Start plays it", asyn
   await expect(page.locator("#midi-overlay")).toHaveAttribute("data-bass-drum-visible", "false");
 
   await emit(0x99, 2, 100);
-  await expect(liveStatus).toHaveText("Ready 2/3: mugs game · Next: Dyno");
+  await expect(liveStatus).toHaveText("Ready 2/5: mugs game · Next: Dyno");
   await expect(queuedSong).toHaveText("Queued song: Dyno");
   await emit(0xfa);
-  await expect(liveStatus).toHaveText("Playing 2/3: mugs game · Next: Dyno");
+  await expect(liveStatus).toHaveText("Playing 2/5: mugs game · Next: Dyno");
   await expect(page.locator("#song-name")).toHaveText("Song: mugs game");
 
   await emit(0xfc);
-  await expect(liveStatus).toHaveText("Ready 3/3: Dyno");
+  await expect(liveStatus).toHaveText("Ready 3/5: Dyno");
   await emit(0xfa);
   await expect(page.locator("#song-name")).toHaveText("Song: Dyno");
 
   await emit(0xfc);
-  await expect(liveStatus).toHaveText("Ready 3/3: Dyno");
+  await expect(liveStatus).toHaveText("Ready 3/5: Dyno");
   await emit(0xfa);
   await expect(page.locator("#song-name")).toHaveText("Song: Dyno");
 });
@@ -240,7 +240,7 @@ test("live set selection notes follow the saved song order", async ({ page }) =>
   ).midiProbe?.isReady());
 
   await page.getByRole("button", { name: "LIVE SET" }).click();
-  await expect(page.locator("#live-set-status")).toHaveText("Ready 1/3: Dyno");
+  await expect(page.locator("#live-set-status")).toHaveText("Ready 1/5: Dyno");
   await page.evaluate(() => {
     const probe = (
       globalThis as typeof globalThis & { midiProbe: { emit(...data: number[]): void } }
@@ -250,6 +250,6 @@ test("live set selection notes follow the saved song order", async ({ page }) =>
     probe.emit(0xfc);
   });
 
-  await expect(page.locator("#live-set-status")).toHaveText("Ready 2/3: gcses");
+  await expect(page.locator("#live-set-status")).toHaveText("Ready 2/5: gcses");
   await expect(page.locator("#canvas")).toHaveAttribute("data-display-mode", "intro");
 });
