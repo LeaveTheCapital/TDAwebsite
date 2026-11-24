@@ -1,5 +1,7 @@
 # Repository instructions
 
+For a source-linked map of components and change impact, start at [map/AGENTS.md](map/AGENTS.md).
+
 ## Use of tests
 
 Playwright tests are really only here as means of creating a visual snapshot/video which can be uploaded
