@@ -190,6 +190,7 @@ interface EntryListContext extends EntryFieldOptions {
 
 const storageKey = "tda-books-library-v1";
 const uploadStorageKey = "tda-books-library-cloud-demo-v1";
+const earliestReleaseYear = 1000;
 const uploadStorage = new JsonStorageSocket(new LocalStorageAdapter(() => localStorage));
 
 const simpleListDefinitions = {
@@ -420,6 +421,17 @@ function readOptionalDate(value: unknown): string | undefined {
     return undefined;
   }
   return value;
+}
+
+function readOptionalReleaseYear(value: unknown): string | undefined {
+  if (typeof value !== "string" || !/^\d{4}$/.test(value)) {
+    return undefined;
+  }
+  const year = Number(value);
+  if (year < earliestReleaseYear || year > new Date().getFullYear()) {
+    return undefined;
+  }
+  return `${value}-01-01`;
 }
 
 function readGenre(value: unknown, genres: readonly LibraryGenre[]): LibraryGenre | undefined {
@@ -685,12 +697,12 @@ function saveLibrary(): void {
 }
 
 function restoreLibrary(): void {
-  const saved = localStorage.getItem(storageKey);
-  if (saved === null) {
-    setStatus("Ready");
-    return;
-  }
   try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved === null) {
+      setStatus("Ready");
+      return;
+    }
     const normalized = normalizeLibrary(JSON.parse(saved) as unknown);
     if (normalized === null) {
       setStatus("Could not restore local library");
@@ -764,9 +776,18 @@ function readEntryDraft(
     ...withOptionalEntryFields(
       readGenre(stringField(data, "genre"), genres),
       readOptionalDate(stringField(data, "dateWatched")),
-      readOptionalDate(stringField(data, "dateMade")),
+      readReleaseDateFromForm(form, data),
     ),
   };
+}
+
+function readReleaseDateFromForm(form: HTMLFormElement, data: FormData): string | undefined {
+  const selectedYear = stringField(data, "dateMade");
+  const originalDate = readOptionalDate(form.dataset.originalDateMade);
+  if (originalDate !== undefined && selectedYear === originalDate.slice(0, 4)) {
+    return originalDate;
+  }
+  return readOptionalReleaseYear(selectedYear);
 }
 
 function readPlatformName(form: HTMLFormElement): string | null {
@@ -1394,6 +1415,9 @@ function renderEntryForm(options: EntryFormOptions): HTMLFormElement {
   if (options.id !== null) {
     form.dataset.id = options.id;
   }
+  if (options.value?.dateMade !== undefined) {
+    form.dataset.originalDateMade = options.value.dateMade;
+  }
   const editing = options.value !== null;
   form.append(
     renderLabeledControl("title", "Title", {
@@ -1421,7 +1445,7 @@ function renderEntryForm(options: EntryFormOptions): HTMLFormElement {
       options.dateWatchedLabel,
       options.value?.dateWatched ?? "",
     ),
-    renderDateField("dateMade", options.dateMadeLabel, options.value?.dateMade ?? ""),
+    renderReleaseYearField(options.dateMadeLabel, options.value?.dateMade ?? ""),
     renderLabeledControl("notes", "Notes", {
       value: options.value?.notes ?? "",
       required: false,
@@ -1534,7 +1558,7 @@ function renderGenreField(genres: readonly LibraryGenre[], selected: LibraryGenr
 }
 
 function renderDateField(
-  name: "dateWatched" | "dateMade",
+  name: "dateWatched",
   labelText: string,
   value: string,
 ): HTMLLabelElement {
@@ -1548,6 +1572,30 @@ function renderDateField(
   input.value = value;
   input.dataset.entryField = name;
   label.append(caption, input);
+  return label;
+}
+
+function renderReleaseYearField(labelText: string, value: string): HTMLLabelElement {
+  const label = document.createElement("label");
+  label.className = "date-field";
+  const caption = document.createElement("span");
+  caption.textContent = labelText;
+  const select = document.createElement("select");
+  select.name = "dateMade";
+  select.dataset.entryField = "dateMade";
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "Year";
+  select.append(none);
+  const selectedYear = value.slice(0, 4);
+  for (let year = new Date().getFullYear(); year >= earliestReleaseYear; year -= 1) {
+    const option = document.createElement("option");
+    option.value = String(year);
+    option.textContent = String(year);
+    option.selected = option.value === selectedYear;
+    select.append(option);
+  }
+  label.append(caption, select);
   return label;
 }
 
@@ -1593,7 +1641,7 @@ function detailValue(entry: CatalogEntry, field: EntryDetailField): string | und
   if (stored === undefined) {
     return undefined;
   }
-  return formatStoredDate(stored);
+  return field === "dateMade" ? stored.slice(0, 4) : formatStoredDate(stored);
 }
 
 function renderActions(submitLabel: string, includeCancel: boolean): HTMLDivElement {
