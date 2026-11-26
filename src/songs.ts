@@ -194,4 +194,5 @@ Like extra-curricular activities`,
   ],
   [3, { name: "Hamsickle", sections: [] }],
   [4, { name: "I'm Busy", sections: [] }],
+  [5, { name: "In The Hole", sections: [] }],
 ]);
