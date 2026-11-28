@@ -98,7 +98,7 @@ import {
   type LyricCue,
   type Song,
 } from "./songs.ts";
-import { getSetlistIndexForMidiNote, loadSetlist } from "./setlist.ts";
+import { loadSetlist } from "./setlist.ts";
 
 const canvas = getCanvas("#canvas");
 const ctx = getCanvasContext(canvas, { willReadFrequently: true });
@@ -127,8 +127,8 @@ const midiDevice = getOutput("#midi-device");
 const midiInputSelect = getSelect("#midi-input");
 const developerControls = getElement("#developer-controls");
 const developerSectionDetails = getElement("#developer-section-details");
-const liveSetButton = getButton("#live-set-button");
-const liveSetStatus = getOutput("#live-set-status");
+const developerModeButton = getButton("#developer-mode-button");
+const defaultSongProgram = songsByProgram.keys().next().value;
 
 let backgroundHue: number | undefined;
 let lightShowHue: number | undefined;
@@ -145,6 +145,8 @@ const playedDrums = new Set<DrumInstrument>();
 let midiTransportState: "stopped" | "running" | "paused" = "stopped";
 let midiClockPulseCount: number = 0;
 let selectedSongProgram: number | undefined;
+let readySongProgram = defaultSongProgram;
+let queuedSongProgram: number | undefined;
 let activeSong: Song | undefined;
 let activeSectionIndex = -1;
 let activeSectionEndPulse = 0;
@@ -155,15 +157,10 @@ let midiClockTimestamps: number[] = [];
 let isUsingSpeechText = false;
 let textBeforeSpeech = "";
 let isDeveloperModeEnabled = true;
-let isLiveSetMode = false;
-let liveSetPrograms: number[] = [];
-let liveSetIndex = -1;
-let queuedLiveSetIndex: number | undefined;
-let hasLiveSetSongStarted = false;
 
 startFakeMidiButton.addEventListener("click", startFakeMidiTimer);
 stopFakeMidiButton.addEventListener("click", stopFakeMidiTimer);
-liveSetButton.addEventListener("click", toggleLiveSetMode);
+developerModeButton.addEventListener("click", toggleDeveloperMode);
 midiInputSelect.addEventListener("change", () => {
   connectToMidiInput(midiInputSelect.value);
 });
@@ -179,9 +176,13 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
-  setDeveloperModeEnabled(!isDeveloperModeEnabled);
+  toggleDeveloperMode();
 });
 setDeveloperModeEnabled(isDeveloperModeEnabled);
+
+function toggleDeveloperMode() {
+  setDeveloperModeEnabled(!isDeveloperModeEnabled);
+}
 
 function isTextEntryTarget(target: EventTarget | null) {
   return target instanceof HTMLInputElement && target.type === "text" ||
@@ -194,6 +195,7 @@ function setDeveloperModeEnabled(enabled: boolean) {
   developerControls.hidden = !enabled;
   developerSectionDetails.hidden = !enabled;
   queuedSongOutput.hidden = !enabled;
+  developerModeButton.setAttribute("aria-pressed", String(enabled));
   document.body.dataset.developerMode = String(enabled);
 }
 
@@ -229,60 +231,55 @@ function handleMidiDrumNoteOn(event: MessageEvent) {
   drawDrumAnimation();
 }
 
-function handleMidiLiveSetNoteOn(event: MessageEvent) {
-  if (!isLiveSetMode) return;
+function handleMidiSongNoteOn(event: MessageEvent) {
+  const note = event.data[1];
+  if (note > 12) return;
 
-  const index = getSetlistIndexForMidiNote(event.data[1], liveSetPrograms);
-  if (index === undefined) return;
-
-  queuedLiveSetIndex = index;
-  updateLiveSetStatus();
+  queueSong(loadSetlist()[note]);
 }
 
 function handleMidiProgramChange(event: MessageEvent) {
-  if (
-    typeof event.value !== "number" ||
-    event.value === selectedSongProgram
-  ) {
-    return;
-  }
-
-  selectSong(event.value);
+  if (typeof event.value === "number") queueSong(event.value);
 }
 
-function selectSong(program: number, fromLiveSet = false) {
+function queueSong(program: number | undefined) {
+  if (program === undefined) return;
+  const song = songsByProgram.get(program);
+  if (!song) return;
+
+  queuedSongProgram = program;
+  queuedSongOutput.value = `Queued song: ${song.name}`;
+}
+
+function clearQueuedSong() {
+  queuedSongProgram = undefined;
+  queuedSongOutput.value = "Queued song: –";
+}
+
+function selectSong(program: number) {
   const song = songsByProgram.get(program);
 
   if (!song) {
     return;
   }
 
-  if (isLiveSetMode && !fromLiveSet) {
-    leaveLiveSetMode("Live set off");
-  }
-
-  resetTransportForSelection();
   selectedSongProgram = program;
+  resetTransportForSelection();
   songName.value = `Song: ${song.name}`;
   canvas.dataset.displayMode = "song";
   if (!isUsingSpeechText) clearAnimatedText();
   updateSelectionButtonStates();
   updateFakeMidiButtonStates();
-  drawDrumFrame();
 }
 
-function selectIntro() {
-  if (isLiveSetMode) {
-    leaveLiveSetMode("Live set off");
-  }
-  resetTransportForSelection();
+function showIntro(updateLocation = true) {
   selectedSongProgram = undefined;
-  drawDrumFrame();
+  resetTransportForSelection();
   songName.value = "Song: –";
   canvas.dataset.displayMode = "intro";
   updateSelectionButtonStates();
   updateFakeMidiButtonStates();
-  if (!isUsingSpeechText) setAnimatedText(TDA);
+  if (!isUsingSpeechText) setAnimatedText(TDA, { updateLocation });
 }
 
 function updateSelectionButtonStates() {
@@ -303,7 +300,11 @@ const introButton = document.createElement("button");
 introButton.type = "button";
 introButton.textContent = "TDA";
 introButton.setAttribute("aria-pressed", "true");
-introButton.addEventListener("click", selectIntro);
+introButton.addEventListener("click", () => {
+  readySongProgram = defaultSongProgram;
+  clearQueuedSong();
+  showIntro();
+});
 songButtons.append(introButton);
 canvas.dataset.displayMode = "intro";
 
@@ -315,6 +316,7 @@ songsByProgram.forEach((song, program) => {
   button.dataset.midiProgram = String(program);
   button.setAttribute("aria-pressed", "false");
   button.addEventListener("click", () => {
+    clearQueuedSong();
     selectSong(program);
   });
   songButtons.append(button);
@@ -648,13 +650,9 @@ function drawDrumAnimation() {
 }
 
 function handleMidiStart() {
-  if (isLiveSetMode && midiTransportState === "stopped") {
-    const program = liveSetPrograms.at(liveSetIndex);
-    if (program !== undefined) selectSong(program, true);
-  }
-
   if (selectedSongProgram === undefined) {
-    return;
+    if (readySongProgram === undefined) return;
+    selectSong(readySongProgram);
   }
 
   if (midiTransportState === "running") {
@@ -678,13 +676,7 @@ function handleMidiStart() {
     updateTransportPosition();
     canvas.dataset.displayMode = "song";
     startSelectedSong();
-    if (isLiveSetMode && !hasLiveSetSongStarted) {
-      sendLiveSetTransition(undefined, getLiveSetSong());
-      hasLiveSetSongStarted = true;
-    }
   }
-
-  updateLiveSetStatus();
 
   drawDrumAnimation();
 }
@@ -699,26 +691,11 @@ function pauseMidiTransport() {
 }
 
 function handleMidiStop() {
-  if (isLiveSetMode) {
-    if (queuedLiveSetIndex !== undefined) {
-      liveSetIndex = queuedLiveSetIndex;
-      queuedLiveSetIndex = undefined;
-    }
-    showLiveSetIntro();
-    return;
-  }
+  if (selectedSongProgram === undefined) return;
 
-  isFollowingMidiClock = false;
-  midiTransportState = "stopped";
-  transportPosition.dataset.transport = midiTransportState;
-  midiClockPulseCount = 0;
-  lastMidiDrumHits = {};
-  playedDrums.clear();
-  midiClockTimestamps = [];
-  setClockBpm(undefined);
-  drawDrumFrame();
-  updateTransportPosition();
-  startSelectedSong();
+  readySongProgram = queuedSongProgram ?? selectedSongProgram;
+  clearQueuedSong();
+  showIntro(false);
 }
 
 function resetTransportForSelection() {
@@ -765,134 +742,9 @@ function handleMidiClock(event?: MessageEvent) {
   midiClockPulseCount += 1;
   updateTransportPosition();
   advanceSongSections();
-  if (advanceLiveSet()) {
-    drawDrumAnimation();
-    return;
-  }
   advanceLyricCues();
   advanceScheduledWords();
   drawDrumAnimation();
-}
-
-function toggleLiveSetMode(): void {
-  if (isLiveSetMode) {
-    leaveLiveSetMode("Live set off");
-    return;
-  }
-
-  liveSetPrograms = loadSetlist();
-  if (liveSetPrograms.length === 0) {
-    liveSetStatus.value = "No songs in setlist";
-    return;
-  }
-
-  isLiveSetMode = true;
-  liveSetIndex = 0;
-  hasLiveSetSongStarted = false;
-  queuedLiveSetIndex = undefined;
-  liveSetButton.setAttribute("aria-pressed", "true");
-  document.body.dataset.liveSetMode = "true";
-  showLiveSetIntro();
-}
-
-function showLiveSetIntro(): void {
-  resetTransportForSelection();
-  selectedSongProgram = undefined;
-  songName.value = "Song: –";
-  canvas.dataset.displayMode = "intro";
-  updateSelectionButtonStates();
-  updateFakeMidiButtonStates();
-  drawDrumFrame();
-  setAnimatedText(TDA);
-  updateLiveSetStatus();
-}
-
-function leaveLiveSetMode(status: string): void {
-  isLiveSetMode = false;
-  liveSetPrograms = [];
-  liveSetIndex = -1;
-  queuedLiveSetIndex = undefined;
-  queuedSongOutput.value = "Queued song: –";
-  hasLiveSetSongStarted = false;
-  liveSetButton.setAttribute("aria-pressed", "false");
-  delete document.body.dataset.liveSetMode;
-  liveSetStatus.value = status;
-}
-
-function advanceLiveSet(): boolean {
-  if (
-    !isLiveSetMode ||
-    queuedLiveSetIndex !== undefined ||
-    !activeSong ||
-    activeSectionIndex !== activeSong.sections.length - 1 ||
-    midiClockPulseCount < activeSectionEndPulse
-  ) {
-    return false;
-  }
-
-  const endingSong = activeSong;
-  const nextProgram = liveSetPrograms.at(liveSetIndex + 1);
-  const startingSong = nextProgram === undefined
-    ? undefined
-    : songsByProgram.get(nextProgram);
-  sendLiveSetTransition(endingSong, startingSong);
-
-  if (startingSong === undefined) {
-    isFollowingMidiClock = false;
-    midiTransportState = "stopped";
-    transportPosition.dataset.transport = midiTransportState;
-    playedDrums.clear();
-    drawDrumFrame();
-    scrollingLyrics.reset();
-    if (!isUsingSpeechText) {
-      clearAnimatedText(true);
-    }
-    leaveLiveSetMode("Live set complete");
-    return true;
-  }
-
-  liveSetIndex += 1;
-  selectedSongProgram = nextProgram;
-  songName.value = `Song: ${startingSong.name}`;
-  canvas.dataset.displayMode = "song";
-  updateSelectionButtonStates();
-  midiClockPulseCount = 0;
-  lastMidiDrumHits = {};
-  playedDrums.clear();
-  updateTransportPosition();
-  startSelectedSong();
-  updateLiveSetStatus();
-  return true;
-}
-
-function getLiveSetSong(): Song | undefined {
-  const program = liveSetPrograms.at(liveSetIndex);
-  return program === undefined ? undefined : songsByProgram.get(program);
-}
-
-function updateLiveSetStatus(): void {
-  if (!isLiveSetMode) {
-    return;
-  }
-
-  const song = getLiveSetSong();
-  const state = midiTransportState === "running" ? "Playing" : "Ready";
-  const queuedProgram = queuedLiveSetIndex === undefined
-    ? undefined
-    : liveSetPrograms[queuedLiveSetIndex];
-  const queuedSong = queuedProgram === undefined ? undefined : songsByProgram.get(queuedProgram);
-  queuedSongOutput.value = `Queued song: ${queuedSong?.name ?? "–"}`;
-  liveSetStatus.value = `${state} ${liveSetIndex + 1}/${liveSetPrograms.length}: ${song?.name ?? "–"}` +
-    (queuedSong ? ` · Next: ${queuedSong.name}` : "");
-}
-
-function sendLiveSetTransition(
-  endingSong: Song | undefined,
-  startingSong: Song | undefined,
-): void {
-  console.log(
-    `[Live Set MIDI] ending: ${endingSong?.name ?? "none"}; starting: ${startingSong?.name ?? "none"}`,
-  );
 }
 
 function updateClockBpm(timestamp: number) {
@@ -1063,7 +915,7 @@ function updateTransportPosition() {
 
 function startFakeMidiTimer() {
   if (fakeMidiTimer !== undefined ||
-    (selectedSongProgram === undefined && !isLiveSetMode)) {
+    (selectedSongProgram === undefined && readySongProgram === undefined)) {
     return;
   }
 
@@ -1094,7 +946,7 @@ function stopFakeMidiTimer() {
 function updateFakeMidiButtonStates() {
   const isRunning = fakeMidiTimer !== undefined;
   startFakeMidiButton.disabled = isRunning ||
-    (selectedSongProgram === undefined && !isLiveSetMode);
+    (selectedSongProgram === undefined && readySongProgram === undefined);
   stopFakeMidiButton.disabled = !isRunning;
 }
 
@@ -1144,7 +996,7 @@ function disconnectActiveMidiInput() {
   activeMidiInput.removeListener("clock", handleMidiClock);
   activeMidiInput.channels[1].removeListener("noteon", handleMidiNoteOn);
   activeMidiInput.channels[10].removeListener("noteon", handleMidiDrumNoteOn);
-  activeMidiInput.channels[10].removeListener("noteon", handleMidiLiveSetNoteOn);
+  activeMidiInput.channels[10].removeListener("noteon", handleMidiSongNoteOn);
   activeMidiInput.channels[10].removeListener(
     "programchange",
     handleMidiProgramChange,
@@ -1183,7 +1035,7 @@ function connectToMidiInput(inputId: string) {
   activeMidiInput.addListener("clock", handleMidiClock);
   activeMidiInput.channels[1].addListener("noteon", handleMidiNoteOn);
   activeMidiInput.channels[10].addListener("noteon", handleMidiDrumNoteOn);
-  activeMidiInput.channels[10].addListener("noteon", handleMidiLiveSetNoteOn);
+  activeMidiInput.channels[10].addListener("noteon", handleMidiSongNoteOn);
   activeMidiInput.channels[10].addListener(
     "programchange",
     handleMidiProgramChange,

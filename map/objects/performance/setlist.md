@@ -19,8 +19,8 @@ Load filters unknown programs, removes duplicates and appends missing current so
 
 ## Shape
 
-- `getDefaultSetlist` follows song map insertion order; live-set MIDI notes 0–12 address indexes into the ordered list (`src/setlist.ts:5-13`).
-- `loadSetlist` and `saveSetlist` use browser storage (`src/setlist.ts:15-50`).
+- `getDefaultSetlist` follows song map insertion order (`src/setlist.ts:5-7`). MIDI channel 10 notes 0–12 use zero-based positions in the saved list to queue a song (`src/tda.ts:234-239`).
+- `loadSetlist` and `saveSetlist` use browser storage (`src/setlist.ts:9-44`).
 
 ## Connected to
 
@@ -31,7 +31,7 @@ Load filters unknown programs, removes duplicates and appends missing current so
 
 ## If you change this
 
-- **Hits:** live-set note selection and MIDI editor order (`src/tda.ts:232-240`, `src/midicc.ts:316-321`).
+- **Hits:** next-song cues and MIDI editor order (`src/tda.ts:234-251`, `src/midicc.ts:316-321`).
 - **Does not hit:** [drum state](drum-state.md) calculations.
 
 ## Surfaces

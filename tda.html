@@ -33,11 +33,10 @@
         </div>
     </div>
     <div class="transport-status" role="status" aria-label="MIDI clock status">
-        <div class="live-set-control">
-            <button id="live-set-button" class="live-set-button" type="button" aria-pressed="false">
-                <span>LIVE SET</span>
-            </button>
-            <output id="live-set-status" aria-live="polite">Live set off</output>
+        <div class="developer-mode-control">
+            <button id="developer-mode-button" class="developer-mode-button" type="button"
+                aria-pressed="true" aria-keyshortcuts="Q"
+                aria-controls="developer-controls developer-section-details queued-song">Dev mode</button>
         </div>
         <div class="transport-readout">
             <div class="transport-metrics">
@@ -54,7 +53,7 @@
             <option value="">No MIDI inputs</option>
         </select>
     </div>
-    <section id="developer-controls" aria-label="Developer controls" aria-keyshortcuts="Q">
+    <section id="developer-controls" aria-label="Developer controls">
         <div class="canvas-control stroke-width-control">
             <label for="stroke-width">Line thickness</label>
             <input id="stroke-width" type="range" min="0.1" max="5" step="0.1" value="2">

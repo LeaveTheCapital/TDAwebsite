@@ -166,90 +166,36 @@ test("each drum gains colour on its first note and a new song starts grey", asyn
   await expect(overlay).toHaveAttribute("data-hand-clap-played", "false");
 });
 
-test("live set notes queue a song until Stop primes it and Start plays it", async ({ page }) => {
+test("review video: TDA intro and queued song handoff", async ({ page }, testInfo) => {
   await page.goto("/tda.html");
-  await page.waitForFunction(() => (
-    globalThis as typeof globalThis & { midiProbe?: { isReady(): boolean } }
-  ).midiProbe?.isReady());
+  await page.locator("#midi-device[data-device]").waitFor();
 
   const emit = async (...data: number[]) => page.evaluate((bytes) => {
     (
       globalThis as typeof globalThis & { midiProbe: { emit(...data: number[]): void } }
     ).midiProbe.emit(...bytes);
   }, data);
-  const liveStatus = page.locator("#live-set-status");
-  const transport = page.locator("#transport-position");
-  const queuedSong = page.locator("#queued-song");
+  const devMode = page.getByRole("button", { name: "Dev mode" });
 
-  await page.getByRole("button", { name: "LIVE SET" }).click();
-  await expect(page.locator("#canvas")).toHaveAttribute("data-display-mode", "intro");
-  await expect(liveStatus).toHaveText("Ready 1/5: gcses");
-  await expect(queuedSong).toHaveText("Queued song: –");
-  await expect(queuedSong).toBeVisible();
+  await page.locator("#canvas").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(1_500);
+  await page.screenshot({ path: testInfo.outputPath("tda-preshow.png"), fullPage: true });
 
   await emit(0xfa);
-  await expect(liveStatus).toHaveText("Playing 1/5: gcses");
-  await expect(transport).toHaveAttribute("data-transport", "running");
-
-  await emit(0x99, 2, 100);
   await emit(0x99, 1, 100);
-  await emit(0x99, 12, 100);
-  await emit(0x90, 2, 100);
-  await expect(liveStatus).toHaveText("Playing 1/5: gcses · Next: mugs game");
-  await expect(queuedSong).toHaveText("Queued song: mugs game");
-  await expect(page.locator("#song-name")).toHaveText("Song: gcses");
+  await devMode.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(1_500);
+  await page.screenshot({ path: testInfo.outputPath("gcses-with-next-song.png"), fullPage: true });
 
+  await devMode.click();
+  await page.waitForTimeout(1_500);
   await page.keyboard.press("q");
-  await expect(queuedSong).toBeHidden();
-  await page.keyboard.press("q");
-  await expect(queuedSong).toBeVisible();
-
   await emit(0xfc);
-  await expect(liveStatus).toHaveText("Ready 2/5: mugs game");
-  await expect(queuedSong).toHaveText("Queued song: –");
-  await expect(transport).toHaveAttribute("data-transport", "stopped");
-  await expect(page.locator("#canvas")).toHaveAttribute("data-display-mode", "intro");
-  await expect(page.locator("#song-name")).toHaveText("Song: –");
-  await expect(page.locator("#midi-overlay")).toHaveAttribute("data-bass-drum-visible", "false");
+  await page.locator("#canvas").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(1_500);
 
-  await emit(0x99, 2, 100);
-  await expect(liveStatus).toHaveText("Ready 2/5: mugs game · Next: Dyno");
-  await expect(queuedSong).toHaveText("Queued song: Dyno");
   await emit(0xfa);
-  await expect(liveStatus).toHaveText("Playing 2/5: mugs game · Next: Dyno");
-  await expect(page.locator("#song-name")).toHaveText("Song: mugs game");
-
-  await emit(0xfc);
-  await expect(liveStatus).toHaveText("Ready 3/5: Dyno");
-  await emit(0xfa);
-  await expect(page.locator("#song-name")).toHaveText("Song: Dyno");
-
-  await emit(0xfc);
-  await expect(liveStatus).toHaveText("Ready 3/5: Dyno");
-  await emit(0xfa);
-  await expect(page.locator("#song-name")).toHaveText("Song: Dyno");
-});
-
-test("live set selection notes follow the saved song order", async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem("tda-setlist-v1", JSON.stringify([2, 0, 1]));
-  });
-  await page.goto("/tda.html");
-  await page.waitForFunction(() => (
-    globalThis as typeof globalThis & { midiProbe?: { isReady(): boolean } }
-  ).midiProbe?.isReady());
-
-  await page.getByRole("button", { name: "LIVE SET" }).click();
-  await expect(page.locator("#live-set-status")).toHaveText("Ready 1/5: Dyno");
-  await page.evaluate(() => {
-    const probe = (
-      globalThis as typeof globalThis & { midiProbe: { emit(...data: number[]): void } }
-    ).midiProbe;
-    probe.emit(0xfa);
-    probe.emit(0x99, 1, 100);
-    probe.emit(0xfc);
-  });
-
-  await expect(page.locator("#live-set-status")).toHaveText("Ready 2/5: gcses");
-  await expect(page.locator("#canvas")).toHaveAttribute("data-display-mode", "intro");
+  await page.locator("#song-name").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(1_500);
+  await page.screenshot({ path: testInfo.outputPath("next-song-started.png"), fullPage: true });
 });

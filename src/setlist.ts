@@ -6,12 +6,6 @@ export function getDefaultSetlist(): number[] {
   return [...songsByProgram.keys()];
 }
 
-export function getSetlistIndexForMidiNote(note: number, programs: number[]): number | undefined {
-  return Number.isInteger(note) && note >= 0 && note <= 12 && note < programs.length
-    ? note
-    : undefined;
-}
-
 export function loadSetlist(storage: Storage = localStorage): number[] {
   const fallback = getDefaultSetlist();
   const saved = storage.getItem(setlistStorageKey);
